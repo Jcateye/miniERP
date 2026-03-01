@@ -24,7 +24,7 @@ paths:
 
 ## 模板系统
 
-### 四种页面模板（参考 designs/minierp_page_spec.md）
+### 四种页面模板（参考 designs/ui/minierp_page_spec.md）
 1. **T1 OverviewLayout** - 仪表盘/概览页
 2. **T2 WorkbenchLayout** - 列表/表格操作页
 3. **T3 DetailLayout** - 详情页（带 tabs）
@@ -42,7 +42,7 @@ src/components/
 ## 凭证系统
 
 ### 参考
-- `designs/miniERP_evidence_system.md`
+- `designs/ui/miniERP_evidence_system.md`
 
 ### 两层凭证模型
 1. **单据级凭证** - 全局附件面板
@@ -85,3 +85,25 @@ src/components/
 - `created_at`, `created_by`
 - `updated_at`, `updated_by`
 - `deleted_at` (软删除)
+
+---
+
+## Agent 沟通
+
+### 语言要求
+
+**所有 agents 必须使用中文与用户沟通。**
+
+调用任何 agent 时，在 prompt 中添加：
+
+```
+使用中文与我沟通。
+```
+
+### 常用 agents 调用示例
+
+```
+use the architect agent (使用中文沟通) to analyze...
+use the code-reviewer agent (使用中文沟通) to review...
+use the planner agent (使用中文沟通) to create...
+```
