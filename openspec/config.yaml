@@ -3,18 +3,20 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: Next.js 15 + React 19 (web), NestJS 11 + TypeScript (server), Bun Workspaces + Turborepo.
+  Domain: miniERP (采购、销售、库存、财务、凭证).
+  Design sources of truth: designs/ui/minierp_page_spec.md, designs/ui/miniERP_evidence_system.md, designs/ui/miniERP_design_summary.md.
+  Business rules entry: .claude/rules/erp-rules.md (单据编号、decimal.js 金额计算、状态流转与审计要求).
+  Shared contracts: packages/shared.
+  Communication language: 使用中文与用户沟通。
 
 # Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - Keep proposal concise and implementation-oriented.
+    - Reuse T1-T4 template system from designs/ui/minierp_page_spec.md when applicable.
+    - Preserve the two-layer evidence model from designs/ui/miniERP_evidence_system.md for related workflows.
+  tasks:
+    - Prefer small, verifiable tasks mapped to existing monorepo boundaries (apps/web, apps/server, packages/shared).
+    - Use concrete commands/scripts that exist in package.json files; do not invent workflows.

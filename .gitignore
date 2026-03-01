@@ -35,3 +35,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Local IDE / AI agent settings (personal, not shareable)
 .claude/settings.local.json
+
+# turbo cache
+.turbo
