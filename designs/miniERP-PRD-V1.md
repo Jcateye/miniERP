@@ -4,7 +4,7 @@
 
 # 一、产品概述
 
-产品名称：PowerSKU Cloud
+产品名称：MiniERP Cloud
 产品类型：多租户（Multi-Tenant Architecture）库存与报价中台系统
 部署方式：云部署
 

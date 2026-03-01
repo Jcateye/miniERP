@@ -13,8 +13,6 @@ This repository is a **design artifact workspace** for miniERP, not an applicati
 
 - `designs/`
   - `miniERP-pencil-opus4.6.pen`
-  - `miniERP-pencil-codex5.3.pen`
-  - `miniERP-pencil-gemini3.1.pen`
   - `minierp_page_spec.md` (4 template families + 30-page route plan)
   - `miniERP_design_summary.md` (implementation progress)
   - `miniERP_evidence_system.md` (document-level + row-level evidence design)
@@ -80,3 +78,41 @@ This is a core interaction pattern for dispute traceability in GRN/OUT/stocktake
 - Prefer Pencil MCP tools for inspecting/editing `.pen` files.
 - If Pencil MCP is unavailable, avoid manual structural edits and use Markdown specs as source of truth.
 - For architecture discovery, use Markdown specs/summaries first, then confirm structure in the corresponding `.pen` file.
+
+---
+
+## OpenSpec 工作流
+
+本项目使用 OpenSpec 进行变更管理。
+
+### 常用命令
+
+| 命令 | 用途 |
+|------|------|
+| `/opsx:new` | 创建新变更 |
+| `/opsx:ff` | 快进模式（一次性创建所有 artifacts） |
+| `/opsx:apply` | 实现变更任务 |
+| `/opsx:verify` | 验证实现 |
+| `/opsx:archive` | 归档完成的变更 |
+
+### 推荐工作流
+
+1. **规划阶段**：`/plan "功能描述"` 或 `/opsx:new`
+2. **实现阶段**：`/opsx:apply` 或 `/tdd`
+3. **验证阶段**：`/opsx:verify` 或 `/verify`
+4. **归档阶段**：`/opsx:archive`
+
+### ECC 插件
+
+已启用 everything-claude-code 插件：
+- ✅ Hooks：自动格式化、类型检查、console.log 警告
+- ✅ Rules：代码风格、安全、测试规则
+- ✅ TypeScript rules：已安装
+
+---
+
+## 项目级配置
+
+- **权限配置**：`.claude/settings.local.json`
+- **业务规则**：`.claude/rules/erp-rules.md`
+- **Skills**：`.claude/skills/` (OpenSpec + web-design-guidelines)

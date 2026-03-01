@@ -1,4 +1,4 @@
-# 📘 PowerSKU Cloud
+# 📘 MiniERP Cloud
 
 ## 多租户库存与报价中台系统
 
@@ -329,7 +329,7 @@ QUOTATION ||--o{ QUOTATION_VERSION : has
 
 # 结语
 
-PowerSKU Cloud 系统采用先进的多租户架构与开放 API 设计，
+MiniERP Cloud 系统采用先进的多租户架构与开放 API 设计，
 在保证系统轻量化的同时，兼顾未来扩展与产品化能力，
 适用于电源仪器及配套行业的数字化升级需求。
 
