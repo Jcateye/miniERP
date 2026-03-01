@@ -2,88 +2,41 @@
 
 Mini ERP System - 采购、销售、库存、财务管理
 
+## 项目定位
+
+本仓库是一个**设计优先 + 可运行骨架并存**的 miniERP 工作区：
+
+- 设计来源：`designs/*.pen`、PRD、页面规格、凭证系统文档
+- 代码骨架：`apps/web`（Next.js）、`apps/server`（NestJS）、`packages/shared`
+
+> 设计意图与流程优先从 `designs/` 理解；运行时实现以 `apps/*` 与 `packages/shared` 为准。
+
 ## 技术栈
 
 | 部分 | 技术 |
 |------|------|
-| **前端** | Next.js 15 + React 19 + Tailwind CSS 4 |
-| **后端** | NestJS 11 + TypeScript |
-| **Monorepo** | Turborepo + Bun Workspaces |
-| **数据库** | PostgreSQL + Prisma（待配置） |
+| 前端 | Next.js 15 + React 19 + Tailwind CSS 4 |
+| 后端 | NestJS 11 + TypeScript |
+| Monorepo | Turborepo + Bun Workspaces |
+| 数据库 | PostgreSQL + Prisma（脚本入口已预留） |
 
-## 目录结构
+## 目录结构（高频）
 
-```
+```text
 miniERP/
 ├── apps/
-│   ├── web/                    # 前端 (Next.js)
-│   │   ├── src/
-│   │   │   ├── app/            # 页面路由 (App Router)
-│   │   │   ├── components/
-│   │   │   │   ├── layouts/    # T1-T4 页面模板
-│   │   │   │   ├── shared/     # 通用组件
-│   │   │   │   ├── business/   # 业务组件
-│   │   │   │   └── evidence/   # 凭证组件
-│   │   │   ├── hooks/          # 自定义 Hooks
-│   │   │   ├── lib/            # 工具库
-│   │   │   ├── styles/         # 样式文件
-│   │   │   └── types/          # 类型定义
-│   │   ├── public/             # 静态资源
-│   │   ├── next.config.ts
-│   │   └── package.json
-│   │
+│   ├── web/                    # 前端 (Next.js App Router)
 │   └── server/                 # 后端 (NestJS)
-│       ├── src/
-│       │   ├── modules/        # 业务模块
-│       │   │   ├── purchase/   # 采购模块
-│       │   │   │   ├── purchase-order/
-│       │   │   │   └── goods-receipt/
-│       │   │   ├── sales/      # 销售模块
-│       │   │   ├── inventory/  # 库存模块
-│       │   │   ├── finance/    # 财务模块
-│       │   │   └── evidence/   # 凭证模块
-│       │   ├── common/         # 通用模块
-│       │   │   ├── decorators/
-│       │   │   ├── filters/
-│       │   │   ├── guards/
-│       │   │   ├── interceptors/
-│       │   │   └── pipes/
-│       │   ├── config/         # 配置
-│       │   ├── database/       # 数据库
-│       │   │   ├── migrations/
-│       │   │   └── seeds/
-│       │   ├── app.module.ts
-│       │   └── main.ts
-│       └── package.json
-│
 ├── packages/
-│   └── shared/                 # 共享包 (前后端共用)
-│       └── src/
-│           ├── types/          # 类型定义
-│           │   ├── document.ts # 单据类型
-│           │   └── api.ts      # API 类型
-│           ├── constants/      # 常量
-│           ├── utils/          # 工具函数
-│           └── validations/    # 验证规则
-│
-├── designs/                    # 设计文档
-│   ├── miniERP-PRD-V1.md       # PRD
-│   ├── miniERP-TDD-技术方案书-v1.md
-│   ├── minierp_page_spec.md    # 页面规格 (T1-T4)
-│   ├── miniERP_evidence_system.md
-│   └── *.pen                   # Pencil 设计文件
-│
-├── .claude/                    # Claude Code 配置
-│   ├── settings.local.json     # 权限 + MCP
-│   ├── skills/                 # OpenSpec skills
-│   └── rules/                  # ERP 业务规则
-│
-├── package.json                # Root package.json
-├── turbo.json                  # Turborepo 配置
-└── bun.lock                    # 依赖锁定
+│   └── shared/                 # 前后端共享类型/常量/工具
+├── designs/                    # 设计文档 + .pen 文件
+├── openspec/                   # OpenSpec 变更工件与配置
+├── .claude/                    # Claude Code 配置/规则/skills
+├── package.json                # Root scripts
+└── turbo.json                  # Turborepo pipeline
 ```
 
-## 开发命令
+## 开发命令（根目录）
 
 ```bash
 # 安装依赖
@@ -92,65 +45,116 @@ bun install
 # 同时启动前后端
 bun run dev
 
-# 单独启动前端
-bun run dev:web        # http://localhost:3000
+# 单独启动
+bun run dev:web
+bun run dev:server
 
-# 单独启动后端
-bun run dev:server     # http://localhost:3000
-
-# 构建
+# 质量与构建
+bun run lint
+bun run test
 bun run build
 
-# 测试
+# DB
+# 根目录已预留 db:* 入口：
+# `bun run db:generate` / `bun run db:migrate`
+# 当前会失败，因为 apps/server/package.json 尚未定义
+# `db:generate` / `db:migrate` 对应脚本。
+```
+
+## 测试命令
+
+### Workspace 级
+
+```bash
 bun run test
-
-# Lint
-bun run lint
 ```
 
-## 页面模板系统
-
-基于 `designs/minierp_page_spec.md` 的四种模板：
-
-| 模板 | 用途 | 示例页面 |
-|------|------|----------|
-| **T1 OverviewLayout** | 仪表盘/概览 | 首页、工作台 |
-| **T2 WorkbenchLayout** | 列表/表格操作 | 订单列表、库存查询 |
-| **T3 DetailLayout** | 详情页（带 tabs） | 订单详情、商品详情 |
-| **T4 WizardLayout** | 向导/流程 | 入库单、出库单 |
-
-## 凭证系统
-
-两层凭证模型（参考 `designs/miniERP_evidence_system.md`）：
-
-1. **单据级凭证** - 全局附件面板
-2. **行级凭证** - SKU 行的 camera-count entry + drawer
-
-## AI 辅助开发
-
-### Claude Code
+### Server（Jest）
 
 ```bash
-cd /Users/haoqi/OnePersonCompany/miniERP
-claude
+# 仅跑 server 测试
+bun run --filter server test
 
-# OpenSpec 变更管理
-/opsx:new <change-name>     # 创建新变更
-/opsx:apply                 # 实现变更
-/opsx:verify                # 验证实现
-/opsx:archive               # 归档变更
+# 单个测试文件
+bun run --filter server test -- src/path/to/file.spec.ts
+
+# watch / coverage / e2e
+bun run --filter server test:watch
+bun run --filter server test:cov
+bun run --filter server test:e2e
 ```
 
-### Codex
+> `apps/web` 当前没有 `test` script。
+
+## 架构要点
+
+### 1) 模板驱动页面体系（T1-T4）
+
+参考 `designs/ui/minierp_page_spec.md`：
+- **T1 OverviewLayout**：仪表盘/概览
+- **T2 WorkbenchLayout**：列表/表格高密度操作
+- **T3 DetailLayout**：详情页（tabs + 上下文动作）
+- **T4 WizardLayout**：向导式流程页
+
+多数页面应优先复用模板而不是新造布局。
+
+### 2) 凭证系统（跨流程核心能力）
+
+参考 `designs/ui/miniERP_evidence_system.md`：
+- **单据级凭证**（全局附件）
+- **行级凭证**（SKU 行 camera-count entry + drawer）
+
+该模型贯穿采购/销售/库存流程，扩展相关页面时应保持一致。
+
+### 3) Runtime 分层
+
+- `apps/web`：页面路由、UI 组合、交互层
+- `apps/server`：业务模块、API、状态流转
+- `packages/shared`：跨端协议类型与共享基础能力
+
+## 当前成熟度说明
+
+- `designs/` 中的设计与规格资料较完整；
+- 运行时代码处于可运行骨架阶段，具体功能覆盖请结合：
+  - `designs/ui/miniERP_design_summary.md`
+  - 对应模块源码（`apps/web`, `apps/server`）
+
+## OpenSpec 工作流
+
+本项目启用 OpenSpec（spec-driven）进行变更管理。
+
+### 常用命令
 
 ```bash
-cd /Users/haoqi/OnePersonCompany/miniERP
-codex "<任务描述>"
+/opsx:new      # 创建新变更
+/opsx:ff       # 快进模式生成 artifacts
+/opsx:apply    # 实现变更
+/opsx:verify   # 验证实现
+/opsx:archive  # 归档变更
 ```
 
-## 参考文档
+### 推荐流程
 
-- [PRD](./designs/miniERP-PRD-V1.md)
-- [技术方案书](./designs/miniERP-TDD-技术方案书-v1.md)
-- [页面规格](./designs/minierp_page_spec.md)
-- [凭证系统](./designs/miniERP_evidence_system.md)
+1. 规划：`/plan "功能描述"` 或 `/opsx:new`
+2. 实现：`/opsx:apply` 或 `/tdd`
+3. 验证：`/opsx:verify` 或 `/verify`
+4. 归档：`/opsx:archive`
+
+## 业务规则与参考文档
+
+### 业务规则
+
+- `.claude/rules/erp-rules.md`
+
+关键规则包括：
+- 单据编号格式：`DOC-{type}-{YYYYMMDD}-{seq}`
+- 金额计算必须使用 `decimal.js`
+- 状态流转必须可追踪
+
+### 快速阅读顺序
+
+1. `designs/ui/minierp_page_spec.md`
+2. `designs/ui/miniERP_evidence_system.md`
+3. `designs/ui/miniERP_design_summary.md`
+4. `.claude/rules/erp-rules.md`
+5. `openspec/config.yaml`
