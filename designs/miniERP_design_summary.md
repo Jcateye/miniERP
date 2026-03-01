@@ -1,7 +1,7 @@
 # miniERP 前端页面设计框架 — 设计总结
 
 > **风格指南**: `webapp-01-nordicbrutalist_light` (Nordic Brutalist Light)
-> **设计文件**: `pencil-new.pen`
+> **设计文件**: `designs/miniERP-pencil-opus4.6.pen`
 > **已完成页面**: 7 / 30
 
 ---

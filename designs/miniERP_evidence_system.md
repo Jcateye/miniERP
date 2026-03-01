@@ -1,7 +1,6 @@
 # miniERP 图片留痕证据系统 — 设计总结
 
 > **风格指南**: `webapp-01-nordicbrutalist_light`
-> **设计文件**: `pencil-new.pen`
 > **本次新增**: 3 个证据相关页面，已完成 10 / 30 页
 
 ---
