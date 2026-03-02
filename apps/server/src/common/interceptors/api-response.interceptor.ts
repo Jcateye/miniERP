@@ -2,21 +2,17 @@ import { Injectable, NestInterceptor, type ExecutionContext, type CallHandler } 
 import type { ApiResponse } from '@minierp/shared';
 import { map, type Observable } from 'rxjs';
 
-interface ApiResponseShape {
-  readonly message: string;
+interface DataCarrier {
   readonly data: unknown;
+  readonly message?: unknown;
 }
 
-function isApiResponseShape(value: unknown): value is ApiResponseShape {
+function isDataCarrier(value: unknown): value is DataCarrier {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
 
-  if (!('data' in value) || !('message' in value)) {
-    return false;
-  }
-
-  return typeof (value as { message: unknown }).message === 'string';
+  return 'data' in value;
 }
 
 @Injectable()
@@ -24,8 +20,11 @@ export class ApiResponseInterceptor implements NestInterceptor {
   intercept(_context: ExecutionContext, next: CallHandler): Observable<ApiResponse<unknown>> {
     return next.handle().pipe(
       map((value: unknown) => {
-        if (isApiResponseShape(value)) {
-          return value;
+        if (isDataCarrier(value)) {
+          return {
+            message: typeof value.message === 'string' ? value.message : 'OK',
+            data: value.data,
+          };
         }
 
         return {
