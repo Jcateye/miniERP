@@ -4,32 +4,32 @@
 
 ---
 
-## 项目概述
+## 项目是什么
 
-miniERP 是一个**设计优先 + 可运行骨架并存**的 ERP 项目，覆盖采购、销售、库存、财务与凭证流程。
+miniERP 是一个**设计优先 + 可运行骨架**的 monorepo：
+- 产品/交互意图在 `designs/`（spec 文档）
+- 运行时代码在 `apps/web`、`apps/server`、`packages/shared`
 
-- 设计/交互来源：`designs/*.pen` + 规格文档
-- 运行时骨架：`apps/web`（Next.js）、`apps/server`（NestJS）、`packages/shared`
+当设计与代码不一致时：
+- `designs/` 代表产品意图
+- `apps/*` 代表当前实现真相
 
-## 技术栈
+## 优先阅读（高 ROI）
 
-| 部分 | 技术 |
-|------|------|
-| 前端 | Next.js 15 + React 19 + Tailwind CSS 4 |
-| 后端 | NestJS 11 + TypeScript |
-| Monorepo | Turborepo + Bun Workspaces |
-| 数据库 | PostgreSQL + Prisma（迁移脚本入口已预留） |
+1. `README.md`
+2. `designs/ui/minierp_page_spec.md`（T1–T4 模板体系）
+3. `designs/ui/miniERP_evidence_system.md`（两层凭证模型）
+4. `designs/ui/miniERP_design_summary.md`
+5. `.claude/rules/erp-rules.md`
+6. `openspec/config.yaml`
 
-## 目录边界（高频）
+## Monorepo 边界
 
-```text
-apps/web         前端页面与组件（App Router）
-apps/server      后端业务模块与 API
-packages/shared  前后端共享类型/常量/工具
-designs          PRD、页面规格、凭证系统、.pen 设计源
-.claude/rules    项目级业务约束（含 erp-rules.md）
-openspec         变更工件与 spec-driven 配置
-```
+- `apps/web`：Next.js 15 + React 19 前端（`src/app`）
+- `apps/server`：NestJS 11 后端
+- `packages/shared`：跨端共享 contracts/constants/utils
+- `designs`：UI/PRD/spec 设计来源
+- `openspec`：spec-driven 变更工件
 
 ## 常用命令（仓库根目录）
 
@@ -43,54 +43,84 @@ bun run dev:server
 bun run lint
 bun run test
 bun run build
-
-# 根目录已预留 db:* 入口：
-# `bun run db:generate` / `bun run db:migrate`
-# 当前会失败，因为 apps/server/package.json 尚未定义
-# `db:generate` / `db:migrate` 对应脚本。
 ```
 
-### Server 定向测试（Jest）
+### 定向命令
 
 ```bash
-# 仅跑 server 测试
+# server
+bun run --filter server dev
 bun run --filter server test
-
-# 跑单个 spec
 bun run --filter server test -- src/path/to/file.spec.ts
-
-# 其他模式
 bun run --filter server test:watch
 bun run --filter server test:cov
 bun run --filter server test:e2e
+
+# web
+bun run --filter web dev
+bun run --filter web build
+bun run --filter web lint
 ```
 
-说明：`apps/web` 当前无 `test` script。
+说明：
+- `apps/web` 当前没有 test script。
+- 根目录 `db:generate` / `db:migrate` 会代理到 server，但 server 目前未定义对应脚本。
 
-## 架构要点
+## 架构要点（Big Picture）
 
-### 1) 页面模板系统（T1-T4）
-参考 `designs/ui/minierp_page_spec.md`：
-- **T1 OverviewLayout**：仪表盘/概览
-- **T2 WorkbenchLayout**：列表/表格操作
-- **T3 DetailLayout**：详情页（tabs）
-- **T4 WizardLayout**：流程向导页
+### 1) 模板驱动 UI
 
-### 2) 凭证系统（核心能力）
-参考 `designs/ui/miniERP_evidence_system.md`：
+页面优先复用 `designs/ui/minierp_page_spec.md` 的四类模板：
+- T1 OverviewLayout
+- T2 WorkbenchLayout
+- T3 DetailLayout
+- T4 WizardLayout
+
+若页面与某模板匹配约 80% 以上，应复用模板并仅替换字段/数据。
+
+### 2) 凭证是跨域能力
+
+`designs/ui/miniERP_evidence_system.md` 定义两层模型：
 - 单据级凭证（全局附件）
-- 行级凭证（SKU 行 camera-count entry + drawer）
+- 行级凭证（SKU 行 drawer 工作流）
 
-### 3) Shared 合同层
-`packages/shared` 提供跨端通用类型与约束，优先复用，避免在 web/server 重复定义。
+在采购/销售/库存相关流程中保持一致。
 
-## 业务规则入口
+### 3) Runtime 分层
 
-核心规则在 `.claude/rules/erp-rules.md`，重点包括：
-- 单据编号格式：`DOC-{type}-{YYYYMMDD}-{seq}`
-- 金额计算：必须使用 `decimal.js`
-- 状态流转：必须可追踪并记录审计
-- API 规范：`/api/v1` + 统一错误码结构
+- Web（`apps/web`）：路由、页面组合、交互
+- Server（`apps/server`）：领域 API 与状态流转
+- Shared（`packages/shared`）：跨层协议与通用基础
+
+### 4) 当前成熟度（重要）
+
+当前运行时代码仍是骨架：
+- Web：最小落地页
+- Server：基础 hello-world 骨架
+- Shared：已具备基础 ERP 类型/常量/工具
+
+功能实现应按增量方式推进。
+
+## 业务约束（来自 `.claude/rules/erp-rules.md`）
+
+- 单据号格式：`DOC-{type}-{YYYYMMDD}-{seq}`
+- 金额计算：必须使用 `decimal.js`（避免直接浮点运算）
+- 单据状态：必须显式流转且可审计
+
+## OpenSpec 工作流
+
+常用命令：
+- `/opsx:new`
+- `/opsx:ff`
+- `/opsx:apply`
+- `/opsx:verify`
+- `/opsx:archive`
+
+推荐流程：
+1. 规划（`/plan` 或 `/opsx:new`）
+2. 实现（`/opsx:apply`，可选 `/tdd`）
+3. 验证（`/opsx:verify`，可选 `/verify`）
+4. 归档（`/opsx:archive`）
 
 ## Agent 沟通要求
 
@@ -101,3 +131,8 @@ bun run --filter server test:e2e
 ```text
 使用中文与我沟通。
 ```
+
+## 额外指令文件（若存在需检查）
+
+- `.cursor/rules/*` 或 `.cursorrules`
+- `.github/copilot-instructions.md`
