@@ -4,6 +4,9 @@ export interface EnvSchema {
   readonly NODE_ENV: NodeEnv;
   readonly PORT: number;
   readonly API_PREFIX: string;
+  readonly DATABASE_URL: string;
+  readonly REDIS_URL: string;
+  readonly TENANT_HEADER: string;
 }
 
 function parseNodeEnv(value: string | undefined): NodeEnv {
@@ -36,10 +39,29 @@ function parseApiPrefix(value: string | undefined): string {
   return value.trim();
 }
 
+function parseRequiredEnv(value: string | undefined, key: 'DATABASE_URL' | 'REDIS_URL'): string {
+  if (typeof value === 'undefined' || value.trim().length === 0) {
+    throw new Error(`${key} is required`);
+  }
+
+  return value;
+}
+
+function parseTenantHeader(value: string | undefined): string {
+  if (typeof value === 'undefined' || value.trim().length === 0) {
+    return 'x-tenant-id';
+  }
+
+  return value.trim();
+}
+
 export function parseEnv(env: NodeJS.ProcessEnv = process.env): EnvSchema {
   return {
     NODE_ENV: parseNodeEnv(env.NODE_ENV),
     PORT: parsePort(env.PORT),
     API_PREFIX: parseApiPrefix(env.API_PREFIX),
+    DATABASE_URL: parseRequiredEnv(env.DATABASE_URL, 'DATABASE_URL'),
+    REDIS_URL: parseRequiredEnv(env.REDIS_URL, 'REDIS_URL'),
+    TENANT_HEADER: parseTenantHeader(env.TENANT_HEADER),
   };
 }

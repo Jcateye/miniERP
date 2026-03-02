@@ -1,0 +1,2 @@
+export const DATABASE_URL_TOKEN = 'DATABASE_URL_TOKEN';
+export const REDIS_URL_TOKEN = 'REDIS_URL_TOKEN';
