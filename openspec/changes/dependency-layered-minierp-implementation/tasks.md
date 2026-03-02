@@ -14,24 +14,51 @@
 - [x] 1.5 完成 `freeze/dfp-db-model-baseline.md` 数据模型与索引评审
 - [x] 1.6 发布 `freeze/DFP-READY.md` 冻结签字记录
 
-## 2. G2-后端实现组（Backend Group）
+## 2. G2-后端实现组（3人并行）
 
-- [ ] 2.1 核心链路流：`purchase/inbound/sales/outbound/inventory/stocktake` 按 DFP 实现命令/查询边界
-- [ ] 2.2 核心链路流：完成库存过账幂等、原子事务、防负库存与冲销路径
-- [ ] 2.3 支撑能力流：`tenant/iam/audit/evidence/platform` 按 DFP 实现
-- [ ] 2.4 支撑能力流：完成证据双层绑定（document/line）与鉴权审计
-- [ ] 2.5 运行 `bun run --filter server test`，通过后发布 `BE-READY`
+> 说明：后端 3 个人并行。谁被依赖，谁优先；有依赖就等依赖完成再继续执行。
 
-## 3. G3-前端实现组（Frontend Group）
+### 2.1 后端-B（核心单据流）
+- [ ] 2.1.1 实现 `purchase/inbound/sales/outbound` 命令与查询边界（按 DFP）
+- [ ] 2.1.2 对齐单据状态机（PO/GRN/SO/OUT）与非法迁移错误语义
+- [ ] 2.1.3 产出后端-B 交付标记：`BE-B-READY`
 
-- [ ] 3.1 底座流：完成 T1/T2/T3/T4 模板契约与 Evidence 组件契约
-- [ ] 3.2 底座流：完成 `lib/sdk`、`lib/bff`、`hooks` 分层骨架
-- [ ] 3.3 装配流：优先完成 GRN/OUT/Stocktake 页面装配（可先 mock）
-- [ ] 3.4 装配流：完成 SKU/PO/SO/设置页面装配
-- [ ] 3.5 在 `BE-READY` 后切换真实接口并清理 mock 依赖
-- [ ] 3.6 运行 `bun run --filter web lint`，通过后发布 `FE-READY`
+### 2.2 后端-C（库存一致性流）
+- [ ] 2.2.1 实现 `inventory` 过账原子事务与幂等（`idempotency_record`）
+- [ ] 2.2.2 实现防负库存与冲销路径（按 DFP 约束）
+- [ ] 2.2.3 产出后端-C 交付标记：`BE-C-READY`
 
-## 4. G4-联调验收组（Acceptance Group）
+### 2.3 后端-D（支撑能力流）
+- [ ] 2.3.1 实现 `tenant/iam/audit/platform` 基础能力（按 DFP）
+- [ ] 2.3.2 实现 `evidence` 双层绑定能力（document/line）与鉴权审计
+- [ ] 2.3.3 产出后端-D 交付标记：`BE-D-READY`
+
+### 2.4 后端汇总门禁
+- [ ] 2.4.1 仅在 `BE-B-READY`、`BE-C-READY`、`BE-D-READY` 全部完成后，执行 `bun run --filter server test`
+- [ ] 2.4.2 测试通过后发布 `BE-READY`
+
+## 3. G3-前端实现组（2人并行）
+
+> 说明：前端 2 个人并行。先按冻结协议做 mock；依赖后端时，等对应依赖完成再继续。
+
+### 3.1 前端-E（底座流）
+- [ ] 3.1.1 完成 T1/T2/T3/T4 模板契约与 Evidence 组件契约
+- [ ] 3.1.2 完成 `lib/sdk`、`lib/bff`、`hooks` 分层骨架
+- [ ] 3.1.3 产出前端-E 交付标记：`FE-E-READY`
+
+### 3.2 前端-F（页面装配流）
+- [ ] 3.2.1 在 `DFP-READY` + `FE-E-READY` 条件下，先装配 GRN/OUT/Stocktake 页面（可先 mock）
+- [ ] 3.2.2 在 `BE-READY` 条件下，切换真实接口并清理 mock 依赖
+- [ ] 3.2.3 完成 SKU/PO/SO/设置页面装配
+- [ ] 3.2.4 产出前端-F 交付标记：`FE-F-READY`
+
+### 3.3 前端汇总门禁
+- [ ] 3.3.1 仅在 `FE-E-READY` 与 `FE-F-READY` 完成后，执行 `bun run --filter web lint`
+- [ ] 3.3.2 校验通过后发布 `FE-READY`
+
+## 4. G4-联调验收组（依赖完成后执行）
+
+> 说明：联调与验收不抢跑，等 `BE-READY` + `FE-READY` 完成后再执行。
 
 - [ ] 4.1 验证主流程：`PO -> GRN -> inventory_ledger`
 - [ ] 4.2 验证主流程：`SO -> OUT -> inventory_ledger`
@@ -40,9 +67,11 @@
 - [ ] 4.5 验证权限流程：跨租户越权拦截与审计追踪
 - [ ] 4.6 运行 `bun run test && bun run build` 并发布 `READY-FOR-APPLY`
 
-## 5. 执行文件映射（索引，不作为阻塞任务）
+## 5. 执行文件映射（索引）
 
 - [ ] 5.1 Freeze Group：`execution/l0-foundation.md`
-- [ ] 5.2 Backend Group：`execution/l1-core-backend.md` + `execution/l1-support-backend.md`
-- [ ] 5.3 Frontend Group：`execution/l2-frontend-foundation.md` + `execution/l2-frontend-integration.md`
-- [ ] 5.4 Acceptance Group：`execution/e2e-closure.md`
+- [ ] 5.2 Backend-B：`execution/l1-core-backend.md`
+- [ ] 5.3 Backend-D：`execution/l1-support-backend.md`
+- [ ] 5.4 Frontend-E：`execution/l2-frontend-foundation.md`
+- [ ] 5.5 Frontend-F：`execution/l2-frontend-integration.md`
+- [ ] 5.6 Acceptance：`execution/e2e-closure.md`
