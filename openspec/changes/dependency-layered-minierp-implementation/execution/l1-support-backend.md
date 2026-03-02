@@ -4,6 +4,7 @@
 实现核心链路所依赖的支撑能力：tenant/iam/audit/evidence/platform。
 
 ## 前置依赖
+- `BOOTSTRAP-READY`
 - `L0-READY`
 
 ## 输入

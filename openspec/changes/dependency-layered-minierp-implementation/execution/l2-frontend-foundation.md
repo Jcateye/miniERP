@@ -4,6 +4,7 @@
 搭建前端模板与数据编排底座，供页面并行装配。
 
 ## 前置依赖
+- `BOOTSTRAP-READY`
 - `L0-READY`
 - 建议并行依赖：`L1-CORE-READY` 接口草案
 

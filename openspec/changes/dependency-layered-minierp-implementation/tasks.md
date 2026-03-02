@@ -1,3 +1,12 @@
+## 0. Bootstrap-项目初始化（最先完成）
+
+- [ ] 0.1 在 `apps/server/src/` 初始化模块化目录骨架（`modules/*`、`common/*`、`database/*`）并明确装配入口
+- [ ] 0.2 在 `apps/web/src/` 初始化模板化目录骨架（`components/templates`、`components/evidence`、`lib/sdk`、`lib/bff`、`hooks`）
+- [ ] 0.3 在 `apps/server` 初始化数据库工具链入口（schema、迁移目录、连接配置占位、`db:*` 脚本约定）
+- [ ] 0.4 在 `packages/shared/src/` 初始化契约出口结构（types/constants/utils 的统一导出边界）
+- [ ] 0.5 定义并发布 Bootstrap 基线标记：`BOOTSTRAP-READY`
+- [ ] 0.6 运行基线命令 `bun run lint && bun run --filter server test && bun run --filter web lint`
+
 ## 1. L0-基础依赖冻结（必须先完成）
 
 - [ ] 1.1 在 `packages/shared/src/types/document.ts` 冻结 `DocumentType/DocumentStatus` 与状态流转映射草案

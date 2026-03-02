@@ -4,6 +4,7 @@
 实现核心交易链路后端边界：PO/GRN/SO/OUT/库存/盘点。
 
 ## 前置依赖
+- `BOOTSTRAP-READY`
 - `L0-READY`
 
 ## 输入

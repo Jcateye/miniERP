@@ -4,6 +4,7 @@
 按优先级完成页面装配与联调，最先打通高依赖流程页。
 
 ## 前置依赖
+- `BOOTSTRAP-READY`
 - `L2-FOUNDATION-READY`
 - `L1-CORE-READY`
 - `L1-SUPPORT-READY`（证据与权限）

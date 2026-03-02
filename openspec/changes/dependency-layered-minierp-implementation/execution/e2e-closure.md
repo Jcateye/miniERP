@@ -4,6 +4,7 @@
 执行端到端收口，验证依赖层推进结果可交付。
 
 ## 前置依赖
+- `BOOTSTRAP-READY`
 - `L1-CORE-READY`
 - `L1-SUPPORT-READY`
 - `L2-INTEGRATION-READY`
