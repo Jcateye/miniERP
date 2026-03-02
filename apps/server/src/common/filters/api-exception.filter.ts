@@ -21,6 +21,8 @@ const STATUS_TO_CATEGORY: Record<number, ApiErrorPayload['category']> = {
   [HttpStatus.NOT_FOUND]: 'not_found',
   [HttpStatus.CONFLICT]: 'conflict',
   [HttpStatus.TOO_MANY_REQUESTS]: 'rate_limit',
+  [HttpStatus.BAD_GATEWAY]: 'external',
+  [HttpStatus.SERVICE_UNAVAILABLE]: 'external',
 };
 
 function defaultCode(category: ApiErrorPayload['category']): ApiErrorCode {
@@ -40,34 +42,40 @@ function toApiErrorPayload(exception: unknown): ApiErrorPayload {
     const status = exception.getStatus();
     const category = STATUS_TO_CATEGORY[status] ?? 'internal';
     const response = exception.getResponse();
+    const isProduction = process.env.NODE_ENV === 'production';
+    const shouldSanitizeMessage = isProduction && status >= HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (typeof response === 'object' && response !== null) {
       const maybeError = response as Partial<ApiErrorPayload> & { message?: string | string[] };
-      const message = Array.isArray(maybeError.message)
+      const rawMessage = Array.isArray(maybeError.message)
         ? maybeError.message.join(', ')
         : maybeError.message ?? exception.message;
 
       return {
         category,
         code: maybeError.code ?? defaultCode(category),
-        message,
-        details: maybeError.details,
-        transition: maybeError.transition,
+        message: shouldSanitizeMessage ? 'Internal server error' : rawMessage,
+        details: shouldSanitizeMessage ? undefined : maybeError.details,
+        transition: shouldSanitizeMessage ? undefined : maybeError.transition,
       };
     }
+
+    const rawMessage = typeof response === 'string' ? response : exception.message;
 
     return {
       category,
       code: defaultCode(category),
-      message: typeof response === 'string' ? response : exception.message,
+      message: shouldSanitizeMessage ? 'Internal server error' : rawMessage,
     };
   }
 
   if (exception instanceof Error) {
+    const isProduction = process.env.NODE_ENV === 'production';
+
     return {
       category: 'internal',
       code: defaultCode('internal'),
-      message: exception.message,
+      message: isProduction ? 'Internal server error' : exception.message,
     };
   }
 
@@ -84,7 +92,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const context = host.switchToHttp();
     const response = context.getResponse<Response>();
     const payload = toApiErrorPayload(exception);
-    const status = CATEGORY_TO_STATUS[payload.category] ?? HttpStatus.INTERNAL_SERVER_ERROR;
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : (CATEGORY_TO_STATUS[payload.category] ?? HttpStatus.INTERNAL_SERVER_ERROR);
 
     const body: ApiError = {
       error: {
