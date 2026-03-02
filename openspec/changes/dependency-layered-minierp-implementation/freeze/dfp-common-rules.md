@@ -1,12 +1,14 @@
-# DFP 通用规则冻结（v1.0）
+# DFP 通用规则冻结（v1.1）
 
 ## 目标
 冻结跨模块通用规则，避免实现阶段重复争论。
 
-## 1. 多租户隔离规则
-- 所有核心业务实体必须含 `tenant_id NOT NULL`
+## 1. 多租户隔离规则（双防线）
+- 所有核心业务实体必须含 `tenant_id bigint NOT NULL`
 - 服务端统一注入 tenant 上下文；客户端 tenant 参数不作为信任来源
 - 访问控制必须同时满足 tenant 边界与权限边界
+- tenant-owned 表必须启用 RLS（并在生产环境强制策略）
+- 业务角色禁止 `BYPASSRLS`
 
 ## 2. 审计规则
 - 命令类操作必须写入审计事件
@@ -20,7 +22,7 @@
 ## 4. 库存一致性规则
 - `inventory_ledger` 是库存事实源
 - `inventory_balance` 是查询快照，不可替代 ledger
-- 出库/调整必须防负库存
+- 出库/调整必须防负库存（应用层 + DB CHECK 双防线）
 - 过账必须具备幂等与原子性
 - 更正通过冲销，不可删除或篡改历史流水
 
@@ -30,11 +32,18 @@
 - 证据模型分离：
   - `evidence_asset` 负责对象元数据与状态
   - `evidence_link` 负责业务绑定
+- `scope/line_ref` 必须有 DB CHECK 约束
 
 ## 6. 编号与金额规则
 - 单据号：`DOC-{type}-{YYYYMMDD}-{seq}`
 - 金额语义：decimal 计算，禁止 float 业务计算
+- bigint ID 在 API 层统一按 string 传输
 
-## 7. 变更门禁
+## 7. 幂等统一规则
+- 命令接口统一使用 `Idempotency-Key`
+- `idempotency_record` 唯一键统一为 `(tenant_id, idempotency_key)`
+- 同 key + 同 payload 返回首个结果；同 key + 异 payload 返回冲突错误
+
+## 8. 变更门禁
 - 任意改动 DFP 规则均需评审并升级 DFP 版本
 - 未通过评审不得进入 `DFP-READY`

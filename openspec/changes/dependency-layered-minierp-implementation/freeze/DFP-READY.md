@@ -1,4 +1,4 @@
-# DFP-READY 冻结签字记录（v1.0）
+# DFP-READY 冻结签字记录（v1.1）
 
 ## 状态
 - 当前状态：`READY`
@@ -22,6 +22,11 @@
 - 允许并行启动：
   - Backend Group（G2）
   - Frontend Group（G3）
+
+## v1.1 修订摘要
+- 将字段与数据库类型冻结为专业物理类型基线（ID/外键统一 `bigint`，时间 `timestamptz`，金额数量 `numeric(20,6)`）。
+- 统一幂等口径为 `idempotency_record` + 唯一键 `(tenant_id, idempotency_key)`。
+- 补充 RLS 双防线落地要求、证据 `scope/line_ref` 约束、库存不可变与防负库存 CHECK 要求。
 
 ## 备注
 - 前端可先按冻结协议 mock 开发

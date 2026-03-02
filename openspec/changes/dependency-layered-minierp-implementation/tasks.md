@@ -1,18 +1,18 @@
 ## 0. G0-治理门禁（先完成）
 
-- [ ] 0.1 定义 DFP 版本规则（`v主.次`）与变更审批流程
-- [ ] 0.2 约定冻结窗口：实现阶段默认禁止改 DFP 语义
-- [ ] 0.3 约定 DFP 变更申请模板（影响范围、兼容性、回滚方案）
-- [ ] 0.4 发布门禁标签：`DFP-READY`、`BE-READY`、`FE-READY`、`READY-FOR-APPLY`
+- [x] 0.1 定义 DFP 版本规则（`v主.次`）与变更审批流程
+- [x] 0.2 约定冻结窗口：实现阶段默认禁止改 DFP 语义
+- [x] 0.3 约定 DFP 变更申请模板（影响范围、兼容性、回滚方案）
+- [x] 0.4 发布门禁标签：`DFP-READY`、`BE-READY`、`FE-READY`、`READY-FOR-APPLY`
 
 ## 1. G1-协议冻结组（Freeze Group）
 
-- [ ] 1.1 完成 `freeze/dfp-field-dictionary.md` 字段字典评审
-- [ ] 1.2 完成 `freeze/dfp-api-contract.md` 协议与错误语义评审
-- [ ] 1.3 完成 `freeze/dfp-state-machines.md` 状态机与非法迁移规则评审
-- [ ] 1.4 完成 `freeze/dfp-common-rules.md` 通用规则评审（tenant/审计/一致性/证据）
-- [ ] 1.5 完成 `freeze/dfp-db-model-baseline.md` 数据模型与索引评审
-- [ ] 1.6 发布 `freeze/DFP-READY.md` 冻结签字记录
+- [x] 1.1 完成 `freeze/dfp-field-dictionary.md` 字段字典评审
+- [x] 1.2 完成 `freeze/dfp-api-contract.md` 协议与错误语义评审
+- [x] 1.3 完成 `freeze/dfp-state-machines.md` 状态机与非法迁移规则评审
+- [x] 1.4 完成 `freeze/dfp-common-rules.md` 通用规则评审（tenant/审计/一致性/证据）
+- [x] 1.5 完成 `freeze/dfp-db-model-baseline.md` 数据模型与索引评审
+- [x] 1.6 发布 `freeze/DFP-READY.md` 冻结签字记录
 
 ## 2. G2-后端实现组（Backend Group）
 
