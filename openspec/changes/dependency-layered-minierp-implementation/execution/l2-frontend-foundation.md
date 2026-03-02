@@ -1,12 +1,11 @@
-# L2 Frontend Foundation（执行者 D）
+# G3 Frontend Group - Foundation Stream（执行者 D）
 
 ## 目标
 搭建前端模板与数据编排底座，供页面并行装配。
 
 ## 前置依赖
-- `BOOTSTRAP-READY`
-- `L0-READY`
-- 建议并行依赖：`L1-CORE-READY` 接口草案
+- `DFP-READY`
+- 建议并行依赖：`BE-CORE-READY` 接口草案
 
 ## 输入
 - `specs/frontend-template-composition/spec.md`
@@ -17,7 +16,7 @@
 - T1/T2/T3/T4 模板契约
 - EvidencePanel / LineEvidenceDrawer 组件契约
 - SDK/BFF/hooks 数据编排骨架
-- L2 底座解锁标记：`L2-FOUNDATION-READY`
+- G3 底座流解锁标记：`FE-FOUNDATION-READY`
 
 ## 任务
 - 完成模板组件与 slot 规范

@@ -1,13 +1,12 @@
-# L2 Frontend Integration（执行者 E）
+# G3 Frontend Group - Integration Stream（执行者 E）
 
 ## 目标
 按优先级完成页面装配与联调，最先打通高依赖流程页。
 
 ## 前置依赖
-- `BOOTSTRAP-READY`
-- `L2-FOUNDATION-READY`
-- `L1-CORE-READY`
-- `L1-SUPPORT-READY`（证据与权限）
+- `DFP-READY`
+- `FE-FOUNDATION-READY`
+- `BE-READY`
 
 ## 输入
 - `specs/frontend-template-composition/spec.md`
@@ -16,7 +15,7 @@
 ## 输出
 - GRN/OUT/Stocktake 优先联调页面
 - SKU/PO/SO/设置页后续联调
-- L2 页面联调解锁标记：`L2-INTEGRATION-READY`
+- G3 页面联调解锁标记：`FE-INTEGRATION-READY`
 
 ## 任务
 - 优先装配 T4 向导链路页面

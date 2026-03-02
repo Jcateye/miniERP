@@ -1,10 +1,10 @@
-# L0 Foundation（执行者 A）
+# G1 Freeze Group（执行者 A）
 
 ## 目标
 冻结底层依赖，形成上层并行开发的统一输入。
 
 ## 前置依赖
-- `BOOTSTRAP-READY`
+- 无
 
 ## 输入
 - `proposal.md`
@@ -16,7 +16,7 @@
 ## 输出
 - Shared 契约冻结清单（类型/状态/API 包络）
 - 数据库逻辑模型冻结清单（实体/关系/索引/唯一约束）
-- L0 解锁标记：`L0-READY`
+- 冻结包解锁标记：`DFP-READY`
 
 ## 任务
 - 冻结 `packages/shared` 契约边界

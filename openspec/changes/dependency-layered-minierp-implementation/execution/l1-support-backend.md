@@ -1,11 +1,10 @@
-# L1 Support Backend（执行者 C）
+# G2 Backend Group - Support Stream（执行者 C）
 
 ## 目标
 实现核心链路所依赖的支撑能力：tenant/iam/audit/evidence/platform。
 
 ## 前置依赖
-- `BOOTSTRAP-READY`
-- `L0-READY`
+- `DFP-READY`
 
 ## 输入
 - `specs/evidence-dual-layer-workflow/spec.md`
@@ -16,7 +15,7 @@
 - 租户上下文与权限边界
 - 审计事件能力
 - 证据双层模型 API 能力
-- L1 支撑解锁标记：`L1-SUPPORT-READY`
+- G2 支撑流解锁标记：`BE-SUPPORT-READY`
 
 ## 任务
 - tenant/iam：租户隔离与授权边界

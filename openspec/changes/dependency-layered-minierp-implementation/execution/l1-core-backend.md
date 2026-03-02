@@ -1,11 +1,10 @@
-# L1 Core Backend（执行者 B）
+# G2 Backend Group - Core Stream（执行者 B）
 
 ## 目标
 实现核心交易链路后端边界：PO/GRN/SO/OUT/库存/盘点。
 
 ## 前置依赖
-- `BOOTSTRAP-READY`
-- `L0-READY`
+- `DFP-READY`
 
 ## 输入
 - `specs/backend-module-boundaries/spec.md`
@@ -15,7 +14,7 @@
 ## 输出
 - 核心模块命令/查询接口边界
 - 库存过账一致性能力（幂等、原子过账、防负库存）
-- L1 核心解锁标记：`L1-CORE-READY`
+- G2 核心流解锁标记：`BE-CORE-READY`
 
 ## 任务
 - 定义 `purchase/inbound/sales/outbound/inventory/stocktake` 模块边界
