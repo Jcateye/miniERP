@@ -10,7 +10,11 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "db:generate": "bun run --filter server db:generate",
-    "db:migrate": "bun run --filter server db:migrate"
+    "db:migrate": "bun run --filter server db:migrate",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "infra:ps": "docker compose -f infra/docker-compose.yml ps"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

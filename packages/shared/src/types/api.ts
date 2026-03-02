@@ -1,3 +1,39 @@
+import type { DocumentStatus, DocumentType } from './document';
+
+// 数值语义类型（传输层使用字符串承载高精度数值）
+export type DecimalString = string;
+export type BigIntString = string;
+
+// 错误码分类基线
+export type ApiErrorCategory =
+  | 'validation'
+  | 'auth'
+  | 'permission'
+  | 'not_found'
+  | 'conflict'
+  | 'state_transition'
+  | 'rate_limit'
+  | 'external'
+  | 'internal';
+
+export type ApiErrorCode = `${Uppercase<ApiErrorCategory>}_${string}`;
+
+export interface StatusTransitionErrorDetails {
+  entity: 'document';
+  documentType: DocumentType;
+  fromStatus: DocumentStatus;
+  toStatus: DocumentStatus;
+  allowedFromStatuses: DocumentStatus[];
+}
+
+export interface ApiErrorPayload {
+  code: ApiErrorCode;
+  category: ApiErrorCategory;
+  message: string;
+  details?: Record<string, unknown>;
+  transition?: StatusTransitionErrorDetails;
+}
+
 // API 响应格式
 export interface ApiResponse<T> {
   data: T;
@@ -5,11 +41,7 @@ export interface ApiResponse<T> {
 }
 
 export interface ApiError {
-  error: {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-  };
+  error: ApiErrorPayload;
 }
 
 // 分页
