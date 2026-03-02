@@ -1,1 +1,113 @@
+/* --- Google Fonts 必须排在最前面 --- */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
+
+/* ============================================================
+   miniERP Design System — Nordic Brutalist Light
+   风格指南: webapp-01-nordicbrutalist_light
+   ============================================================ */
+
+@theme {
+  /* ── 色彩系统 ── */
+  --color-charcoal: #1a1a1a;
+  --color-cream: #F5F3EF;
+  --color-cream-dark: #EDE9E2;
+  --color-terracotta: #C05A3C;
+  --color-terracotta-dark: #A84C31;
+  --color-terracotta-light: #D4725A;
+
+  /* 语义色 */
+  --color-success: #2E7D32;
+  --color-success-bg: #E8F5E9;
+  --color-warning: #C05A3C;
+  --color-error: #D94F4F;
+  --color-error-dark: #B54A4A;
+  --color-info: #5C7C8A;
+
+  /* 中性色 */
+  --color-sidebar-bg: #1a1a1a;
+  --color-sidebar-text: #9B9B9B;
+  --color-sidebar-active-text: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F9F7F4;
+  --color-border: #E0DDD6;
+  --color-border-strong: #C8C4BB;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6B6860;
+  --color-text-muted: #9B9690;
+
+  /* 字体 */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* 侧边栏 */
+  --sidebar-width: 260px;
+}
+
+/* ── Reset & Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', sans-serif;
+  background-color: #F5F3EF;
+  color: #1a1a1a;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* ── 全局滚动条美化 ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C8C4BB;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9B9690;
+}
+
+/* ── 动画 ── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
