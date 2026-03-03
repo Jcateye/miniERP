@@ -1,6 +1,6 @@
-import { randomBytes } from 'node:crypto';
-
 export type NodeEnv = 'development' | 'test' | 'production';
+
+export const DEV_FALLBACK_AUTH_CONTEXT_SECRET = 'dev-only-auth-context-secret';
 
 export interface EnvSchema {
   readonly NODE_ENV: NodeEnv;
@@ -57,8 +57,6 @@ function parseTenantHeader(value: string | undefined): string {
 
   return value.trim();
 }
-
-const DEV_FALLBACK_AUTH_CONTEXT_SECRET = randomBytes(32).toString('hex');
 
 function parseAuthContextSecret(value: string | undefined, nodeEnv: NodeEnv): string {
   if (typeof value !== 'undefined' && value.trim().length > 0) {

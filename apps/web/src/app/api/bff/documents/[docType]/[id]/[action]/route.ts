@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { DocumentType } from '@minierp/shared';
 
-import { buildBackendUrl, createServerHeaders, getCommandFixture } from '@/lib/bff/server-fixtures';
+import { buildBackendUrl, createServerHeaders, toUpstreamErrorResponse, toUpstreamUnavailableResponse } from '@/lib/bff/server-fixtures';
 
 export async function POST(
   request: Request,
@@ -23,10 +23,9 @@ export async function POST(
     if (response.ok) {
       return NextResponse.json(await response.json());
     }
-  } catch {}
 
-  return NextResponse.json({
-    data: getCommandFixture(id),
-    message: 'fixture',
-  });
+    return toUpstreamErrorResponse(response);
+  } catch {
+    return toUpstreamUnavailableResponse('Backend document command is unavailable');
+  }
 }

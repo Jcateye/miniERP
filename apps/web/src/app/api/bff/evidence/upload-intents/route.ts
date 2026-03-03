@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 
-import { buildBackendUrl, createServerHeaders } from '@/lib/bff/server-fixtures';
+import {
+  buildBackendUrl,
+  createServerHeaders,
+  toUpstreamErrorResponse,
+  toUpstreamUnavailableResponse,
+} from '@/lib/bff/server-fixtures';
 
 export async function POST(request: Request) {
   const payload = await request.json();
@@ -16,15 +21,9 @@ export async function POST(request: Request) {
     if (response.ok) {
       return NextResponse.json(await response.json());
     }
-  } catch {}
 
-  return NextResponse.json({
-    data: {
-      assetId: '8801',
-      uploadUrl: 'https://example.invalid/upload',
-      objectKey: `${payload.entityType ?? 'fixture'}/${payload.entityId ?? 'unknown'}/${payload.fileName ?? 'file'}`,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-    },
-    message: 'fixture',
-  });
+    return toUpstreamErrorResponse(response);
+  } catch {
+    return toUpstreamUnavailableResponse('Backend evidence upload intent is unavailable');
+  }
 }

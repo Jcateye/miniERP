@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { buildBackendUrl, createServerHeaders, getEvidenceFixture } from '@/lib/bff/server-fixtures';
+import {
+  buildBackendUrl,
+  createServerHeaders,
+  getEvidenceFixture,
+  toUpstreamErrorResponse,
+  toUpstreamUnavailableResponse,
+} from '@/lib/bff/server-fixtures';
 
 export async function GET(request: NextRequest) {
   const entityType = request.nextUrl.searchParams.get('entityType') ?? 'grn';
@@ -39,12 +45,9 @@ export async function POST(request: Request) {
     if (response.ok) {
       return NextResponse.json(await response.json());
     }
-  } catch {}
 
-  return NextResponse.json({
-    data: {
-      linkId: '9901',
-    },
-    message: 'fixture',
-  });
+    return toUpstreamErrorResponse(response);
+  } catch {
+    return toUpstreamUnavailableResponse('Backend evidence attach is unavailable');
+  }
 }

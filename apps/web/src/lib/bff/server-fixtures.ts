@@ -3,7 +3,10 @@ import { createHmac, randomUUID } from 'node:crypto';
 import type { BigIntString, DocumentType } from '@minierp/shared';
 
 import type { EvidenceCollectionContract } from '@/contracts';
-import type { DocumentCommandAck, DocumentDetailDto, DocumentListItemDto, PaginationEnvelope } from '@/lib/sdk/types';
+import type { DocumentDetailDto, DocumentListItemDto, PaginationEnvelope } from '@/lib/sdk/types';
+
+const DEV_FALLBACK_AUTH_CONTEXT_SECRET = 'dev-only-auth-context-secret';
+const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
 
 const documents: Record<DocumentType, DocumentListItemDto[]> = {
   PO: [
@@ -79,14 +82,6 @@ export function getDocumentFixture(docType: DocumentType, id: BigIntString): Doc
   };
 }
 
-export function getCommandFixture(id: BigIntString): DocumentCommandAck {
-  return {
-    id,
-    status: 'completed',
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 export function getEvidenceFixture(
   entityType: string,
   entityId: BigIntString,
@@ -147,7 +142,9 @@ function signPayload(payload: string, secret: string): string {
 }
 
 export function createServerHeaders() {
-  const secret = process.env.AUTH_CONTEXT_SECRET;
+  const secret =
+    process.env.AUTH_CONTEXT_SECRET?.trim() ||
+    (process.env.NODE_ENV === 'test' ? TEST_AUTH_CONTEXT_SECRET : DEV_FALLBACK_AUTH_CONTEXT_SECRET);
   const tenantId = process.env.MINIERP_TENANT_ID ?? '1001';
   const authContext = {
     tenantId,
@@ -162,11 +159,9 @@ export function createServerHeaders() {
     'x-request-id': randomUUID(),
   };
 
-  if (secret) {
-    const encodedContext = base64UrlEncode(JSON.stringify(authContext));
-    headers['x-auth-context'] = encodedContext;
-    headers['x-auth-context-signature'] = signPayload(encodedContext, secret);
-  }
+  const encodedContext = base64UrlEncode(JSON.stringify(authContext));
+  headers['x-auth-context'] = encodedContext;
+  headers['x-auth-context-signature'] = signPayload(encodedContext, secret);
 
   return headers;
 }
@@ -174,4 +169,34 @@ export function createServerHeaders() {
 export function buildBackendUrl(path: string) {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3001';
   return `${baseUrl}/api${path}`;
+}
+
+export async function toUpstreamErrorResponse(response: Response) {
+  const contentType = response.headers.get('content-type') ?? '';
+  const body = contentType.includes('application/json')
+    ? await response.json()
+    : {
+        error: {
+          code: 'BFF_UPSTREAM_ERROR',
+          message: await response.text(),
+        },
+      };
+
+  return Response.json(body, {
+    status: response.status,
+  });
+}
+
+export function toUpstreamUnavailableResponse(message: string) {
+  return Response.json(
+    {
+      error: {
+        code: 'BFF_UPSTREAM_UNAVAILABLE',
+        message,
+      },
+    },
+    {
+      status: 503,
+    },
+  );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 
 import type { BffHookOptions, QueryKey } from '@/lib/bff';
 
@@ -24,6 +24,9 @@ export function useBffQuery<T>(
   });
   const enabled = options.enabled !== false;
   const serializedKey = JSON.stringify(queryKey);
+  const fetcherRef = useRef(fetcher);
+
+  fetcherRef.current = fetcher;
 
   useEffect(() => {
     if (!enabled) {
@@ -45,7 +48,7 @@ export function useBffQuery<T>(
       });
 
       try {
-        const data = await fetcher();
+        const data = await fetcherRef.current();
 
         if (controller.signal.aborted) {
           return;
@@ -78,7 +81,7 @@ export function useBffQuery<T>(
     return () => {
       controller.abort();
     };
-  }, [enabled, fetcher, nonce, serializedKey]);
+  }, [enabled, nonce, serializedKey]);
 
   return {
     ...state,
