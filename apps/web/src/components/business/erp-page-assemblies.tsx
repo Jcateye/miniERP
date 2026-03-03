@@ -1,0 +1,517 @@
+'use client';
+
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+
+import { useDocumentDetail, useDocumentEvidence, useWorkbenchList } from '@/hooks';
+import { DetailLayout, EmptyState, HeaderActions, OverviewLayout, SurfaceCard, TemplateBadge, WorkbenchLayout, WizardLayout, styles } from '@/components/layouts';
+import { EvidencePanel } from '@/components/evidence/evidence-panel';
+import { LineEvidenceDrawer } from '@/components/evidence/line-evidence-drawer';
+
+import type {
+  AssemblyRow,
+  DetailAssemblyConfig,
+  OverviewAssemblyConfig,
+  WizardAssemblyConfig,
+  WorkbenchAssemblyConfig,
+} from './erp-page-config';
+
+function toTone(value?: string) {
+  if (value === 'difference' || value === 'risk' || value === 'urgent') {
+    return 'warning' as const;
+  }
+
+  if (value === 'active' || value === 'approved' || value === 'completed' || value === 'posted' || value === 'healthy' || value === 'published' || value === 'enabled') {
+    return 'success' as const;
+  }
+
+  if (value === 'pending' || value === 'picking' || value === 'counting' || value === 'reviewing' || value === 'reviewed' || value === 'watch') {
+    return 'info' as const;
+  }
+
+  return 'neutral' as const;
+}
+
+function renderCell(row: AssemblyRow, column: WorkbenchAssemblyConfig['columns'][number]) {
+  const value = row[column.key] ?? '-';
+
+  if (column.type === 'badge') {
+    return <TemplateBadge label={value} tone={column.toneMap?.[value] ?? toTone(value)} />;
+  }
+
+  if (column.type === 'link' && row.href) {
+    return (
+      <Link href={row.href} style={{ color: 'var(--color-terracotta)', textDecoration: 'none', fontWeight: 650 }}>
+        {value}
+      </Link>
+    );
+  }
+
+  return <span>{value}</span>;
+}
+
+function ToolbarCard({ config }: { config: WorkbenchAssemblyConfig }) {
+  return (
+    <SurfaceCard title="筛选与视图" description="模板化工作台过滤区，数据编排位于 hooks/BFF 层。">
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        {config.contract.filters.map((filter) => (
+          <div
+            key={filter.key}
+            style={{
+              border: '1px solid rgba(224,221,214,0.92)',
+              borderRadius: 14,
+              padding: 14,
+              background: 'rgba(245,243,239,0.72)',
+            }}
+          >
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{filter.label}</div>
+            <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600 }}>
+              {filter.placeholder ?? filter.options?.map((item) => item.label).join(' / ') ?? filter.kind}
+            </div>
+          </div>
+        ))}
+      </div>
+    </SurfaceCard>
+  );
+}
+
+export function OverviewAssembly({ config }: { config: OverviewAssemblyConfig }) {
+  return (
+    <OverviewLayout
+      contract={config.contract}
+      searchSlot={
+        <SurfaceCard title="统一搜索" description="跨单据、SKU、客户与供应商的入口。">
+          <div
+            style={{
+              border: '1px solid rgba(224,221,214,0.92)',
+              borderRadius: 14,
+              padding: '14px 16px',
+              background: 'rgba(255,255,255,0.74)',
+              color: 'var(--color-text-secondary)',
+            }}
+          >
+            {config.searchPlaceholder}
+          </div>
+        </SurfaceCard>
+      }
+      todoSlot={
+        <SurfaceCard title="待办 / 异常" description="按业务优先级排序。">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {config.todos.map((item) => (
+              <Link
+                key={item.title}
+                href={item.href ?? '#'}
+                style={{
+                  display: 'block',
+                  border: '1px solid rgba(224,221,214,0.92)',
+                  borderRadius: 14,
+                  padding: 14,
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  background: 'rgba(255,255,255,0.72)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ fontSize: 14, fontWeight: 650 }}>{item.title}</div>
+                  <TemplateBadge label={item.tag} tone={item.tone ?? 'neutral'} />
+                </div>
+                <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>
+                  {item.description}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </SurfaceCard>
+      }
+      quickActionsSlot={
+        <SurfaceCard title="快捷操作" description="面向当前阶段 1 的核心页面装配入口。">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {config.quickActions.map((action) => (
+              <Link
+                key={action.key}
+                href={action.href ?? '#'}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 14px',
+                  borderRadius: 14,
+                  border: '1px solid rgba(224,221,214,0.92)',
+                  background: 'rgba(255,255,255,0.72)',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                {action.label}
+                <span style={{ color: 'var(--color-terracotta)' }}>→</span>
+              </Link>
+            ))}
+          </div>
+        </SurfaceCard>
+      }
+      timelineSlot={
+        <SurfaceCard title="最近动作" description="保留阶段 1 联调前的上下文。">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {config.timeline.map((item) => (
+              <div key={`${item.action}-${item.time}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', marginTop: 5, background: `var(--color-${item.tone ?? 'info'})` }} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{item.action}</div>
+                  <div style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>{item.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      }
+    />
+  );
+}
+
+export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig }) {
+  const hook = useWorkbenchList(config.docType);
+  const rows = useMemo<AssemblyRow[]>(() => {
+    if (!hook?.data?.data?.length) {
+      return config.rows;
+    }
+
+    return hook.data.data.map((item) => ({
+      id: item.id,
+      href: `${config.contract.route}/${item.id}`,
+      docNo: item.docNo,
+      qty: item.totalQty,
+      amount: item.totalAmount,
+      status: item.status,
+      warehouse: 'API',
+    }));
+  }, [config, hook?.data]);
+  const [selectedId, setSelectedId] = useState(rows[0]?.id ?? '');
+  const selectedRow = rows.find((row) => row.id === selectedId) ?? rows[0];
+
+  return (
+    <WorkbenchLayout
+      contract={config.contract}
+      toolbarSlot={<ToolbarCard config={config} />}
+      resultsSlot={
+        <SurfaceCard
+          title="列表结果"
+          description={hook?.error ? `接口不可用，当前展示装配种子数据：${hook.error}` : '已接入 hooks 层；如接口有数据将优先展示真实返回。'}
+          actions={hook?.loading ? <TemplateBadge label="加载中" tone="info" /> : undefined}
+        >
+          <div style={styles.tableWrap}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  {config.columns.map((column) => (
+                    <th key={column.key} style={styles.th}>
+                      {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => setSelectedId(row.id)}
+                    style={{
+                      background: row.id === selectedId ? 'rgba(192,90,60,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {config.columns.map((column) => (
+                      <td key={column.key} style={styles.td}>
+                        {renderCell(row, column)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SurfaceCard>
+      }
+      detailSlot={
+        selectedRow ? (
+          <SurfaceCard title="选中摘要" description="用于模拟 T2 详情抽屉。">
+            <div style={{ display: 'grid', gap: 10 }}>
+              {config.drawerFields.map((field) => (
+                <div key={field.key} style={styles.fieldCard}>
+                  <div style={styles.fieldLabel}>{field.label}</div>
+                  <div style={styles.fieldValue}>{selectedRow[field.key] ?? '-'}</div>
+                </div>
+              ))}
+              {selectedRow.href ? (
+                <Link href={selectedRow.href} style={{ color: 'var(--color-terracotta)', textDecoration: 'none', fontWeight: 650 }}>
+                  打开详情页 →
+                </Link>
+              ) : null}
+            </div>
+          </SurfaceCard>
+        ) : (
+          <EmptyState title="暂无选中行" description="选择一条记录后可查看摘要。" />
+        )
+      }
+      bulkBarSlot={<SurfaceCard title="批量操作提示" description={config.bulkHint}><TemplateBadge label="T2 Workbench" tone="info" /></SurfaceCard>}
+    />
+  );
+}
+
+export function DetailAssembly({ config, entityId }: { config: DetailAssemblyConfig; entityId: string }) {
+  const detailHook = useDocumentDetail(config.docType, entityId);
+  const evidenceHook = useDocumentEvidence(config.entityType, entityId);
+  const [activeLineId, setActiveLineId] = useState(config.record.lineEvidenceContexts[0]?.lineId ?? '');
+  const lineContext = config.record.lineEvidenceContexts.find((item) => item.lineId === activeLineId) ?? config.record.lineEvidenceContexts[0];
+  const documentEvidence = evidenceHook.data ?? config.record.documentEvidence;
+  const liveRecord = detailHook?.data;
+  const rows = liveRecord?.lines?.length
+    ? liveRecord.lines.map((line) => ({
+        id: line.id,
+        sku: line.skuId,
+        expected: line.qty,
+        actual: line.qty,
+        diff: '0',
+        status: 'ok',
+      }))
+    : config.record.rows;
+
+  return (
+    <DetailLayout
+      contract={{
+        ...config.contract,
+        header: {
+          ...config.contract.header,
+          title: `${config.contract.header.title} · ${entityId}`,
+        },
+      }}
+      activeTabKey="lines"
+      primarySlot={
+        <SurfaceCard title={config.record.title} description={detailHook?.error ? `接口不可用，展示装配数据：${detailHook.error}` : config.record.subtitle}>
+          <div style={{ display: 'grid', gap: 14 }}>
+            {config.record.primaryGroups.map((group) => (
+              <div key={group.key}>
+                <div style={{ fontSize: 14, fontWeight: 650, marginBottom: 10 }}>{group.title}</div>
+                <div style={styles.fieldGrid}>
+                  {group.fields.map((field) => (
+                    <div key={field.key} style={styles.fieldCard}>
+                      <div style={styles.fieldLabel}>{field.label}</div>
+                      <div style={styles.fieldValue}>{field.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      }
+      secondarySlot={
+        <SurfaceCard title="异常与影响" description="围绕差异、过账和凭证完整度提供侧重点。">
+          <div style={{ display: 'grid', gap: 14 }}>
+            {config.record.secondaryGroups.map((group) => (
+              <div key={group.key}>
+                <div style={{ fontSize: 14, fontWeight: 650, marginBottom: 10 }}>{group.title}</div>
+                <div style={styles.fieldGrid}>
+                  {group.fields.map((field) => (
+                    <div key={field.key} style={styles.fieldCard}>
+                      <div style={styles.fieldLabel}>{field.label}</div>
+                      <div style={styles.fieldValue}>{field.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      }
+      tertiarySlot={
+        <SurfaceCard title="操作提示" description="阶段 2 联调时，这里用于展示权限/审计拦截。">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {config.record.tertiaryNotes.map((note) => (
+              <div key={note} style={{ ...styles.fieldCard, fontSize: 13, lineHeight: 1.6 }}>
+                {note}
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      }
+      tabContentSlot={
+        <div style={{ display: 'grid', gap: 18 }}>
+          <SurfaceCard title="SKU 明细" description="点击差异行可查看 line evidence。">
+            <div style={styles.tableWrap}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>SKU</th>
+                    <th style={styles.th}>期望</th>
+                    <th style={styles.th}>实际</th>
+                    <th style={styles.th}>差异</th>
+                    <th style={styles.th}>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.id} onClick={() => setActiveLineId(row.id)} style={{ cursor: 'pointer' }}>
+                      <td style={styles.td}>{row.sku}</td>
+                      <td style={styles.td}>{row.expected}</td>
+                      <td style={styles.td}>{row.actual}</td>
+                      <td style={styles.td}>{row.diff}</td>
+                      <td style={styles.td}>
+                        <TemplateBadge label={row.status ?? '-'} tone={toTone(row.status)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SurfaceCard>
+
+          <div style={styles.grid2}>
+            <EvidencePanel
+              title="单据级凭证"
+              description="document evidence 面板"
+              stats={documentEvidence.stats}
+              tags={documentEvidence.tags}
+              items={documentEvidence.items}
+              activeTag="packing_list"
+              uploadSlot={<TemplateBadge label="BFF /evidence/links" tone="info" />}
+            />
+            {lineContext ? (
+              <LineEvidenceDrawer
+                open
+                title="差异行凭证抽屉"
+                line={lineContext}
+                tags={config.record.lineEvidence[lineContext.lineId]?.tags ?? []}
+                activeTag="damage"
+                items={config.record.lineEvidence[lineContext.lineId]?.items ?? []}
+                uploadSlot={<TemplateBadge label="Line Evidence" tone="warning" />}
+              />
+            ) : (
+              <EmptyState title="暂无行级凭证" description="当前明细没有可展示的差异行。" />
+            )}
+          </div>
+
+          <SurfaceCard title="审计轨迹" description="保留显式状态流转与操作责任人。">
+            <div style={{ display: 'grid', gap: 10 }}>
+              {config.record.auditTrail.map((item) => (
+                <div key={item} style={styles.fieldCard}>
+                  {item}
+                </div>
+              ))}
+            </div>
+          </SurfaceCard>
+        </div>
+      }
+      quickActionsSlot={
+        <SurfaceCard title="快捷动作" description="详情页右侧动作位。">
+          <HeaderActions primaryAction={config.contract.header.primaryAction} secondaryActions={config.contract.header.secondaryActions} />
+        </SurfaceCard>
+      }
+    />
+  );
+}
+
+export function WizardAssembly({ config }: { config: WizardAssemblyConfig }) {
+  const [activeLineId, setActiveLineId] = useState(config.lineEvidenceContexts[0]?.lineId ?? '');
+  const lineContext = config.lineEvidenceContexts.find((item) => item.lineId === activeLineId) ?? config.lineEvidenceContexts[0];
+
+  return (
+    <WizardLayout
+      contract={config.contract}
+      editorSlot={
+        <div style={{ display: 'grid', gap: 18 }}>
+          {config.headerGroups.map((group) => (
+            <SurfaceCard key={group.key} title={group.title} description={group.description}>
+              <div style={styles.fieldGrid}>
+                {group.fields.map((field) => (
+                  <div key={field.key} style={styles.fieldCard}>
+                    <div style={styles.fieldLabel}>{field.label}</div>
+                    <div style={styles.fieldValue}>{field.value}</div>
+                  </div>
+                ))}
+              </div>
+            </SurfaceCard>
+          ))}
+
+          <SurfaceCard title="SKU 明细录入" description="当前用装配数据模拟表格；阶段 2 接真接口后保持同一模板壳。">
+            <div style={styles.tableWrap}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    {Object.keys(config.rows[0] ?? {})
+                      .filter((key) => key !== 'id' && key !== 'href')
+                      .map((key) => (
+                        <th key={key} style={styles.th}>
+                          {key}
+                        </th>
+                      ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {config.rows.map((row) => (
+                    <tr key={row.id} onClick={() => setActiveLineId(row.id)} style={{ cursor: 'pointer' }}>
+                      {Object.entries(row)
+                        .filter(([key]) => key !== 'id' && key !== 'href')
+                        .map(([key, value]) => (
+                          <td key={key} style={styles.td}>
+                            {key === 'status' ? <TemplateBadge label={value ?? '-'} tone={toTone(value)} /> : value}
+                          </td>
+                        ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SurfaceCard>
+
+          <SurfaceCard title="差异与规则" description="和 `miniERP_evidence_system` 一致的差异约束。">
+            <div style={{ display: 'grid', gap: 10 }}>
+              {config.alerts.map((alert) => (
+                <div key={alert} style={{ ...styles.fieldCard, fontSize: 13, lineHeight: 1.6 }}>
+                  {alert}
+                </div>
+              ))}
+            </div>
+          </SurfaceCard>
+        </div>
+      }
+      summarySlot={
+        <div style={{ display: 'grid', gap: 18 }}>
+          <SurfaceCard title="单据级凭证" description="右侧 summary 区保持 Evidence 入口可见。">
+            <EvidencePanel
+              title="Document Evidence"
+              stats={config.documentEvidence.stats}
+              tags={config.documentEvidence.tags}
+              items={config.documentEvidence.items}
+              activeTag="label"
+              uploadSlot={<TemplateBadge label="HTTP /api/bff/evidence" tone="info" />}
+            />
+          </SurfaceCard>
+
+          {lineContext ? (
+            <LineEvidenceDrawer
+              open
+              title="行级差异凭证"
+              line={lineContext}
+              tags={config.lineEvidence[lineContext.lineId]?.tags ?? []}
+              activeTag="damage"
+              items={config.lineEvidence[lineContext.lineId]?.items ?? []}
+              uploadSlot={<TemplateBadge label="Line Evidence" tone="warning" />}
+            />
+          ) : null}
+
+          <SurfaceCard title="提交说明" description="阶段 1 完成后用于 FE-F-READY 收口。">
+            <div style={{ display: 'grid', gap: 10 }}>
+              {config.summaryNotes.map((note) => (
+                <div key={note} style={{ ...styles.fieldCard, fontSize: 13, lineHeight: 1.6 }}>
+                  {note}
+                </div>
+              ))}
+            </div>
+          </SurfaceCard>
+        </div>
+      }
+    />
+  );
+}

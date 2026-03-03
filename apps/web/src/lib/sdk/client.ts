@@ -1,4 +1,4 @@
-import type { ApiResponse } from '@minierp/shared';
+import type { ApiError, ApiResponse } from '@minierp/shared';
 
 import type {
   PaginationEnvelope,
@@ -7,10 +7,6 @@ import type {
   SdkClient,
   SdkRequestDescriptor,
 } from './types';
-
-interface MockMap {
-  [path: string]: unknown;
-}
 
 function normalizeQueryValue(value: QueryValue | QueryValue[]): string[] {
   if (Array.isArray(value)) {
@@ -61,15 +57,12 @@ function resolveMethod(
   return options?.method ?? descriptor.method ?? 'GET';
 }
 
-function toEnvelope<T>(value: T): ApiResponse<T> {
-  return {
-    data: value,
-    message: 'ok',
-  };
+function getBaseUrl() {
+  return process.env.NEXT_PUBLIC_BFF_BASE_URL?.trim() || '/api/bff';
 }
 
 function isPaginationEnvelope<T>(value: unknown): value is PaginationEnvelope<T> {
-  if (typeof value !== 'object' || value === null) {
+  if (!value || typeof value !== 'object') {
     return false;
   }
 
@@ -84,40 +77,82 @@ function isPaginationEnvelope<T>(value: unknown): value is PaginationEnvelope<T>
   );
 }
 
-export class MockSdkClient implements SdkClient {
-  constructor(private readonly mockMap: MockMap = {}) {}
+async function parseResponse<T>(response: Response): Promise<T> {
+  const payload = (await response.json()) as T | ApiResponse<T> | ApiError;
 
-  seed(entries: MockMap) {
-    Object.assign(this.mockMap, entries);
+  if (!response.ok) {
+    if ('error' in (payload as ApiError)) {
+      throw new Error((payload as ApiError).error.message);
+    }
+
+    throw new Error(`Request failed with status ${response.status}`);
   }
 
+  if ('data' in (payload as ApiResponse<T>) && 'message' in (payload as ApiResponse<T>)) {
+    return (payload as ApiResponse<T>).data;
+  }
+
+  return payload as T;
+}
+
+class HttpSdkClient implements SdkClient {
   async request<T>(
     descriptor: string | SdkRequestDescriptor,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    const requestPath = buildRequestPath(descriptor, options);
     const method = resolveMethod(descriptor, options);
-    const mockKey = typeof descriptor === 'string' ? undefined : descriptor.mockKey;
-    const lookupKeys = [mockKey, `${method} ${requestPath}`, requestPath].filter(
-      (item): item is string => Boolean(item),
+    const path = buildRequestPath(descriptor, options);
+    const baseUrl = getBaseUrl();
+    const requestUrl = path.startsWith('http') ? path : `${baseUrl}${path}`;
+    const body =
+      options?.body ??
+      (typeof descriptor === 'string' ? undefined : descriptor.body);
+
+    const data = await parseResponse<T>(
+      await fetch(requestUrl, {
+        method,
+        body: body ? JSON.stringify(body) : undefined,
+        headers: {
+          'content-type': 'application/json',
+          ...(options?.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
+          ...options?.headers,
+          ...(typeof descriptor === 'string' ? {} : descriptor.headers),
+        },
+        signal: options?.signal,
+        cache: 'no-store',
+      }),
     );
-    const seeded = lookupKeys.find((key) => key in this.mockMap);
 
-    if (seeded) {
-      return toEnvelope(this.mockMap[seeded] as T);
-    }
-
-    return toEnvelope({} as T);
+    return {
+      data,
+      message: 'ok',
+    };
   }
 
   async requestPage<T>(
     descriptor: string | SdkRequestDescriptor,
     options?: RequestOptions,
   ): Promise<PaginationEnvelope<T>> {
-    const response = await this.request<PaginationEnvelope<T>>(descriptor, options);
+    const method = resolveMethod(descriptor, options);
+    const path = buildRequestPath(descriptor, options);
+    const baseUrl = getBaseUrl();
+    const requestUrl = path.startsWith('http') ? path : `${baseUrl}${path}`;
 
-    if (isPaginationEnvelope<T>(response.data)) {
-      return response.data;
+    const payload = await parseResponse<PaginationEnvelope<T> | ApiResponse<PaginationEnvelope<T>>>(
+      await fetch(requestUrl, {
+        method,
+        headers: {
+          'content-type': 'application/json',
+          ...options?.headers,
+          ...(typeof descriptor === 'string' ? {} : descriptor.headers),
+        },
+        signal: options?.signal,
+        cache: 'no-store',
+      }),
+    );
+
+    if (isPaginationEnvelope<T>(payload)) {
+      return payload;
     }
 
     return {
@@ -130,4 +165,4 @@ export class MockSdkClient implements SdkClient {
   }
 }
 
-export const sdkClient: SdkClient = new MockSdkClient();
+export const sdkClient: SdkClient = new HttpSdkClient();

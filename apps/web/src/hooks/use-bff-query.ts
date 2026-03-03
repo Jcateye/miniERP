@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useEffectEvent, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 
 import type { BffHookOptions, QueryKey } from '@/lib/bff';
 
@@ -25,44 +25,6 @@ export function useBffQuery<T>(
   const enabled = options.enabled !== false;
   const serializedKey = JSON.stringify(queryKey);
 
-  const runQuery = useEffectEvent(async (signal: AbortSignal) => {
-    startTransition(() => {
-      setState((previous) => ({
-        ...previous,
-        loading: true,
-        error: null,
-      }));
-    });
-
-    try {
-      const data = await fetcher();
-
-      if (signal.aborted) {
-        return;
-      }
-
-      startTransition(() => {
-        setState({
-          data,
-          error: null,
-          loading: false,
-        });
-      });
-    } catch (error) {
-      if (signal.aborted) {
-        return;
-      }
-
-      startTransition(() => {
-        setState({
-          data: null,
-          error: error instanceof Error ? error.message : 'Request failed',
-          loading: false,
-        });
-      });
-    }
-  });
-
   useEffect(() => {
     if (!enabled) {
       setState((previous) => ({
@@ -73,12 +35,50 @@ export function useBffQuery<T>(
     }
 
     const controller = new AbortController();
-    void runQuery(controller.signal);
+    const runQuery = async () => {
+      startTransition(() => {
+        setState((previous) => ({
+          ...previous,
+          loading: true,
+          error: null,
+        }));
+      });
+
+      try {
+        const data = await fetcher();
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        startTransition(() => {
+          setState({
+            data,
+            error: null,
+            loading: false,
+          });
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        startTransition(() => {
+          setState({
+            data: null,
+            error: error instanceof Error ? error.message : 'Request failed',
+            loading: false,
+          });
+        });
+      }
+    };
+
+    void runQuery();
 
     return () => {
       controller.abort();
     };
-  }, [enabled, nonce, runQuery, serializedKey]);
+  }, [enabled, fetcher, nonce, serializedKey]);
 
   return {
     ...state,

@@ -1,9 +1,23 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Inter, Space_Grotesk } from 'next/font/google';
+
+import './globals.css';
+
+const bodyFont = Inter({
+  subsets: ['latin'],
+  variable: '--font-body-family',
+  display: 'swap',
+});
+
+const displayFont = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-display-family',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: "miniERP — 轻量级企业资源规划",
-  description: "面向中小企业的轻量级 ERP 系统，支持库存、采购、销售、报表等核心业务管理",
+  title: 'miniERP',
+  description: '面向采购、销售、库存与盘点的一体化运营台。',
 };
 
 export default function RootLayout({
@@ -13,15 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body style={{ margin: 0, padding: 0 }}>{children}</body>
+      <body className={`${bodyFont.variable} ${displayFont.variable}`}>{children}</body>
     </html>
   );
 }
