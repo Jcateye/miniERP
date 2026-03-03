@@ -7,10 +7,10 @@ import type { WorkbenchQuery } from '@/lib/sdk';
 
 import { useBffQuery } from './use-bff-query';
 
-export function useWorkbenchList(docType: DocumentType, query: WorkbenchQuery = {}) {
+export function useWorkbenchList(docType?: DocumentType, query: WorkbenchQuery = {}) {
   return useBffQuery(
-    bffQueryKeys.documentList(docType, query),
-    () => listDocuments(docType, query),
-    { enabled: true },
+    bffQueryKeys.documentList(docType ?? 'PO', query),
+    () => listDocuments(docType ?? 'PO', query),
+    { enabled: Boolean(docType) },
   );
 }

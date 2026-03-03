@@ -83,7 +83,13 @@ export const sdkEndpoints = {
       return {
         path: '/evidence/links',
         method: 'GET',
-        query,
+        query: {
+          entityType: query.entityType,
+          entityId: query.entityId,
+          scope: query.scope,
+          lineRef: query.lineRef,
+          tag: query.tag,
+        },
         mockKey: `evidence:collection:${query.scope}:${query.entityType}:${query.entityId}:${query.lineRef ?? 'all'}`,
       };
     },

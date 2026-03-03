@@ -47,14 +47,14 @@
 - [x] 3.1.3 产出前端-E 交付标记：`FE-E-READY`
 
 ### 3.2 前端-F（页面装配流）
-- [ ] 3.2.1 在 `DFP-READY` + `FE-E-READY` 条件下，先装配 GRN/OUT/Stocktake 页面（可先 mock）
-- [ ] 3.2.2 在 `BE-READY` 条件下，切换真实接口并清理 mock 依赖
-- [ ] 3.2.3 完成 SKU/PO/SO/设置页面装配
-- [ ] 3.2.4 产出前端-F 交付标记：`FE-F-READY`
+- [x] 3.2.1 在 `DFP-READY` + `FE-E-READY` 条件下，先装配 GRN/OUT/Stocktake 页面（可先 mock）
+- [x] 3.2.2 在 `BE-READY` 条件下，切换真实接口并清理 mock 依赖
+- [x] 3.2.3 完成 SKU/PO/SO/设置页面装配
+- [x] 3.2.4 产出前端-F 交付标记：`FE-F-READY`
 
 ### 3.3 前端汇总门禁
-- [ ] 3.3.1 仅在 `FE-E-READY` 与 `FE-F-READY` 完成后，执行 `bun run --filter web lint`
-- [ ] 3.3.2 校验通过后发布 `FE-READY`
+- [x] 3.3.1 仅在 `FE-E-READY` 与 `FE-F-READY` 完成后，执行 `bun run --filter web lint`
+- [x] 3.3.2 校验通过后发布 `FE-READY`
 
 ## 4. G4-联调验收组（依赖完成后执行）
 
@@ -73,5 +73,5 @@
 - [x] 5.2 Backend-B：`execution/l1-core-backend.md`
 - [x] 5.3 Backend-D：`execution/l1-support-backend.md`
 - [x] 5.4 Frontend-E：`execution/l2-frontend-foundation.md`
-- [ ] 5.5 Frontend-F：`execution/l2-frontend-integration.md`
+- [x] 5.5 Frontend-F：`execution/l2-frontend-integration.md`
 - [ ] 5.6 Acceptance：`execution/e2e-closure.md`

@@ -6,10 +6,10 @@ import { bffQueryKeys, getDocumentDetail } from '@/lib/bff';
 
 import { useBffQuery } from './use-bff-query';
 
-export function useDocumentDetail(docType: DocumentType, id?: BigIntString) {
+export function useDocumentDetail(docType?: DocumentType, id?: BigIntString) {
   return useBffQuery(
-    bffQueryKeys.documentDetail(docType, id ?? 'pending'),
-    () => getDocumentDetail(docType, id ?? 'pending'),
-    { enabled: Boolean(id) },
+    bffQueryKeys.documentDetail(docType ?? 'PO', id ?? 'pending'),
+    () => getDocumentDetail(docType ?? 'PO', id ?? 'pending'),
+    { enabled: Boolean(docType && id) },
   );
 }
