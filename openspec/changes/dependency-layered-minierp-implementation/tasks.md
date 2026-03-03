@@ -24,14 +24,14 @@
 - [ ] 2.1.3 产出后端-B 交付标记：`BE-B-READY`
 
 ### 2.2 后端-C（库存一致性流）
-- [ ] 2.2.1 实现 `inventory` 过账原子事务与幂等（`idempotency_record`）
-- [ ] 2.2.2 实现防负库存与冲销路径（按 DFP 约束）
-- [ ] 2.2.3 产出后端-C 交付标记：`BE-C-READY`
+- [x] 2.2.1 实现 `inventory` 过账原子事务与幂等（`idempotency_record`）
+- [x] 2.2.2 实现防负库存与冲销路径（按 DFP 约束）
+- [x] 2.2.3 产出后端-C 交付标记：`BE-C-READY`
 
 ### 2.3 后端-D（支撑能力流）
-- [ ] 2.3.1 实现 `tenant/iam/audit/platform` 基础能力（按 DFP）
-- [ ] 2.3.2 实现 `evidence` 双层绑定能力（document/line）与鉴权审计
-- [ ] 2.3.3 产出后端-D 交付标记：`BE-D-READY`
+- [x] 2.3.1 实现 `tenant/iam/audit/platform` 基础能力（按 DFP）
+- [x] 2.3.2 实现 `evidence` 双层绑定能力（document/line）与鉴权审计
+- [x] 2.3.3 产出后端-D 交付标记：`BE-D-READY`
 
 ### 2.4 后端汇总门禁
 - [ ] 2.4.1 仅在 `BE-B-READY`、`BE-C-READY`、`BE-D-READY` 全部完成后，执行 `bun run --filter server test`
