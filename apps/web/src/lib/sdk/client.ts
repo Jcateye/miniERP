@@ -68,6 +68,22 @@ function toEnvelope<T>(value: T): ApiResponse<T> {
   };
 }
 
+function isPaginationEnvelope<T>(value: unknown): value is PaginationEnvelope<T> {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<PaginationEnvelope<T>>;
+
+  return (
+    Array.isArray(candidate.data) &&
+    typeof candidate.total === 'number' &&
+    typeof candidate.page === 'number' &&
+    typeof candidate.pageSize === 'number' &&
+    typeof candidate.totalPages === 'number'
+  );
+}
+
 export class MockSdkClient implements SdkClient {
   constructor(private readonly mockMap: MockMap = {}) {}
 
@@ -100,7 +116,11 @@ export class MockSdkClient implements SdkClient {
   ): Promise<PaginationEnvelope<T>> {
     const response = await this.request<PaginationEnvelope<T>>(descriptor, options);
 
-    return response.data ?? {
+    if (isPaginationEnvelope<T>(response.data)) {
+      return response.data;
+    }
+
+    return {
       data: [],
       total: 0,
       page: 1,

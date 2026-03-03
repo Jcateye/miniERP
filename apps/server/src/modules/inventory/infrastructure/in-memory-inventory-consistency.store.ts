@@ -41,17 +41,37 @@ function deepCloneTenantState(state: TenantState): TenantState {
 
 export class InMemoryInventoryConsistencyStore implements InventoryConsistencyStore {
   private readonly stateByTenant = new Map<string, TenantState>();
+  private readonly transactionQueueByTenant = new Map<string, Promise<void>>();
 
   async withTenantTransaction<T>(tenantId: string, work: (tx: InventoryTenantTransaction) => T | Promise<T>): Promise<T> {
-    const currentState = this.stateByTenant.get(tenantId) ?? createTenantState();
-    const workingState = deepCloneTenantState(currentState);
-    const tx = new InMemoryInventoryTenantTransaction(tenantId, workingState);
+    const previous = this.transactionQueueByTenant.get(tenantId) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const queued = previous.then(() => current);
 
-    const result = await work(tx);
+    this.transactionQueueByTenant.set(tenantId, queued);
 
-    this.stateByTenant.set(tenantId, tx.commit());
+    await previous;
 
-    return result;
+    try {
+      const currentState = this.stateByTenant.get(tenantId) ?? createTenantState();
+      const workingState = deepCloneTenantState(currentState);
+      const tx = new InMemoryInventoryTenantTransaction(tenantId, workingState);
+
+      const result = await work(tx);
+
+      this.stateByTenant.set(tenantId, tx.commit());
+
+      return result;
+    } finally {
+      release();
+
+      if (this.transactionQueueByTenant.get(tenantId) === queued) {
+        this.transactionQueueByTenant.delete(tenantId);
+      }
+    }
   }
 
   getBalanceSnapshots(tenantId: string, keys: readonly InventoryKey[]): InventoryBalanceSnapshot[] {
