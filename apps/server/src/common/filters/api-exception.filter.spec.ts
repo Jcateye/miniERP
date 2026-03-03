@@ -1,5 +1,6 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { InvalidStatusTransitionError } from '../../modules/core-document/domain/status-transition';
 import { ApiExceptionFilter } from './api-exception.filter';
 
 describe('ApiExceptionFilter', () => {
@@ -88,6 +89,40 @@ describe('ApiExceptionFilter', () => {
     expect(json).toHaveBeenCalledWith({
       error: expect.objectContaining({
         message: 'field a is required, field b must be positive',
+      }),
+    });
+  });
+
+  it('preserves explicit state transition category on conflict exceptions', () => {
+    process.env.NODE_ENV = 'test';
+    const { host, status, json } = createHost();
+
+    filter.catch(
+      new InvalidStatusTransitionError(
+        {
+          entityType: 'PO',
+          entityId: 'PO-001',
+          fromStatus: 'draft',
+          toStatus: 'closed',
+        },
+        ['confirmed', 'cancelled'],
+      ),
+      host,
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+    expect(json).toHaveBeenCalledWith({
+      error: expect.objectContaining({
+        code: 'VALIDATION_STATUS_TRANSITION_INVALID',
+        category: 'state_transition',
+        message: 'Illegal status transition for PO(PO-001): draft -> closed',
+        details: {
+          entity_type: 'PO',
+          entity_id: 'PO-001',
+          from_status: 'draft',
+          to_status: 'closed',
+          allowed_to_statuses: ['confirmed', 'cancelled'],
+        },
       }),
     });
   });

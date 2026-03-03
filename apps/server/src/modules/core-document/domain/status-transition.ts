@@ -1,3 +1,5 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
+
 export const CORE_DOCUMENT_MODULES = ['purchase', 'inbound', 'sales', 'outbound'] as const;
 
 export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT'] as const;
@@ -131,31 +133,43 @@ const MODULE_BOUNDARIES: Readonly<Record<CoreDocumentModule, DocumentModuleBound
   },
 };
 
-export class InvalidStatusTransitionError extends Error {
+export class InvalidStatusTransitionError extends HttpException {
   readonly code = 'VALIDATION_STATUS_TRANSITION_INVALID';
   readonly category = 'state_transition';
   readonly details: InvalidStatusTransitionDetails;
   readonly transition: InvalidStatusTransitionTransition;
 
   constructor(attempt: StatusTransitionAttempt, allowedToStatuses: readonly CoreDocumentStatus[]) {
-    super(
-      `Illegal status transition for ${attempt.entityType}(${attempt.entityId}): ${attempt.fromStatus} -> ${attempt.toStatus}`,
-    );
-    this.name = 'InvalidStatusTransitionError';
-    this.details = {
+    const message = `Illegal status transition for ${attempt.entityType}(${attempt.entityId}): ${attempt.fromStatus} -> ${attempt.toStatus}`;
+    const details: InvalidStatusTransitionDetails = {
       entity_type: attempt.entityType,
       entity_id: attempt.entityId,
       from_status: attempt.fromStatus,
       to_status: attempt.toStatus,
       allowed_to_statuses: allowedToStatuses,
     };
-    this.transition = {
+    const transition: InvalidStatusTransitionTransition = {
       entity: 'document',
       documentType: attempt.entityType,
       fromStatus: attempt.fromStatus,
       toStatus: attempt.toStatus,
       allowedFromStatuses: allowedToStatuses,
     };
+
+    super(
+      {
+        code: 'VALIDATION_STATUS_TRANSITION_INVALID',
+        category: 'state_transition',
+        message,
+        details,
+        transition,
+      },
+      HttpStatus.CONFLICT,
+    );
+
+    this.name = 'InvalidStatusTransitionError';
+    this.details = details;
+    this.transition = transition;
   }
 
   toPayload(): InvalidStatusTransitionPayload & {

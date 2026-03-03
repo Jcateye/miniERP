@@ -213,4 +213,35 @@ describe('InventoryPostingService', () => {
       ),
     ).rejects.toBeInstanceOf(InventoryAlreadyReversedError);
   });
+
+  it('serializes concurrent tenant postings to avoid lost updates', async () => {
+    const { service } = createService();
+
+    await Promise.all([
+      service.post(
+        tenantId,
+        {
+          idempotencyKey: 'idem-concurrent-1',
+          referenceType: 'GRN',
+          referenceId: 'GRN-CONCURRENT-1',
+          lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: 10 }],
+        },
+        'request-14',
+      ),
+      service.post(
+        tenantId,
+        {
+          idempotencyKey: 'idem-concurrent-2',
+          referenceType: 'GRN',
+          referenceId: 'GRN-CONCURRENT-2',
+          lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: 10 }],
+        },
+        'request-15',
+      ),
+    ]);
+
+    const snapshot = await service.getBalanceSnapshot(tenantId, [{ skuId: 'SKU-1', warehouseId: 'WH-1' }]);
+
+    expect(snapshot).toEqual([{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 }]);
+  });
 });

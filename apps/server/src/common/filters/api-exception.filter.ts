@@ -25,6 +25,20 @@ const STATUS_TO_CATEGORY: Record<number, ApiErrorPayload['category']> = {
   [HttpStatus.SERVICE_UNAVAILABLE]: 'external',
 };
 
+function isApiErrorCategory(value: unknown): value is ApiErrorPayload['category'] {
+  return (
+    value === 'validation' ||
+    value === 'auth' ||
+    value === 'permission' ||
+    value === 'not_found' ||
+    value === 'conflict' ||
+    value === 'state_transition' ||
+    value === 'rate_limit' ||
+    value === 'external' ||
+    value === 'internal'
+  );
+}
+
 function defaultCode(category: ApiErrorPayload['category']): ApiErrorCode {
   return `${category.toUpperCase()}_UNEXPECTED` as ApiErrorCode;
 }
@@ -40,13 +54,15 @@ function fallbackMessage(status: number): string {
 function toApiErrorPayload(exception: unknown): ApiErrorPayload {
   if (exception instanceof HttpException) {
     const status = exception.getStatus();
-    const category = STATUS_TO_CATEGORY[status] ?? 'internal';
     const response = exception.getResponse();
     const isProduction = process.env.NODE_ENV === 'production';
     const shouldSanitizeMessage = isProduction && status >= HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (typeof response === 'object' && response !== null) {
       const maybeError = response as Partial<ApiErrorPayload> & { message?: string | string[] };
+      const category = isApiErrorCategory(maybeError.category)
+        ? maybeError.category
+        : (STATUS_TO_CATEGORY[status] ?? 'internal');
       const rawMessage = Array.isArray(maybeError.message)
         ? maybeError.message.join(', ')
         : maybeError.message ?? exception.message;
@@ -61,6 +77,7 @@ function toApiErrorPayload(exception: unknown): ApiErrorPayload {
     }
 
     const rawMessage = typeof response === 'string' ? response : exception.message;
+    const category = STATUS_TO_CATEGORY[status] ?? 'internal';
 
     return {
       category,
