@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import type { Metadata } from "next";
 
 /* ── 设计常量 ── */
 const C = {
@@ -224,8 +224,8 @@ function Drawer({ sku, onClose }: { sku: Sku; onClose: () => void }) {
                         )}
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                        <a
-                            href={`/purchasing/grn/new`}
+                        <Link
+                            href="/purchasing/grn/new"
                             style={{
                                 flex: 1,
                                 padding: "7px 0",
@@ -242,9 +242,9 @@ function Drawer({ sku, onClose }: { sku: Sku; onClose: () => void }) {
                             }}
                         >
                             入库
-                        </a>
-                        <a
-                            href={`/sales/out/new`}
+                        </Link>
+                        <Link
+                            href="/sales/out/new"
                             style={{
                                 flex: 1,
                                 padding: "7px 0",
@@ -261,13 +261,13 @@ function Drawer({ sku, onClose }: { sku: Sku; onClose: () => void }) {
                             }}
                         >
                             出库
-                        </a>
+                        </Link>
                     </div>
                 </div>
 
                 {/* 快捷操作 */}
                 <div style={{ display: "flex", gap: 8 }}>
-                    <a
+                    <Link
                         href={`/skus/${sku.id}`}
                         style={{
                             flex: 1,
@@ -285,7 +285,7 @@ function Drawer({ sku, onClose }: { sku: Sku; onClose: () => void }) {
                         }}
                     >
                         查看详情
-                    </a>
+                    </Link>
                     <button
                         style={{
                             flex: 1,
@@ -412,7 +412,7 @@ export default function SkuListPage() {
                             </svg>
                             导出
                         </button>
-                        <a
+                        <Link
                             href="/skus/new"
                             style={{
                                 padding: "8px 16px",
@@ -434,7 +434,7 @@ export default function SkuListPage() {
                                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                             </svg>
                             新建 SKU
-                        </a>
+                        </Link>
                     </div>
                 </div>
 
