@@ -69,9 +69,9 @@
 
 ## 5. 执行文件映射（索引）
 
-- [ ] 5.1 Freeze Group：`execution/l0-foundation.md`
-- [ ] 5.2 Backend-B：`execution/l1-core-backend.md`
-- [ ] 5.3 Backend-D：`execution/l1-support-backend.md`
-- [ ] 5.4 Frontend-E：`execution/l2-frontend-foundation.md`
+- [x] 5.1 Freeze Group：`execution/l0-foundation.md`
+- [x] 5.2 Backend-B：`execution/l1-core-backend.md`
+- [x] 5.3 Backend-D：`execution/l1-support-backend.md`
+- [x] 5.4 Frontend-E：`execution/l2-frontend-foundation.md`
 - [ ] 5.5 Frontend-F：`execution/l2-frontend-integration.md`
 - [ ] 5.6 Acceptance：`execution/e2e-closure.md`
