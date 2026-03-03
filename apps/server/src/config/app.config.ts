@@ -7,6 +7,7 @@ export interface AppConfig {
   readonly databaseUrl: string;
   readonly redisUrl: string;
   readonly tenantHeader: string;
+  readonly authContextSecret: string;
 }
 
 function normalizePrefix(value: string): string {
@@ -20,7 +21,8 @@ function normalizePrefix(value: string): string {
 }
 
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const { NODE_ENV, PORT, API_PREFIX, DATABASE_URL, REDIS_URL, TENANT_HEADER } = parseEnv(env);
+  const { NODE_ENV, PORT, API_PREFIX, DATABASE_URL, REDIS_URL, TENANT_HEADER, AUTH_CONTEXT_SECRET } =
+    parseEnv(env);
 
   return {
     nodeEnv: NODE_ENV,
@@ -29,5 +31,6 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: DATABASE_URL,
     redisUrl: REDIS_URL,
     tenantHeader: TENANT_HEADER,
+    authContextSecret: AUTH_CONTEXT_SECRET,
   };
 }
