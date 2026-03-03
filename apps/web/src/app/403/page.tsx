@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 
 
 const C = {
@@ -80,7 +81,7 @@ export default function NotAuthorizedPage() {
                 >
                     您没有权限访问此页面。请联系管理员获取相应的访问权限，或返回首页。
                 </p>
-                <a
+                <Link
                     href="/"
                     style={{
                         display: "inline-flex",
@@ -110,7 +111,7 @@ export default function NotAuthorizedPage() {
                         <polyline points="9 22 9 12 15 12 15 22" />
                     </svg>
                     返回首页
-                </a>
+                </Link>
             </div>
         </div>
     );

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -72,7 +73,7 @@ export default function NotFoundPage() {
                 >
                     您访问的页面不存在或已被删除。请检查 URL 是否正确，或返回首页重新导航。
                 </p>
-                <a
+                <Link
                     href="/"
                     style={{
                         display: "inline-flex",
@@ -91,7 +92,7 @@ export default function NotFoundPage() {
                     }}
                 >
                     返回首页
-                </a>
+                </Link>
             </div>
         </div>
     );

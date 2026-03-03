@@ -42,9 +42,9 @@
 > 说明：前端 2 个人并行。先按冻结协议做 mock；依赖后端时，等对应依赖完成再继续。
 
 ### 3.1 前端-E（底座流）
-- [ ] 3.1.1 完成 T1/T2/T3/T4 模板契约与 Evidence 组件契约
-- [ ] 3.1.2 完成 `lib/sdk`、`lib/bff`、`hooks` 分层骨架
-- [ ] 3.1.3 产出前端-E 交付标记：`FE-E-READY`
+- [x] 3.1.1 完成 T1/T2/T3/T4 模板契约与 Evidence 组件契约
+- [x] 3.1.2 完成 `lib/sdk`、`lib/bff`、`hooks` 分层骨架
+- [x] 3.1.3 产出前端-E 交付标记：`FE-E-READY`
 
 ### 3.2 前端-F（页面装配流）
 - [ ] 3.2.1 在 `DFP-READY` + `FE-E-READY` 条件下，先装配 GRN/OUT/Stocktake 页面（可先 mock）

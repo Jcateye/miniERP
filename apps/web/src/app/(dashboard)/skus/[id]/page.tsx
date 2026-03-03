@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -89,7 +90,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     );
 }
 
-export default function SkuDetailPage({ params }: { params: { id: string } }) {
+export default function SkuDetailPage() {
     return (
         <div
             style={{
@@ -100,13 +101,13 @@ export default function SkuDetailPage({ params }: { params: { id: string } }) {
         >
             {/* 面包屑 */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <a href="/" style={{ fontFamily: bodyFont, fontSize: 12, color: C.textMuted, textDecoration: "none" }}>
+                <Link href="/" style={{ fontFamily: bodyFont, fontSize: 12, color: C.textMuted, textDecoration: "none" }}>
                     首页
-                </a>
+                </Link>
                 <span style={{ color: C.border }}>/</span>
-                <a href="/skus" style={{ fontFamily: bodyFont, fontSize: 12, color: C.textMuted, textDecoration: "none" }}>
+                <Link href="/skus" style={{ fontFamily: bodyFont, fontSize: 12, color: C.textMuted, textDecoration: "none" }}>
                     SKU 管理
-                </a>
+                </Link>
                 <span style={{ color: C.border }}>/</span>
                 <span style={{ fontFamily: bodyFont, fontSize: 12, color: C.charcoal }}>
                     {SKU_DETAIL.code}
@@ -123,7 +124,7 @@ export default function SkuDetailPage({ params }: { params: { id: string } }) {
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <a
+                    <Link
                         href="/skus"
                         style={{
                             display: "flex",
@@ -141,7 +142,7 @@ export default function SkuDetailPage({ params }: { params: { id: string } }) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="15 18 9 12 15 6" />
                         </svg>
-                    </a>
+                    </Link>
                     <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <h1

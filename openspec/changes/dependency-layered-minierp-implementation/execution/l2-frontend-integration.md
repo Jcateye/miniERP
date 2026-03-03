@@ -5,7 +5,7 @@
 
 ## 前置依赖
 - `DFP-READY`
-- `FE-FOUNDATION-READY`
+- `FE-E-READY`
 - `BE-READY`
 
 ## 输入
@@ -15,7 +15,7 @@
 ## 输出
 - GRN/OUT/Stocktake 优先联调页面
 - SKU/PO/SO/设置页后续联调
-- G3 页面联调解锁标记：`FE-INTEGRATION-READY`
+- G3 页面联调解锁标记：`FE-F-READY`
 
 ## 任务
 - 优先装配 T4 向导链路页面
