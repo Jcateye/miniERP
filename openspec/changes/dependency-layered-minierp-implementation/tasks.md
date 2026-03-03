@@ -19,8 +19,8 @@
 > 说明：后端 3 个人并行。谁被依赖，谁优先；有依赖就等依赖完成再继续执行。
 
 ### 2.1 后端-B（核心单据流）
-- [ ] 2.1.1 实现 `purchase/inbound/sales/outbound` 命令与查询边界（按 DFP）
-- [ ] 2.1.2 对齐单据状态机（PO/GRN/SO/OUT）与非法迁移错误语义
+- [x] 2.1.1 实现 `purchase/inbound/sales/outbound` 命令与查询边界（按 DFP）
+- [x] 2.1.2 对齐单据状态机（PO/GRN/SO/OUT）与非法迁移错误语义
 - [ ] 2.1.3 产出后端-B 交付标记：`BE-B-READY`
 
 ### 2.2 后端-C（库存一致性流）
