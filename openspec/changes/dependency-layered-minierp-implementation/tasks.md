@@ -60,12 +60,12 @@
 
 > 说明：联调与验收不抢跑，等 `BE-READY` + `FE-READY` 完成后再执行。
 
-- [ ] 4.1 验证主流程：`PO -> GRN -> inventory_ledger`
-- [ ] 4.2 验证主流程：`SO -> OUT -> inventory_ledger`
-- [ ] 4.3 验证主流程：`Stocktake -> diff -> adjustment`
-- [ ] 4.4 验证证据流程：单据级绑定 + 行级绑定 + 差异行校验
-- [ ] 4.5 验证权限流程：跨租户越权拦截与审计追踪
-- [ ] 4.6 运行 `bun run test && bun run build` 并发布 `READY-FOR-APPLY`
+- [x] 4.1 验证主流程：`PO -> GRN -> inventory_ledger`
+- [x] 4.2 验证主流程：`SO -> OUT -> inventory_ledger`
+- [x] 4.3 验证主流程：`Stocktake -> diff -> adjustment`
+- [x] 4.4 验证证据流程：单据级绑定 + 行级绑定 + 差异行校验
+- [x] 4.5 验证权限流程：跨租户越权拦截与审计追踪
+- [x] 4.6 运行 `bun run test && bun run build` 并发布 `READY-FOR-APPLY`
 
 ## 5. 执行文件映射（索引）
 
@@ -74,4 +74,4 @@
 - [x] 5.3 Backend-D：`execution/l1-support-backend.md`
 - [x] 5.4 Frontend-E：`execution/l2-frontend-foundation.md`
 - [x] 5.5 Frontend-F：`execution/l2-frontend-integration.md`
-- [ ] 5.6 Acceptance：`execution/e2e-closure.md`
+- [x] 5.6 Acceptance：`execution/e2e-closure.md`

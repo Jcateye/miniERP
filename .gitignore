@@ -5,6 +5,8 @@ node_modules
 out
 dist
 *.tgz
+!apps/web/src/app/(dashboard)/sales/out/
+!apps/web/src/app/(dashboard)/sales/out/**
 
 # code coverage
 coverage
