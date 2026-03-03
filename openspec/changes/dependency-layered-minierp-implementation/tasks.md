@@ -21,7 +21,7 @@
 ### 2.1 后端-B（核心单据流）
 - [x] 2.1.1 实现 `purchase/inbound/sales/outbound` 命令与查询边界（按 DFP）
 - [x] 2.1.2 对齐单据状态机（PO/GRN/SO/OUT）与非法迁移错误语义
-- [ ] 2.1.3 产出后端-B 交付标记：`BE-B-READY`
+- [x] 2.1.3 产出后端-B 交付标记：`BE-B-READY`
 
 ### 2.2 后端-C（库存一致性流）
 - [x] 2.2.1 实现 `inventory` 过账原子事务与幂等（`idempotency_record`）
@@ -34,8 +34,8 @@
 - [x] 2.3.3 产出后端-D 交付标记：`BE-D-READY`
 
 ### 2.4 后端汇总门禁
-- [ ] 2.4.1 仅在 `BE-B-READY`、`BE-C-READY`、`BE-D-READY` 全部完成后，执行 `bun run --filter server test`
-- [ ] 2.4.2 测试通过后发布 `BE-READY`
+- [x] 2.4.1 仅在 `BE-B-READY`、`BE-C-READY`、`BE-D-READY` 全部完成后，执行 `bun run --filter server test`
+- [x] 2.4.2 测试通过后发布 `BE-READY`
 
 ## 3. G3-前端实现组（2人并行）
 
