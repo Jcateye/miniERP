@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AuditService } from '../../audit/application/audit.service';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
 import { InMemoryEvidenceBindingRepository } from '../infrastructure/evidence-binding.repository';
@@ -68,6 +68,37 @@ describe('EvidenceBindingService', () => {
         tenantId: '1002',
       }),
     ).toThrow(ForbiddenException);
+  });
+
+  it('throws bad request when binding input is invalid', () => {
+    const { service } = createService({ tenantId: '1001', requestId: 'req-1', actorId: '2001' });
+
+    expect(() =>
+      service.bindEvidence({
+        evidenceId: '5001',
+        entityType: 'grn',
+        entityId: '3001',
+        bindingLevel: 'line',
+        tag: 'invoice',
+      }),
+    ).toThrow(BadRequestException);
+
+    try {
+      service.bindEvidence({
+        evidenceId: '5001',
+        entityType: 'grn',
+        entityId: '3001',
+        bindingLevel: 'line',
+        tag: 'invoice',
+      });
+    } catch (error) {
+      const response = (error as BadRequestException).getResponse() as {
+        code: string;
+        message: string;
+      };
+      expect(response.code).toBe('VALIDATION_EVIDENCE_BINDING_INVALID');
+      expect(response.message).toContain('validation failed');
+    }
   });
 
   it('is idempotent for same tenant/evidence/entity/scope/line', () => {

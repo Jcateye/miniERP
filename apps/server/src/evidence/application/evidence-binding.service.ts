@@ -1,6 +1,7 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { AuditService } from '../../audit/application/audit.service';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
+import { ZodError } from 'zod';
 import {
   evidenceBindingSchema,
   type EvidenceBindingInput,
@@ -19,7 +20,7 @@ export class EvidenceBindingService {
   ) {}
 
   bindEvidence(input: EvidenceBindingInput): EvidenceBindingRecord {
-    const parsedInput = evidenceBindingSchema.parse(input);
+    const parsedInput = this.parseBindingInput(input);
     const context = this.tenantContextService.getRequiredContext();
     const tenantId = parsedInput.tenantId ?? context.tenantId;
 
@@ -76,5 +77,26 @@ export class EvidenceBindingService {
     });
 
     return createdRecord;
+  }
+
+  private parseBindingInput(input: EvidenceBindingInput): EvidenceBindingInput {
+    try {
+      return evidenceBindingSchema.parse(input);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new BadRequestException({
+          code: 'VALIDATION_EVIDENCE_BINDING_INVALID',
+          message: 'Evidence binding input validation failed',
+          details: {
+            issues: error.issues.map((issue) => ({
+              path: issue.path.join('.'),
+              message: issue.message,
+            })),
+          },
+        });
+      }
+
+      throw error;
+    }
   }
 }
