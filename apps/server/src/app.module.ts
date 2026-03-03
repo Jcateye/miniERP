@@ -6,12 +6,20 @@ import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { AuditService } from './audit/application/audit.service';
+import { IamGuard } from './common/iam/iam.guard';
+import { PlatformAccessService } from './platform/application/platform-access.service';
+import { TenantContextService } from './common/tenant/tenant-context.service';
 
 @Module({
   imports: [DatabaseModule, HealthModule],
   controllers: [AppController],
   providers: [
     AppService,
+    TenantContextService,
+    AuditService,
+    PlatformAccessService,
+    IamGuard,
     {
       provide: APP_INTERCEPTOR,
       useClass: ApiResponseInterceptor,

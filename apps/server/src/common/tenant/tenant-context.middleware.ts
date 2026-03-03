@@ -1,11 +1,21 @@
 import type { NextFunction, Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../iam/auth-context';
 import { tenantContextStorage } from './tenant-context';
+
+const HEALTH_PATH_PATTERN = /\/health\/(live|ready)\/?$/u;
 
 export function createTenantContextMiddleware(tenantHeader: string) {
   const normalizedTenantHeader = tenantHeader.toLowerCase();
 
   return function tenantContextMiddleware(request: Request, response: Response, next: NextFunction): void {
-    const tenantId = readHeaderValue(request, normalizedTenantHeader);
+    const requestPath = request.path ?? request.originalUrl ?? '';
+    if (HEALTH_PATH_PATTERN.test(requestPath)) {
+      next();
+      return;
+    }
+
+    const authenticatedRequest = request as Request & AuthenticatedRequest;
+    const tenantId = authenticatedRequest.authContext?.tenantId ?? readHeaderValue(request, normalizedTenantHeader);
 
     if (!tenantId) {
       response.status(400).json({
@@ -22,7 +32,7 @@ export function createTenantContextMiddleware(tenantHeader: string) {
       (typeof request.headers['x-request-id'] === 'string' ? request.headers['x-request-id'] : undefined) ??
       crypto.randomUUID();
 
-    const actorId = readHeaderValue(request, 'x-actor-id');
+    const actorId = authenticatedRequest.authContext?.actorId;
 
     tenantContextStorage.run(
       {

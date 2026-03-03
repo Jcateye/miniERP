@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 export type NodeEnv = 'development' | 'test' | 'production';
 
 export interface EnvSchema {
@@ -7,6 +9,7 @@ export interface EnvSchema {
   readonly DATABASE_URL: string;
   readonly REDIS_URL: string;
   readonly TENANT_HEADER: string;
+  readonly AUTH_CONTEXT_SECRET: string;
 }
 
 function parseNodeEnv(value: string | undefined): NodeEnv {
@@ -55,13 +58,34 @@ function parseTenantHeader(value: string | undefined): string {
   return value.trim();
 }
 
+const DEV_FALLBACK_AUTH_CONTEXT_SECRET = randomBytes(32).toString('hex');
+
+function parseAuthContextSecret(value: string | undefined, nodeEnv: NodeEnv): string {
+  if (typeof value !== 'undefined' && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  if (nodeEnv === 'test') {
+    return 'test-only-auth-context-secret';
+  }
+
+  if (nodeEnv === 'development') {
+    return DEV_FALLBACK_AUTH_CONTEXT_SECRET;
+  }
+
+  throw new Error('AUTH_CONTEXT_SECRET is required');
+}
+
 export function parseEnv(env: NodeJS.ProcessEnv = process.env): EnvSchema {
+  const nodeEnv = parseNodeEnv(env.NODE_ENV);
+
   return {
-    NODE_ENV: parseNodeEnv(env.NODE_ENV),
+    NODE_ENV: nodeEnv,
     PORT: parsePort(env.PORT),
     API_PREFIX: parseApiPrefix(env.API_PREFIX),
     DATABASE_URL: parseRequiredEnv(env.DATABASE_URL, 'DATABASE_URL'),
     REDIS_URL: parseRequiredEnv(env.REDIS_URL, 'REDIS_URL'),
     TENANT_HEADER: parseTenantHeader(env.TENANT_HEADER),
+    AUTH_CONTEXT_SECRET: parseAuthContextSecret(env.AUTH_CONTEXT_SECRET, nodeEnv),
   };
 }
