@@ -10,7 +10,12 @@ export interface ApprovalInput {
 export interface ApprovalResult {
   readonly required: boolean;
   readonly approved: boolean;
-  readonly reason: 'within-threshold' | 'assume-yes' | 'interactive-approved' | 'interactive-rejected' | 'non-interactive-rejected';
+  readonly reason:
+    | 'within-threshold'
+    | 'assume-yes'
+    | 'interactive-approved'
+    | 'interactive-rejected'
+    | 'non-interactive-rejected';
 }
 
 export async function evaluateApprovalGate(

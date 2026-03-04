@@ -7,7 +7,10 @@ const SWAGGER_PATH_PATTERN = /\/docs(?:\/.*)?$|\/docs-(json|yaml)$/u;
 
 type NodeEnv = 'development' | 'test' | 'production';
 
-function shouldBypassTenantValidation(requestPath: string, nodeEnv: NodeEnv): boolean {
+function shouldBypassTenantValidation(
+  requestPath: string,
+  nodeEnv: NodeEnv,
+): boolean {
   if (HEALTH_PATH_PATTERN.test(requestPath)) {
     return true;
   }

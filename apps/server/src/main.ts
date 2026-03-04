@@ -17,7 +17,8 @@ function setupSwagger(app: INestApplication, config: AppConfig) {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
   // 使用 config.globalPrefix 动态设置 docs 路径，保持与 API 路由一致
-  const docsPath = config.globalPrefix.length > 0 ? `${config.globalPrefix}/docs` : 'docs';
+  const docsPath =
+    config.globalPrefix.length > 0 ? `${config.globalPrefix}/docs` : 'docs';
   SwaggerModule.setup(docsPath, app, document, {
     swaggerOptions: {
       persistAuthorization: true,
@@ -35,9 +36,7 @@ async function bootstrap() {
       nodeEnv: config.nodeEnv,
     }),
   );
-  app.use(
-    createTenantContextMiddleware(config.tenantHeader, config.nodeEnv),
-  );
+  app.use(createTenantContextMiddleware(config.tenantHeader, config.nodeEnv));
 
   app.useGlobalPipes(
     new ValidationPipe({

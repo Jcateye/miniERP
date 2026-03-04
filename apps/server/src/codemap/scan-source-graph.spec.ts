@@ -16,16 +16,36 @@ describe('buildSourceGraph', () => {
       path.join(tempDir, 'apps/server/src/a.ts'),
       "import { b } from './b';\nimport { Injectable } from '@nestjs/common';\nexport const a = b;",
     );
-    createFile(path.join(tempDir, 'apps/server/src/b.ts'), 'export const b = 1;');
-    createFile(path.join(tempDir, 'apps/server/package.json'), JSON.stringify({ name: 'server', dependencies: { '@nestjs/common': '^11' } }));
-    createFile(path.join(tempDir, 'apps/web/package.json'), JSON.stringify({ name: 'web' }));
-    createFile(path.join(tempDir, 'packages/shared/package.json'), JSON.stringify({ name: 'shared' }));
-    createFile(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'root' }));
+    createFile(
+      path.join(tempDir, 'apps/server/src/b.ts'),
+      'export const b = 1;',
+    );
+    createFile(
+      path.join(tempDir, 'apps/server/package.json'),
+      JSON.stringify({
+        name: 'server',
+        dependencies: { '@nestjs/common': '^11' },
+      }),
+    );
+    createFile(
+      path.join(tempDir, 'apps/web/package.json'),
+      JSON.stringify({ name: 'web' }),
+    );
+    createFile(
+      path.join(tempDir, 'packages/shared/package.json'),
+      JSON.stringify({ name: 'shared' }),
+    );
+    createFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'root' }),
+    );
 
     const graph = buildSourceGraph(tempDir);
 
     expect(graph.nodes.length).toBe(2);
-    const serverNode = graph.nodes.find((node) => node.filePath === 'apps/server/src/a.ts');
+    const serverNode = graph.nodes.find(
+      (node) => node.filePath === 'apps/server/src/a.ts',
+    );
     expect(serverNode).toBeDefined();
     expect(serverNode?.internalImports).toContain('apps/server/src/b.ts');
     expect(serverNode?.externalImports).toContain('@nestjs/common');

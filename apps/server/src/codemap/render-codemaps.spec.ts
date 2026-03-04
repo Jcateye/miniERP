@@ -54,7 +54,9 @@ describe('renderCodemaps', () => {
     expect(rendered.frontend).toContain('# Frontend codemap');
     expect(rendered.data).toContain('# Data codemap');
 
-    expect(rendered.architecture).toContain('Freshness: 2026-03-04T00:00:00.000Z');
+    expect(rendered.architecture).toContain(
+      'Freshness: 2026-03-04T00:00:00.000Z',
+    );
     expect(rendered.backend).toContain('Freshness: 2026-03-04T00:00:00.000Z');
     expect(rendered.frontend).toContain('Freshness: 2026-03-04T00:00:00.000Z');
     expect(rendered.data).toContain('Freshness: 2026-03-04T00:00:00.000Z');

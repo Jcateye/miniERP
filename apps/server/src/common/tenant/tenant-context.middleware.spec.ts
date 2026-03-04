@@ -92,7 +92,10 @@ describe('tenantContextMiddleware', () => {
   });
 
   it('bypasses tenant requirement for swagger docs endpoint in development', () => {
-    const middleware = createTenantContextMiddleware('x-tenant-id', 'development');
+    const middleware = createTenantContextMiddleware(
+      'x-tenant-id',
+      'development',
+    );
     const request = createRequest({}, '/api/docs');
     const { response, status } = createResponse();
     const next = jest.fn() as NextFunction;
@@ -104,7 +107,10 @@ describe('tenantContextMiddleware', () => {
   });
 
   it('does not bypass tenant requirement for swagger docs endpoint in production', () => {
-    const middleware = createTenantContextMiddleware('x-tenant-id', 'production');
+    const middleware = createTenantContextMiddleware(
+      'x-tenant-id',
+      'production',
+    );
     const request = createRequest({}, '/api/docs');
     const { response, status, json } = createResponse();
     const next = jest.fn() as NextFunction;

@@ -2,7 +2,10 @@ import { buildDiffSummary, computeCodemapDiffPercent } from './compute-diff';
 
 describe('computeCodemapDiffPercent', () => {
   it('returns baseline when previous content is missing', () => {
-    const result = computeCodemapDiffPercent(null, '# title\n- Freshness: 2026-03-04T00:00:00.000Z\n- A');
+    const result = computeCodemapDiffPercent(
+      null,
+      '# title\n- Freshness: 2026-03-04T00:00:00.000Z\n- A',
+    );
 
     expect(result).toEqual({
       diffPercent: 0,
