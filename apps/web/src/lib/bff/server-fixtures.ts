@@ -7,6 +7,7 @@ import type { DocumentDetailDto, DocumentListItemDto, PaginationEnvelope } from 
 
 const DEV_FALLBACK_AUTH_CONTEXT_SECRET = 'dev-only-auth-context-secret';
 const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
+const FIXTURE_FALLBACK_ALLOWED_ENVS = new Set(['development', 'test']);
 
 const documents: Record<DocumentType, DocumentListItemDto[]> = {
   PO: [
@@ -142,9 +143,15 @@ function signPayload(payload: string, secret: string): string {
 }
 
 export function createServerHeaders() {
+  const nodeEnv = process.env.NODE_ENV ?? 'production';
+  const configuredSecret = process.env.AUTH_CONTEXT_SECRET?.trim();
+
+  if (!configuredSecret && !FIXTURE_FALLBACK_ALLOWED_ENVS.has(nodeEnv)) {
+    throw new Error('AUTH_CONTEXT_SECRET is required outside development/test');
+  }
+
   const secret =
-    process.env.AUTH_CONTEXT_SECRET?.trim() ||
-    (process.env.NODE_ENV === 'test' ? TEST_AUTH_CONTEXT_SECRET : DEV_FALLBACK_AUTH_CONTEXT_SECRET);
+    configuredSecret || (nodeEnv === 'test' ? TEST_AUTH_CONTEXT_SECRET : DEV_FALLBACK_AUTH_CONTEXT_SECRET);
   const tenantId = process.env.MINIERP_TENANT_ID ?? '1001';
   const authContext = {
     tenantId,
@@ -169,6 +176,15 @@ export function createServerHeaders() {
 export function buildBackendUrl(path: string) {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3001';
   return `${baseUrl}/api${path}`;
+}
+
+export function isFixtureFallbackEnabled() {
+  const nodeEnv = process.env.NODE_ENV ?? 'production';
+  return FIXTURE_FALLBACK_ALLOWED_ENVS.has(nodeEnv);
+}
+
+export function toFixtureFallbackDisabledResponse(message: string) {
+  return toUpstreamUnavailableResponse(message);
 }
 
 export async function toUpstreamErrorResponse(response: Response) {

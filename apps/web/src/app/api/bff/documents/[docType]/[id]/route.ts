@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { DocumentType } from '@minierp/shared';
 
-import { buildBackendUrl, createServerHeaders, getDocumentFixture } from '@/lib/bff/server-fixtures';
+import {
+  buildBackendUrl,
+  createServerHeaders,
+  getDocumentFixture,
+  isFixtureFallbackEnabled,
+  toFixtureFallbackDisabledResponse,
+} from '@/lib/bff/server-fixtures';
 
 export async function GET(
   _request: Request,
@@ -19,7 +25,15 @@ export async function GET(
     if (response.ok) {
       return NextResponse.json(await response.json());
     }
-  } catch {}
+
+    if (!isFixtureFallbackEnabled()) {
+      return toFixtureFallbackDisabledResponse('Backend document detail is unavailable in current environment');
+    }
+  } catch {
+    if (!isFixtureFallbackEnabled()) {
+      return toFixtureFallbackDisabledResponse('Backend document detail is unavailable in current environment');
+    }
+  }
 
   return NextResponse.json({
     data: getDocumentFixture(normalizedDocType, id),

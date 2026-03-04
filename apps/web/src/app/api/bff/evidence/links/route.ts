@@ -4,6 +4,8 @@ import {
   buildBackendUrl,
   createServerHeaders,
   getEvidenceFixture,
+  isFixtureFallbackEnabled,
+  toFixtureFallbackDisabledResponse,
   toUpstreamErrorResponse,
   toUpstreamUnavailableResponse,
 } from '@/lib/bff/server-fixtures';
@@ -23,7 +25,15 @@ export async function GET(request: NextRequest) {
     if (response.ok) {
       return NextResponse.json(await response.json());
     }
-  } catch {}
+
+    if (!isFixtureFallbackEnabled()) {
+      return toFixtureFallbackDisabledResponse('Backend evidence links are unavailable in current environment');
+    }
+  } catch {
+    if (!isFixtureFallbackEnabled()) {
+      return toFixtureFallbackDisabledResponse('Backend evidence links are unavailable in current environment');
+    }
+  }
 
   return NextResponse.json({
     data: getEvidenceFixture(entityType, entityId, scope, lineRef),
