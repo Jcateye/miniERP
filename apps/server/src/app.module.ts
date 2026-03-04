@@ -14,9 +14,12 @@ import {
 import { IamGuard } from './common/iam/iam.guard';
 import { PlatformAccessService } from './platform/application/platform-access.service';
 import { TenantContextService } from './common/tenant/tenant-context.service';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { EvidenceModule } from './modules/evidence/evidence.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
-  imports: [DatabaseModule, HealthModule],
+  imports: [DatabaseModule, HealthModule, DocumentsModule, EvidenceModule, InventoryModule],
   controllers: [AppController],
   providers: [
     AppService,
