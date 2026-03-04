@@ -276,9 +276,9 @@ export function buildSourceGraph(
           left.localeCompare(right),
         ),
         exportNames,
-      } satisfies SourceGraphNode;
+      };
     })
-    .filter((node): node is SourceGraphNode => Boolean(node))
+    .filter((node): node is NonNullable<typeof node> => node !== null)
     .sort((left, right) => left.filePath.localeCompare(right.filePath));
 
   return {
