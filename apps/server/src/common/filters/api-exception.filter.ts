@@ -1,4 +1,10 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import type { ApiError, ApiErrorCode, ApiErrorPayload } from '@minierp/shared';
 
@@ -25,7 +31,9 @@ const STATUS_TO_CATEGORY: Record<number, ApiErrorPayload['category']> = {
   [HttpStatus.SERVICE_UNAVAILABLE]: 'external',
 };
 
-function isApiErrorCategory(value: unknown): value is ApiErrorPayload['category'] {
+function isApiErrorCategory(
+  value: unknown,
+): value is ApiErrorPayload['category'] {
   return (
     value === 'validation' ||
     value === 'auth' ||
@@ -56,16 +64,18 @@ function toApiErrorPayload(exception: unknown): ApiErrorPayload {
     const status = exception.getStatus();
     const response = exception.getResponse();
     const isProduction = process.env.NODE_ENV === 'production';
-    const shouldSanitizeMessage = isProduction && status >= HttpStatus.INTERNAL_SERVER_ERROR;
+    const shouldSanitizeMessage = isProduction && status >= 500;
 
     if (typeof response === 'object' && response !== null) {
-      const maybeError = response as Partial<ApiErrorPayload> & { message?: string | string[] };
+      const maybeError = response as Partial<ApiErrorPayload> & {
+        message?: string | string[];
+      };
       const category = isApiErrorCategory(maybeError.category)
         ? maybeError.category
         : (STATUS_TO_CATEGORY[status] ?? 'internal');
       const rawMessage = Array.isArray(maybeError.message)
         ? maybeError.message.join(', ')
-        : maybeError.message ?? exception.message;
+        : (maybeError.message ?? exception.message);
 
       return {
         category,
@@ -76,7 +86,8 @@ function toApiErrorPayload(exception: unknown): ApiErrorPayload {
       };
     }
 
-    const rawMessage = typeof response === 'string' ? response : exception.message;
+    const rawMessage =
+      typeof response === 'string' ? response : exception.message;
     const category = STATUS_TO_CATEGORY[status] ?? 'internal';
 
     return {
@@ -112,7 +123,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
-        : (CATEGORY_TO_STATUS[payload.category] ?? HttpStatus.INTERNAL_SERVER_ERROR);
+        : (CATEGORY_TO_STATUS[payload.category] ??
+          HttpStatus.INTERNAL_SERVER_ERROR);
 
     const body: ApiError = {
       error: {

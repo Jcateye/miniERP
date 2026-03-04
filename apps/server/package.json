@@ -18,16 +18,20 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "openapi:generate": "bun run scripts/generate-openapi.ts",
+    "openapi:check": "bun run scripts/generate-openapi.ts && bun run scripts/check-openapi-quality.ts",
     "db:generate": "node -e \"console.error('db:generate unavailable: no ORM generator is configured in apps/server. Please integrate Prisma/TypeORM migration tooling before using this command.'); process.exit(1);\"",
     "db:migrate": "node -e \"console.error('db:migrate unavailable: no ORM migration runner is configured in apps/server. Please integrate Prisma/TypeORM migration tooling before using this command.'); process.exit(1);\""
   },
   "dependencies": {
+    "@minierp/shared": "workspace:*",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
-    "@minierp/shared": "workspace:*",
+    "@nestjs/swagger": "^11.2.6",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -54,7 +58,8 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.56.1"
   },
   "jest": {
     "moduleFileExtensions": ["js", "json", "ts"],

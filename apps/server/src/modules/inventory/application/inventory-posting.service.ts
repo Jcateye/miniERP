@@ -20,9 +20,13 @@ import type {
   InventoryTenantTransaction,
 } from '../domain/inventory.types';
 
-function normalizeLines(lines: readonly InventoryPostingLine[]): InventoryPostingLine[] {
+function normalizeLines(
+  lines: readonly InventoryPostingLine[],
+): InventoryPostingLine[] {
   return [...lines].sort((left, right) => {
-    const keyCompare = `${left.skuId}:${left.warehouseId}`.localeCompare(`${right.skuId}:${right.warehouseId}`);
+    const keyCompare = `${left.skuId}:${left.warehouseId}`.localeCompare(
+      `${right.skuId}:${right.warehouseId}`,
+    );
     if (keyCompare !== 0) {
       return keyCompare;
     }
@@ -36,7 +40,9 @@ function hashPayload(payload: unknown): string {
   return createHash('sha256').update(json).digest('hex');
 }
 
-function aggregateLines(lines: readonly InventoryPostingLine[]): Map<string, { key: InventoryKey; quantityDelta: number }> {
+function aggregateLines(
+  lines: readonly InventoryPostingLine[],
+): Map<string, { key: InventoryKey; quantityDelta: number }> {
   return lines.reduce((acc, line) => {
     const mapKey = `${line.skuId}::${line.warehouseId}`;
     const existing = acc.get(mapKey);
@@ -57,19 +63,24 @@ function aggregateLines(lines: readonly InventoryPostingLine[]): Map<string, { k
   }, new Map<string, { key: InventoryKey; quantityDelta: number }>());
 }
 
-const ALLOWED_REFERENCE_TYPES: ReadonlySet<InventoryReferenceType> = new Set<InventoryReferenceType>([
-  'GRN',
-  'OUT',
-  'STOCKTAKE',
-  'ADJUSTMENT',
-  'REVERSAL',
-]);
+const ALLOWED_REFERENCE_TYPES: ReadonlySet<InventoryReferenceType> =
+  new Set<InventoryReferenceType>([
+    'GRN',
+    'OUT',
+    'STOCKTAKE',
+    'ADJUSTMENT',
+    'REVERSAL',
+  ]);
 
 @Injectable()
 export class InventoryPostingService {
   constructor(private readonly store: InventoryConsistencyStore) {}
 
-  async post(tenantId: string, command: InventoryPostingCommand, requestId: string): Promise<InventoryPostingResult> {
+  async post(
+    tenantId: string,
+    command: InventoryPostingCommand,
+    requestId: string,
+  ): Promise<InventoryPostingResult> {
     this.validatePostCommand(command);
 
     const payloadHash = hashPayload({
@@ -122,7 +133,10 @@ export class InventoryPostingService {
         tx.saveBalance(item.key, current + item.quantityDelta);
       }
 
-      const balanceSnapshots = this.toBalanceSnapshots(tx, [...aggregatedLines.values()].map((item) => item.key));
+      const balanceSnapshots = this.toBalanceSnapshots(
+        tx,
+        [...aggregatedLines.values()].map((item) => item.key),
+      );
       const result: InventoryPostingResult = {
         ledgerEntries,
         balanceSnapshots,
@@ -142,12 +156,18 @@ export class InventoryPostingService {
     });
   }
 
-  async reverse(tenantId: string, command: InventoryReversalCommand, requestId: string): Promise<InventoryPostingResult> {
+  async reverse(
+    tenantId: string,
+    command: InventoryReversalCommand,
+    requestId: string,
+  ): Promise<InventoryPostingResult> {
     this.validateReverseCommand(command);
 
     const payloadHash = hashPayload({
       referenceId: command.referenceId,
-      ledgerIds: [...command.ledgerIds].sort((left, right) => left.localeCompare(right)),
+      ledgerIds: [...command.ledgerIds].sort((left, right) =>
+        left.localeCompare(right),
+      ),
     });
 
     return this.store.withTenantTransaction(tenantId, (tx) => {
@@ -164,8 +184,12 @@ export class InventoryPostingService {
       const sourceEntries = tx.findLedgerEntriesByIds(command.ledgerIds);
 
       if (sourceEntries.length !== command.ledgerIds.length) {
-        const existingIds = new Set<string>(sourceEntries.map((entry) => entry.id));
-        const missing = command.ledgerIds.find((ledgerId) => !existingIds.has(ledgerId));
+        const existingIds = new Set<string>(
+          sourceEntries.map((entry) => entry.id),
+        );
+        const missing = command.ledgerIds.find(
+          (ledgerId) => !existingIds.has(ledgerId),
+        );
         throw new InventoryLedgerNotFoundError(missing ?? 'unknown');
       }
 
@@ -218,7 +242,10 @@ export class InventoryPostingService {
         tx.saveBalance(item.key, current + item.quantityDelta);
       }
 
-      const balanceSnapshots = this.toBalanceSnapshots(tx, [...aggregatedLines.values()].map((item) => item.key));
+      const balanceSnapshots = this.toBalanceSnapshots(
+        tx,
+        [...aggregatedLines.values()].map((item) => item.key),
+      );
       const result: InventoryPostingResult = {
         ledgerEntries: reversalEntries,
         balanceSnapshots,
@@ -242,7 +269,9 @@ export class InventoryPostingService {
     tenantId: string,
     keys: readonly InventoryKey[],
   ): Promise<readonly InventoryBalanceSnapshot[]> {
-    return this.store.withTenantTransaction(tenantId, (tx) => this.toBalanceSnapshots(tx, keys));
+    return this.store.withTenantTransaction(tenantId, (tx) =>
+      this.toBalanceSnapshots(tx, keys),
+    );
   }
 
   private toBalanceSnapshots(
@@ -289,7 +318,9 @@ export class InventoryPostingService {
       }
 
       if (!Number.isFinite(line.quantityDelta) || line.quantityDelta === 0) {
-        throw new InventoryValidationError('line.quantityDelta must be a non-zero finite number');
+        throw new InventoryValidationError(
+          'line.quantityDelta must be a non-zero finite number',
+        );
       }
     }
   }
@@ -311,11 +342,15 @@ export class InventoryPostingService {
 
     for (const ledgerId of command.ledgerIds) {
       if (ledgerId.trim().length === 0) {
-        throw new InventoryValidationError('ledgerIds must not contain empty value');
+        throw new InventoryValidationError(
+          'ledgerIds must not contain empty value',
+        );
       }
 
       if (unique.has(ledgerId)) {
-        throw new InventoryValidationError('ledgerIds must not contain duplicate values');
+        throw new InventoryValidationError(
+          'ledgerIds must not contain duplicate values',
+        );
       }
 
       unique.add(ledgerId);

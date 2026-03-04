@@ -1,6 +1,11 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
-export const CORE_DOCUMENT_MODULES = ['purchase', 'inbound', 'sales', 'outbound'] as const;
+export const CORE_DOCUMENT_MODULES = [
+  'purchase',
+  'inbound',
+  'sales',
+  'outbound',
+] as const;
 
 export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT'] as const;
 
@@ -57,7 +62,12 @@ export interface DocumentModuleBoundary {
   queries: readonly string[];
 }
 
-type StatusGraph = Readonly<Record<CoreDocumentType, Readonly<Record<CoreDocumentStatus, readonly CoreDocumentStatus[]>>>>;
+type StatusGraph = Readonly<
+  Record<
+    CoreDocumentType,
+    Readonly<Record<CoreDocumentStatus, readonly CoreDocumentStatus[]>>
+  >
+>;
 
 const STATUS_GRAPH: StatusGraph = {
   PO: {
@@ -98,13 +108,20 @@ const STATUS_GRAPH: StatusGraph = {
   },
 };
 
-const MODULE_BOUNDARIES: Readonly<Record<CoreDocumentModule, DocumentModuleBoundary>> = {
+const MODULE_BOUNDARIES: Readonly<
+  Record<CoreDocumentModule, DocumentModuleBoundary>
+> = {
   purchase: {
     module: 'purchase',
     entityType: 'PO',
     initialStatus: 'draft',
     statuses: ['draft', 'confirmed', 'closed', 'cancelled'],
-    commands: ['createPurchaseOrder', 'confirmPurchaseOrder', 'closePurchaseOrder', 'cancelPurchaseOrder'],
+    commands: [
+      'createPurchaseOrder',
+      'confirmPurchaseOrder',
+      'closePurchaseOrder',
+      'cancelPurchaseOrder',
+    ],
     queries: ['getPurchaseOrder', 'listPurchaseOrders'],
   },
   inbound: {
@@ -112,7 +129,12 @@ const MODULE_BOUNDARIES: Readonly<Record<CoreDocumentModule, DocumentModuleBound
     entityType: 'GRN',
     initialStatus: 'draft',
     statuses: ['draft', 'validating', 'posted', 'cancelled'],
-    commands: ['createGoodsReceipt', 'startGoodsReceiptValidation', 'postGoodsReceipt', 'cancelGoodsReceipt'],
+    commands: [
+      'createGoodsReceipt',
+      'startGoodsReceiptValidation',
+      'postGoodsReceipt',
+      'cancelGoodsReceipt',
+    ],
     queries: ['getGoodsReceipt', 'listGoodsReceipts'],
   },
   sales: {
@@ -120,7 +142,12 @@ const MODULE_BOUNDARIES: Readonly<Record<CoreDocumentModule, DocumentModuleBound
     entityType: 'SO',
     initialStatus: 'draft',
     statuses: ['draft', 'confirmed', 'closed', 'cancelled'],
-    commands: ['createSalesOrder', 'confirmSalesOrder', 'closeSalesOrder', 'cancelSalesOrder'],
+    commands: [
+      'createSalesOrder',
+      'confirmSalesOrder',
+      'closeSalesOrder',
+      'cancelSalesOrder',
+    ],
     queries: ['getSalesOrder', 'listSalesOrders'],
   },
   outbound: {
@@ -128,7 +155,12 @@ const MODULE_BOUNDARIES: Readonly<Record<CoreDocumentModule, DocumentModuleBound
     entityType: 'OUT',
     initialStatus: 'draft',
     statuses: ['draft', 'picking', 'posted', 'cancelled'],
-    commands: ['createOutboundOrder', 'startOutboundPicking', 'postOutboundOrder', 'cancelOutboundOrder'],
+    commands: [
+      'createOutboundOrder',
+      'startOutboundPicking',
+      'postOutboundOrder',
+      'cancelOutboundOrder',
+    ],
     queries: ['getOutboundOrder', 'listOutboundOrders'],
   },
 };
@@ -139,7 +171,10 @@ export class InvalidStatusTransitionError extends HttpException {
   readonly details: InvalidStatusTransitionDetails;
   readonly transition: InvalidStatusTransitionTransition;
 
-  constructor(attempt: StatusTransitionAttempt, allowedToStatuses: readonly CoreDocumentStatus[]) {
+  constructor(
+    attempt: StatusTransitionAttempt,
+    allowedToStatuses: readonly CoreDocumentStatus[],
+  ) {
     const message = `Illegal status transition for ${attempt.entityType}(${attempt.entityId}): ${attempt.fromStatus} -> ${attempt.toStatus}`;
     const details: InvalidStatusTransitionDetails = {
       entity_type: attempt.entityType,
@@ -185,7 +220,9 @@ export class InvalidStatusTransitionError extends HttpException {
   }
 }
 
-export function getDocumentModuleBoundary(module: CoreDocumentModule): DocumentModuleBoundary {
+export function getDocumentModuleBoundary(
+  module: CoreDocumentModule,
+): DocumentModuleBoundary {
   return MODULE_BOUNDARIES[module];
 }
 
@@ -197,11 +234,17 @@ export function getAllowedNextStatuses(
 }
 
 export function canTransitionStatus(attempt: StatusTransitionAttempt): boolean {
-  return getAllowedNextStatuses(attempt.entityType, attempt.fromStatus).includes(attempt.toStatus);
+  return getAllowedNextStatuses(
+    attempt.entityType,
+    attempt.fromStatus,
+  ).includes(attempt.toStatus);
 }
 
 export function assertStatusTransition(attempt: StatusTransitionAttempt): void {
-  const allowedToStatuses = getAllowedNextStatuses(attempt.entityType, attempt.fromStatus);
+  const allowedToStatuses = getAllowedNextStatuses(
+    attempt.entityType,
+    attempt.fromStatus,
+  );
 
   if (!allowedToStatuses.includes(attempt.toStatus)) {
     throw new InvalidStatusTransitionError(attempt, allowedToStatuses);

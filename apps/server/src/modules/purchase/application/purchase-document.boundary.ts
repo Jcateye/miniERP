@@ -4,7 +4,11 @@ import {
   type DocumentModuleBoundary,
 } from '../../core-document/domain/status-transition';
 
-export type PurchaseOrderStatus = 'draft' | 'confirmed' | 'closed' | 'cancelled';
+export type PurchaseOrderStatus =
+  | 'draft'
+  | 'confirmed'
+  | 'closed'
+  | 'cancelled';
 
 export interface PurchaseOrderTransitionAttempt {
   entityId: string;
@@ -12,9 +16,12 @@ export interface PurchaseOrderTransitionAttempt {
   toStatus: PurchaseOrderStatus;
 }
 
-export const purchaseDocumentBoundary: DocumentModuleBoundary = getDocumentModuleBoundary('purchase');
+export const purchaseDocumentBoundary: DocumentModuleBoundary =
+  getDocumentModuleBoundary('purchase');
 
-export function assertPurchaseOrderStatusTransition(attempt: PurchaseOrderTransitionAttempt): void {
+export function assertPurchaseOrderStatusTransition(
+  attempt: PurchaseOrderTransitionAttempt,
+): void {
   assertStatusTransition({
     entityType: 'PO',
     entityId: attempt.entityId,

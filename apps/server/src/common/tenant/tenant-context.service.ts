@@ -11,7 +11,9 @@ export class TenantContextService {
     const context = this.getContext();
 
     if (!context) {
-      throw new Error('Tenant context is not available in current execution context');
+      throw new Error(
+        'Tenant context is not available in current execution context',
+      );
     }
 
     return context;

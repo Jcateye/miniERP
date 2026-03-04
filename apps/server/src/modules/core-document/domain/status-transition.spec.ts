@@ -13,7 +13,12 @@ describe('status-transition', () => {
       entityType: 'PO',
       initialStatus: 'draft',
       statuses: ['draft', 'confirmed', 'closed', 'cancelled'],
-      commands: ['createPurchaseOrder', 'confirmPurchaseOrder', 'closePurchaseOrder', 'cancelPurchaseOrder'],
+      commands: [
+        'createPurchaseOrder',
+        'confirmPurchaseOrder',
+        'closePurchaseOrder',
+        'cancelPurchaseOrder',
+      ],
       queries: ['getPurchaseOrder', 'listPurchaseOrders'],
     });
   });
@@ -39,7 +44,10 @@ describe('status-transition', () => {
   });
 
   it('exposes allowed next statuses for grn validating state', () => {
-    expect(getAllowedNextStatuses('GRN', 'validating')).toEqual(['posted', 'cancelled']);
+    expect(getAllowedNextStatuses('GRN', 'validating')).toEqual([
+      'posted',
+      'cancelled',
+    ]);
   });
 
   it('throws normalized invalid transition error for illegal purchase transition', () => {

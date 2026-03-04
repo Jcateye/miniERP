@@ -1,8 +1,4 @@
-import {
-  applyDecorators,
-  SetMetadata,
-  UseGuards,
-} from '@nestjs/common';
+import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
 import { IamGuard, REQUIRED_PERMISSIONS_METADATA_KEY } from './iam.guard';
 
 export function RequirePermissions(...permissions: string[]) {

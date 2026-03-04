@@ -1,4 +1,9 @@
-import { Injectable, NestInterceptor, type ExecutionContext, type CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
+} from '@nestjs/common';
 import type { ApiResponse } from '@minierp/shared';
 import { map, type Observable } from 'rxjs';
 
@@ -17,7 +22,10 @@ function isDataCarrier(value: unknown): value is DataCarrier {
 
 @Injectable()
 export class ApiResponseInterceptor implements NestInterceptor {
-  intercept(_context: ExecutionContext, next: CallHandler): Observable<ApiResponse<unknown>> {
+  intercept(
+    _context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<ApiResponse<unknown>> {
     return next.handle().pipe(
       map((value: unknown) => {
         if (isDataCarrier(value)) {

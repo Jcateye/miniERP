@@ -4,7 +4,11 @@ import {
   type DocumentModuleBoundary,
 } from '../../core-document/domain/status-transition';
 
-export type OutboundDocumentStatus = 'draft' | 'picking' | 'posted' | 'cancelled';
+export type OutboundDocumentStatus =
+  | 'draft'
+  | 'picking'
+  | 'posted'
+  | 'cancelled';
 
 export interface OutboundDocumentTransitionAttempt {
   entityId: string;
@@ -12,9 +16,12 @@ export interface OutboundDocumentTransitionAttempt {
   toStatus: OutboundDocumentStatus;
 }
 
-export const outboundDocumentBoundary: DocumentModuleBoundary = getDocumentModuleBoundary('outbound');
+export const outboundDocumentBoundary: DocumentModuleBoundary =
+  getDocumentModuleBoundary('outbound');
 
-export function assertOutboundDocumentStatusTransition(attempt: OutboundDocumentTransitionAttempt): void {
+export function assertOutboundDocumentStatusTransition(
+  attempt: OutboundDocumentTransitionAttempt,
+): void {
   assertStatusTransition({
     entityType: 'OUT',
     entityId: attempt.entityId,

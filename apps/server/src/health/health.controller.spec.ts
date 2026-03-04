@@ -36,13 +36,19 @@ describe('HealthController', () => {
       data: {
         status: 'not_ready',
         dependencies: [
-          { name: 'database', status: 'down', error: 'connect ECONNREFUSED 127.0.0.1:5432' },
+          {
+            name: 'database',
+            status: 'down',
+            error: 'connect ECONNREFUSED 127.0.0.1:5432',
+          },
           { name: 'redis', status: 'up' },
         ],
       },
       message: 'Service is not ready',
     });
 
-    await expect(controller.getReady()).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(controller.getReady()).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 });

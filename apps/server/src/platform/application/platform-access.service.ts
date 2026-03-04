@@ -7,17 +7,25 @@ interface CrossTenantAccessInput {
   readonly action: string;
 }
 
-const WHITELISTED_PLATFORM_ACTIONS = new Set<string>(['platform.audit.read', 'platform.tenant.read']);
+const WHITELISTED_PLATFORM_ACTIONS = new Set<string>([
+  'platform.audit.read',
+  'platform.tenant.read',
+]);
 
 @Injectable()
 export class PlatformAccessService {
   canCrossTenant(input: CrossTenantAccessInput): boolean {
-    return input.role === 'platform_admin' && WHITELISTED_PLATFORM_ACTIONS.has(input.action);
+    return (
+      input.role === 'platform_admin' &&
+      WHITELISTED_PLATFORM_ACTIONS.has(input.action)
+    );
   }
 
   assertCrossTenantAllowed(input: CrossTenantAccessInput): void {
     if (!this.canCrossTenant(input)) {
-      throw new ForbiddenException('Cross-tenant platform action is not allowed');
+      throw new ForbiddenException(
+        'Cross-tenant platform action is not allowed',
+      );
     }
   }
 }

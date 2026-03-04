@@ -11,11 +11,13 @@ export interface AuditEvent {
   readonly metadata?: Record<string, unknown>;
 }
 
-export interface AuditStore {
+export interface IAuditStore {
   append(event: AuditEvent): void;
 }
 
-export class InMemoryAuditStore implements AuditStore {
+export const AUDIT_STORE_TOKEN = 'AUDIT_STORE' as const;
+
+export class InMemoryAuditStore implements IAuditStore {
   private readonly events: AuditEvent[] = [];
 
   append(event: AuditEvent): void {

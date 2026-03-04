@@ -22,7 +22,9 @@ interface FindByUniqueKeyInput {
 export class InMemoryEvidenceBindingRepository {
   private readonly records: EvidenceBindingRecord[] = [];
 
-  findByUniqueKey(input: FindByUniqueKeyInput): EvidenceBindingRecord | undefined {
+  findByUniqueKey(
+    input: FindByUniqueKeyInput,
+  ): EvidenceBindingRecord | undefined {
     return this.records.find((record) => {
       return (
         record.tenantId === input.tenantId &&
@@ -35,7 +37,9 @@ export class InMemoryEvidenceBindingRepository {
     });
   }
 
-  create(record: Omit<EvidenceBindingRecord, 'id' | 'createdAt'>): EvidenceBindingRecord {
+  create(
+    record: Omit<EvidenceBindingRecord, 'id' | 'createdAt'>,
+  ): EvidenceBindingRecord {
     const createdRecord: EvidenceBindingRecord = {
       ...record,
       id: String(this.records.length + 1),

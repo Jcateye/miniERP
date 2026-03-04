@@ -22,8 +22,16 @@ function normalizePrefix(value: string): string {
 }
 
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const { NODE_ENV, PORT, API_PREFIX, DATABASE_URL, REDIS_URL, REDIS_KEY_PREFIX, TENANT_HEADER, AUTH_CONTEXT_SECRET } =
-    parseEnv(env);
+  const {
+    NODE_ENV,
+    PORT,
+    API_PREFIX,
+    DATABASE_URL,
+    REDIS_URL,
+    REDIS_KEY_PREFIX,
+    TENANT_HEADER,
+    AUTH_CONTEXT_SECRET,
+  } = parseEnv(env);
 
   return {
     nodeEnv: NODE_ENV,

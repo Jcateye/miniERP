@@ -2,7 +2,9 @@ export function hasAllRequiredPermissions(
   grantedPermissions: readonly string[],
   requiredPermissions: readonly string[],
 ): boolean {
-  const grantedSet = new Set(grantedPermissions.map((permission) => permission.trim()).filter(Boolean));
+  const grantedSet = new Set(
+    grantedPermissions.map((permission) => permission.trim()).filter(Boolean),
+  );
 
   return requiredPermissions.every((requiredPermission) => {
     if (grantedSet.has(requiredPermission)) {

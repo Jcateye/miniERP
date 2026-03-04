@@ -28,12 +28,18 @@ describe('IamGuard', () => {
     requiredPermissions: string[],
     context: { tenantId: string; requestId: string },
     options?: { platformAction?: string },
-  ): { guard: CanActivate; auditService: { recordAuthorization: jest.Mock }; platformAccessService: { assertCrossTenantAllowed: jest.Mock } } {
+  ): {
+    guard: CanActivate;
+    auditService: { recordAuthorization: jest.Mock };
+    platformAccessService: { assertCrossTenantAllowed: jest.Mock };
+  } {
     const reflector = {
       getAllAndOverride: jest
         .fn()
         .mockImplementation((key: string) =>
-          key === 'required_permissions' ? requiredPermissions : options?.platformAction,
+          key === 'required_permissions'
+            ? requiredPermissions
+            : options?.platformAction,
         ),
     } as unknown as Reflector;
 
@@ -62,13 +68,21 @@ describe('IamGuard', () => {
   }
 
   it('throws forbidden when auth context is missing', () => {
-    const { guard } = createGuard(['evidence:link:create'], { tenantId: '1001', requestId: 'req-1' });
+    const { guard } = createGuard(['evidence:link:create'], {
+      tenantId: '1001',
+      requestId: 'req-1',
+    });
 
-    expect(() => guard.canActivate(createContext())).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(createContext())).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('throws forbidden when auth tenant differs from context tenant', () => {
-    const { guard } = createGuard(['evidence:link:create'], { tenantId: '1001', requestId: 'req-1' });
+    const { guard } = createGuard(['evidence:link:create'], {
+      tenantId: '1001',
+      requestId: 'req-1',
+    });
 
     expect(() =>
       guard.canActivate(
@@ -83,7 +97,10 @@ describe('IamGuard', () => {
   });
 
   it('throws forbidden when required permission is missing', () => {
-    const { guard } = createGuard(['evidence:link:create'], { tenantId: '1001', requestId: 'req-1' });
+    const { guard } = createGuard(['evidence:link:create'], {
+      tenantId: '1001',
+      requestId: 'req-1',
+    });
 
     expect(() =>
       guard.canActivate(
@@ -98,7 +115,10 @@ describe('IamGuard', () => {
   });
 
   it('allows when permissions satisfy requirements', () => {
-    const { guard } = createGuard(['evidence:link:create'], { tenantId: '1001', requestId: 'req-1' });
+    const { guard } = createGuard(['evidence:link:create'], {
+      tenantId: '1001',
+      requestId: 'req-1',
+    });
 
     expect(
       guard.canActivate(
@@ -119,7 +139,7 @@ describe('IamGuard', () => {
       { platformAction: 'platform.audit.read' },
     );
 
-    guard.canActivate(
+    void guard.canActivate(
       createContext({
         tenantId: '9999',
         actorId: '1',
@@ -128,9 +148,11 @@ describe('IamGuard', () => {
       }),
     );
 
-    expect(platformAccessService.assertCrossTenantAllowed).toHaveBeenCalledWith({
-      role: 'platform_admin',
-      action: 'platform.audit.read',
-    });
+    expect(platformAccessService.assertCrossTenantAllowed).toHaveBeenCalledWith(
+      {
+        role: 'platform_admin',
+        action: 'platform.audit.read',
+      },
+    );
   });
 });

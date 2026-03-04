@@ -8,7 +8,12 @@ describe('HealthService', () => {
     const service = new HealthService(databaseUrl, redisUrl);
 
     jest
-      .spyOn(service as unknown as { probeTcpConnection: (endpoint: unknown) => Promise<void> }, 'probeTcpConnection')
+      .spyOn(
+        service as unknown as {
+          probeTcpConnection: (endpoint: unknown) => Promise<void>;
+        },
+        'probeTcpConnection',
+      )
       .mockImplementation(() => {
         if (isUp) {
           return Promise.resolve();
@@ -53,9 +58,17 @@ describe('HealthService', () => {
   });
 
   it('resolves default port from protocol when URL has no explicit port', async () => {
-    const service = new HealthService('postgres://user:pass@db-host/minierp', 'redis://cache-host');
+    const service = new HealthService(
+      'postgres://user:pass@db-host/minierp',
+      'redis://cache-host',
+    );
     const probeSpy = jest
-      .spyOn(service as unknown as { probeTcpConnection: (endpoint: unknown) => Promise<void> }, 'probeTcpConnection')
+      .spyOn(
+        service as unknown as {
+          probeTcpConnection: (endpoint: unknown) => Promise<void>;
+        },
+        'probeTcpConnection',
+      )
       .mockResolvedValue();
 
     await service.getReadiness();
@@ -71,7 +84,10 @@ describe('HealthService', () => {
   });
 
   it('marks dependency down when URL protocol has no default port and no explicit port', async () => {
-    const service = new HealthService('custom://db-host/path', 'custom://cache-host/path');
+    const service = new HealthService(
+      'custom://db-host/path',
+      'custom://cache-host/path',
+    );
 
     const readiness = await service.getReadiness();
 
