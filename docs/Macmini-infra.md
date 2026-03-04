@@ -1,0 +1,1 @@
+/Users/haoqi/clawd/infra/Macmini-infra.md

@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_DIR="${TMPDIR:-/tmp}/minierp-runtime"
+LOG_DIR="${LOG_DIR:-$ROOT_DIR/logs}"
 
 WEB_HEALTH_URL="${WEB_HEALTH_URL:-http://localhost:3000}"
 SERVER_HEALTH_URL="${SERVER_HEALTH_URL:-http://localhost:3001/health/ready}"
@@ -14,6 +15,7 @@ REDIS_HOST="${REDIS_HOST:-localhost}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 
 mkdir -p "$RUNTIME_DIR"
+mkdir -p "$LOG_DIR"
 
 pid_file() {
   local service="$1"
@@ -22,7 +24,7 @@ pid_file() {
 
 log_file() {
   local service="$1"
-  echo "$RUNTIME_DIR/${service}.log"
+  echo "$LOG_DIR/${service}.log"
 }
 
 run_bun() {
@@ -83,7 +85,7 @@ start_service() {
   echo "[project] 启动 $service ..."
   nohup bash -lc "cd '$ROOT_DIR' && $command" >"$log_path" 2>&1 &
   echo "$!" >"$pid_path"
-  echo "[project] $service 已启动（pid=$!，日志=$log_path）"
+  echo "[project] $service 已启动（pid=$!，日志=${log_path}）"
 }
 
 stop_service() {
