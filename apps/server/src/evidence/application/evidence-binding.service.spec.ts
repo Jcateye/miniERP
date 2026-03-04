@@ -5,7 +5,11 @@ import { InMemoryEvidenceBindingRepository } from '../infrastructure/evidence-bi
 import { EvidenceBindingService } from './evidence-binding.service';
 
 describe('EvidenceBindingService', () => {
-  function createService(context: { tenantId: string; requestId: string; actorId?: string }) {
+  function createService(context: {
+    tenantId: string;
+    requestId: string;
+    actorId?: string;
+  }) {
     const tenantContextService = {
       getRequiredContext: jest.fn().mockReturnValue(context),
     } as unknown as TenantContextService;
@@ -17,14 +21,22 @@ describe('EvidenceBindingService', () => {
     const repository = new InMemoryEvidenceBindingRepository();
 
     return {
-      service: new EvidenceBindingService(repository, tenantContextService, auditService),
+      service: new EvidenceBindingService(
+        repository,
+        tenantContextService,
+        auditService,
+      ),
       repository,
       auditService,
     };
   }
 
   it('creates document-level binding', () => {
-    const { service, repository } = createService({ tenantId: '1001', requestId: 'req-1', actorId: '2001' });
+    const { service, repository } = createService({
+      tenantId: '1001',
+      requestId: 'req-1',
+      actorId: '2001',
+    });
 
     const result = service.bindEvidence({
       evidenceId: '5001',
@@ -40,7 +52,11 @@ describe('EvidenceBindingService', () => {
   });
 
   it('creates line-level binding when lineId is provided', () => {
-    const { service } = createService({ tenantId: '1001', requestId: 'req-1', actorId: '2001' });
+    const { service } = createService({
+      tenantId: '1001',
+      requestId: 'req-1',
+      actorId: '2001',
+    });
 
     const result = service.bindEvidence({
       evidenceId: '5001',
@@ -56,7 +72,11 @@ describe('EvidenceBindingService', () => {
   });
 
   it('throws when trying to bind to another tenant', () => {
-    const { service } = createService({ tenantId: '1001', requestId: 'req-1', actorId: '2001' });
+    const { service } = createService({
+      tenantId: '1001',
+      requestId: 'req-1',
+      actorId: '2001',
+    });
 
     expect(() =>
       service.bindEvidence({
@@ -71,7 +91,11 @@ describe('EvidenceBindingService', () => {
   });
 
   it('throws bad request when binding input is invalid', () => {
-    const { service } = createService({ tenantId: '1001', requestId: 'req-1', actorId: '2001' });
+    const { service } = createService({
+      tenantId: '1001',
+      requestId: 'req-1',
+      actorId: '2001',
+    });
 
     expect(() =>
       service.bindEvidence({
@@ -102,7 +126,11 @@ describe('EvidenceBindingService', () => {
   });
 
   it('is idempotent for same tenant/evidence/entity/scope/line', () => {
-    const { service, repository } = createService({ tenantId: '1001', requestId: 'req-1', actorId: '2001' });
+    const { service, repository } = createService({
+      tenantId: '1001',
+      requestId: 'req-1',
+      actorId: '2001',
+    });
 
     const first = service.bindEvidence({
       evidenceId: '5001',

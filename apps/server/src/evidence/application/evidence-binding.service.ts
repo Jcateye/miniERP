@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { AuditService } from '../../audit/application/audit.service';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
 import { ZodError } from 'zod';
@@ -35,7 +39,9 @@ export class EvidenceBindingService {
         result: 'deny',
         reason: 'TENANT_MISMATCH',
       });
-      throw new ForbiddenException('Cross-tenant evidence binding is forbidden');
+      throw new ForbiddenException(
+        'Cross-tenant evidence binding is forbidden',
+      );
     }
 
     const existingRecord = this.repository.findByUniqueKey({

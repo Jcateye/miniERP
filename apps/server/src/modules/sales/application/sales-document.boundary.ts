@@ -12,9 +12,12 @@ export interface SalesOrderTransitionAttempt {
   toStatus: SalesOrderStatus;
 }
 
-export const salesDocumentBoundary: DocumentModuleBoundary = getDocumentModuleBoundary('sales');
+export const salesDocumentBoundary: DocumentModuleBoundary =
+  getDocumentModuleBoundary('sales');
 
-export function assertSalesOrderStatusTransition(attempt: SalesOrderTransitionAttempt): void {
+export function assertSalesOrderStatusTransition(
+  attempt: SalesOrderTransitionAttempt,
+): void {
   assertStatusTransition({
     entityType: 'SO',
     entityId: attempt.entityId,

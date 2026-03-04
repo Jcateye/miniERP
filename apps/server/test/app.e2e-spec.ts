@@ -21,30 +21,39 @@ describe('Server foundation (e2e)', () => {
   });
 
   it('/ (GET) returns wrapped payload', () => {
-    return request(app.getHttpServer()).get('/').expect(200).expect({
-      message: 'OK',
-      data: {
-        service: 'miniERP-server',
-        status: 'ok',
-      },
-    });
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect({
+        message: 'OK',
+        data: {
+          service: 'miniERP-server',
+          status: 'ok',
+        },
+      });
   });
 
   it('/health/live (GET) returns liveness', () => {
-    return request(app.getHttpServer()).get('/health/live').expect(200).expect({
-      message: 'Service is alive',
-      data: {
-        status: 'live',
-      },
-    });
+    return request(app.getHttpServer())
+      .get('/health/live')
+      .expect(200)
+      .expect({
+        message: 'Service is alive',
+        data: {
+          status: 'live',
+        },
+      });
   });
 
   it('/health/ready (GET) returns readiness', () => {
-    return request(app.getHttpServer()).get('/health/ready').expect(200).expect({
-      message: 'Service is ready',
-      data: {
-        status: 'ready',
-      },
-    });
+    return request(app.getHttpServer())
+      .get('/health/ready')
+      .expect(200)
+      .expect({
+        message: 'Service is ready',
+        data: {
+          status: 'ready',
+        },
+      });
   });
 });

@@ -1,4 +1,6 @@
-export function redactAuditMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> {
+export function redactAuditMetadata(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> {
   if (!metadata) {
     return {};
   }
@@ -6,7 +8,11 @@ export function redactAuditMetadata(metadata: Record<string, unknown> | undefine
   return Object.fromEntries(
     Object.entries(metadata).map(([key, value]) => {
       const normalizedKey = key.toLowerCase();
-      if (normalizedKey.includes('password') || normalizedKey.includes('token') || normalizedKey.includes('secret')) {
+      if (
+        normalizedKey.includes('password') ||
+        normalizedKey.includes('token') ||
+        normalizedKey.includes('secret')
+      ) {
         return [key, '[REDACTED]'];
       }
 

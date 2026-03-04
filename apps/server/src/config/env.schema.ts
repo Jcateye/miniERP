@@ -43,7 +43,10 @@ function parseApiPrefix(value: string | undefined): string {
   return value.trim();
 }
 
-function parseRequiredEnv(value: string | undefined, key: 'DATABASE_URL' | 'REDIS_URL'): string {
+function parseRequiredEnv(
+  value: string | undefined,
+  key: 'DATABASE_URL' | 'REDIS_URL',
+): string {
   if (typeof value === 'undefined' || value.trim().length === 0) {
     throw new Error(`${key} is required`);
   }
@@ -67,7 +70,10 @@ function parseRedisKeyPrefix(value: string | undefined): string {
   return value.trim();
 }
 
-function parseAuthContextSecret(value: string | undefined, nodeEnv: NodeEnv): string {
+function parseAuthContextSecret(
+  value: string | undefined,
+  nodeEnv: NodeEnv,
+): string {
   if (typeof value !== 'undefined' && value.trim().length > 0) {
     return value.trim();
   }
@@ -94,6 +100,9 @@ export function parseEnv(env: NodeJS.ProcessEnv = process.env): EnvSchema {
     REDIS_URL: parseRequiredEnv(env.REDIS_URL, 'REDIS_URL'),
     REDIS_KEY_PREFIX: parseRedisKeyPrefix(env.REDIS_KEY_PREFIX),
     TENANT_HEADER: parseTenantHeader(env.TENANT_HEADER),
-    AUTH_CONTEXT_SECRET: parseAuthContextSecret(env.AUTH_CONTEXT_SECRET, nodeEnv),
+    AUTH_CONTEXT_SECRET: parseAuthContextSecret(
+      env.AUTH_CONTEXT_SECRET,
+      nodeEnv,
+    ),
   };
 }

@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import * as net from 'node:net';
-import { DATABASE_URL_TOKEN, REDIS_URL_TOKEN } from '../database/database.constants';
+import {
+  DATABASE_URL_TOKEN,
+  REDIS_URL_TOKEN,
+} from '../database/database.constants';
 
 const DEFAULT_PORTS: Readonly<Record<string, number>> = {
   'postgres:': 5432,
@@ -52,7 +55,9 @@ export class HealthService {
       this.checkDependency('redis', this.redisUrl),
     ]);
 
-    const isReady = dependencies.every((dependency) => dependency.status === 'up');
+    const isReady = dependencies.every(
+      (dependency) => dependency.status === 'up',
+    );
 
     return {
       data: {
@@ -63,7 +68,10 @@ export class HealthService {
     };
   }
 
-  private async checkDependency(name: DependencyName, connectionUrl: string): Promise<DependencyReadiness> {
+  private async checkDependency(
+    name: DependencyName,
+    connectionUrl: string,
+  ): Promise<DependencyReadiness> {
     try {
       const endpoint = this.resolveTcpEndpoint(connectionUrl);
       await this.probeTcpConnection(endpoint);
@@ -73,7 +81,8 @@ export class HealthService {
         status: 'up',
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Dependency check failed';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Dependency check failed';
 
       return {
         name,
@@ -93,7 +102,11 @@ export class HealthService {
     if (parsedUrl.port.length > 0) {
       const explicitPort = Number(parsedUrl.port);
 
-      if (!Number.isInteger(explicitPort) || explicitPort < 1 || explicitPort > 65535) {
+      if (
+        !Number.isInteger(explicitPort) ||
+        explicitPort < 1 ||
+        explicitPort > 65535
+      ) {
         throw new Error(`Invalid port in connection URL: ${parsedUrl.port}`);
       }
 
@@ -106,7 +119,9 @@ export class HealthService {
     const fallbackPort = DEFAULT_PORTS[parsedUrl.protocol];
 
     if (typeof fallbackPort === 'undefined') {
-      throw new Error(`Unsupported protocol without explicit port: ${parsedUrl.protocol}`);
+      throw new Error(
+        `Unsupported protocol without explicit port: ${parsedUrl.protocol}`,
+      );
     }
 
     return {
@@ -117,7 +132,10 @@ export class HealthService {
 
   private probeTcpConnection(endpoint: TcpEndpoint): Promise<void> {
     return new Promise((resolve, reject) => {
-      const socket = net.createConnection({ host: endpoint.host, port: endpoint.port });
+      const socket = net.createConnection({
+        host: endpoint.host,
+        port: endpoint.port,
+      });
 
       const cleanup = (): void => {
         socket.removeAllListeners('connect');
@@ -142,7 +160,11 @@ export class HealthService {
       socket.once('timeout', () => {
         cleanup();
         socket.destroy();
-        reject(new Error(`Connection timeout after ${DEPENDENCY_CHECK_TIMEOUT_MS}ms`));
+        reject(
+          new Error(
+            `Connection timeout after ${DEPENDENCY_CHECK_TIMEOUT_MS}ms`,
+          ),
+        );
       });
     });
   }

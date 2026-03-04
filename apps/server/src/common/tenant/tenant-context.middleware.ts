@@ -7,7 +7,11 @@ const HEALTH_PATH_PATTERN = /\/health\/(live|ready)\/?$/u;
 export function createTenantContextMiddleware(tenantHeader: string) {
   const normalizedTenantHeader = tenantHeader.toLowerCase();
 
-  return function tenantContextMiddleware(request: Request, response: Response, next: NextFunction): void {
+  return function tenantContextMiddleware(
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ): void {
     const requestPath = request.path ?? request.originalUrl ?? '';
     if (HEALTH_PATH_PATTERN.test(requestPath)) {
       next();
@@ -15,7 +19,9 @@ export function createTenantContextMiddleware(tenantHeader: string) {
     }
 
     const authenticatedRequest = request as Request & AuthenticatedRequest;
-    const tenantId = authenticatedRequest.authContext?.tenantId ?? readHeaderValue(request, normalizedTenantHeader);
+    const tenantId =
+      authenticatedRequest.authContext?.tenantId ??
+      readHeaderValue(request, normalizedTenantHeader);
 
     if (!tenantId) {
       response.status(400).json({
@@ -29,7 +35,9 @@ export function createTenantContextMiddleware(tenantHeader: string) {
 
     const requestId =
       readHeaderValue(request, 'x-request-id') ??
-      (typeof request.headers['x-request-id'] === 'string' ? request.headers['x-request-id'] : undefined) ??
+      (typeof request.headers['x-request-id'] === 'string'
+        ? request.headers['x-request-id']
+        : undefined) ??
       crypto.randomUUID();
 
     const actorId = authenticatedRequest.authContext?.actorId;
@@ -47,7 +55,10 @@ export function createTenantContextMiddleware(tenantHeader: string) {
   };
 }
 
-function readHeaderValue(request: Request, headerName: string): string | undefined {
+function readHeaderValue(
+  request: Request,
+  headerName: string,
+): string | undefined {
   const value = request.header(headerName);
 
   if (typeof value !== 'string') {

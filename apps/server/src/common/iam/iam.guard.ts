@@ -14,7 +14,10 @@ import { hasAllRequiredPermissions } from './permission-matcher';
 export const REQUIRED_PERMISSIONS_METADATA_KEY = 'required_permissions';
 export const PLATFORM_ACTION_METADATA_KEY = 'platform_action';
 
-function readPlatformAction(reflector: Reflector, context: ExecutionContext): string | undefined {
+function readPlatformAction(
+  reflector: Reflector,
+  context: ExecutionContext,
+): string | undefined {
   return reflector.getAllAndOverride<string>(PLATFORM_ACTION_METADATA_KEY, [
     context.getHandler(),
     context.getClass(),
@@ -53,10 +56,10 @@ export class IamGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const requiredPermissions =
-      this.reflector.getAllAndOverride<string[]>(REQUIRED_PERMISSIONS_METADATA_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ]) ?? [];
+      this.reflector.getAllAndOverride<string[]>(
+        REQUIRED_PERMISSIONS_METADATA_KEY,
+        [context.getHandler(), context.getClass()],
+      ) ?? [];
 
     if (requiredPermissions.length === 0) {
       return true;
@@ -64,7 +67,9 @@ export class IamGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<AuthenticatedRequest & { headers: Record<string, unknown> }>();
+      .getRequest<
+        AuthenticatedRequest & { headers: Record<string, unknown> }
+      >();
     const tenantContext = this.tenantContextService.getRequiredContext();
     const authContext = request.authContext;
 
@@ -97,7 +102,9 @@ export class IamGuard implements CanActivate {
       );
     }
 
-    if (!hasAllRequiredPermissions(authContext.permissions, requiredPermissions)) {
+    if (
+      !hasAllRequiredPermissions(authContext.permissions, requiredPermissions)
+    ) {
       this.auditService.recordAuthorization({
         requestId: tenantContext.requestId,
         tenantId: tenantContext.tenantId,

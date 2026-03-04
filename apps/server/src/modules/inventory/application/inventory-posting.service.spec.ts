@@ -38,7 +38,9 @@ describe('InventoryPostingService', () => {
 
     expect(result.ledgerEntries).toHaveLength(1);
     expect(result.ledgerEntries[0]?.quantityDelta).toBe(10);
-    expect(result.balanceSnapshots).toEqual([{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 10 }]);
+    expect(result.balanceSnapshots).toEqual([
+      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 10 },
+    ]);
   });
 
   it('returns first result for same key and same payload', async () => {
@@ -148,7 +150,7 @@ describe('InventoryPostingService', () => {
         {
           idempotencyKey: 'idem-reverse-dup-ledger',
           referenceId: 'REV-DUP-LEDGER',
-          ledgerIds: [ledgerId as string, ledgerId as string],
+          ledgerIds: [ledgerId, ledgerId],
         },
         'request-9',
       ),
@@ -193,13 +195,15 @@ describe('InventoryPostingService', () => {
       {
         idempotencyKey: 'idem-reverse-1',
         referenceId: 'REV-1',
-        ledgerIds: [ledgerId as string],
+        ledgerIds: [ledgerId],
       },
       'request-12',
     );
 
     expect(reversal.ledgerEntries[0]?.reversalOfLedgerId).toBe(ledgerId);
-    expect(reversal.balanceSnapshots).toEqual([{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 0 }]);
+    expect(reversal.balanceSnapshots).toEqual([
+      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 0 },
+    ]);
 
     await expect(
       service.reverse(
@@ -207,7 +211,7 @@ describe('InventoryPostingService', () => {
         {
           idempotencyKey: 'idem-reverse-2',
           referenceId: 'REV-2',
-          ledgerIds: [ledgerId as string],
+          ledgerIds: [ledgerId],
         },
         'request-13',
       ),
@@ -240,8 +244,12 @@ describe('InventoryPostingService', () => {
       ),
     ]);
 
-    const snapshot = await service.getBalanceSnapshot(tenantId, [{ skuId: 'SKU-1', warehouseId: 'WH-1' }]);
+    const snapshot = await service.getBalanceSnapshot(tenantId, [
+      { skuId: 'SKU-1', warehouseId: 'WH-1' },
+    ]);
 
-    expect(snapshot).toEqual([{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 }]);
+    expect(snapshot).toEqual([
+      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 },
+    ]);
   });
 });

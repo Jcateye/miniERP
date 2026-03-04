@@ -1,5 +1,6 @@
 import { InMemoryAuditStore } from './audit.store';
 import { AuditService } from './audit.service';
+import type { AuditEvent } from './audit.store';
 
 describe('AuditService', () => {
   it('records authorization audit with minimum required fields', () => {
@@ -17,19 +18,16 @@ describe('AuditService', () => {
       reason: 'MISSING_PERMISSION',
     });
 
-    const events = store.getAll();
+    const events: AuditEvent[] = store.getAll();
     expect(events).toHaveLength(1);
-    expect(events[0]).toEqual(
-      expect.objectContaining({
-        requestId: 'req-1',
-        tenantId: '1001',
-        actorId: '2001',
-        action: 'iam.authorize',
-        entityType: 'evidence',
-        entityId: '3001',
-        result: 'deny',
-        occurredAt: expect.any(String),
-      }),
-    );
+    const event = events[0];
+    expect(event.requestId).toBe('req-1');
+    expect(event.tenantId).toBe('1001');
+    expect(event.actorId).toBe('2001');
+    expect(event.action).toBe('iam.authorize');
+    expect(event.entityType).toBe('evidence');
+    expect(event.entityId).toBe('3001');
+    expect(event.result).toBe('deny');
+    expect(typeof event.occurredAt).toBe('string');
   });
 });

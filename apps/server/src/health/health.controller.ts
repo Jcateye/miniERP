@@ -15,7 +15,8 @@ export class HealthController {
   @Get('live')
   @ApiOperation({
     summary: '存活探针',
-    description: 'Kubernetes 存活探针接口，返回服务是否存活。如果响应 200 则服务正在运行。',
+    description:
+      'Kubernetes 存活探针接口，返回服务是否存活。如果响应 200 则服务正在运行。',
   })
   @ApiOkResponse({
     description: '服务存活',

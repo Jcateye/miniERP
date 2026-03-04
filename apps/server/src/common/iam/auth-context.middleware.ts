@@ -10,7 +10,9 @@ interface AuthContextMiddlewareOptions {
 
 function parseAuthContext(value: string): AuthContext | undefined {
   try {
-    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Partial<AuthContext>;
+    const parsed = JSON.parse(
+      Buffer.from(value, 'base64url').toString('utf8'),
+    ) as Partial<AuthContext>;
 
     if (!parsed || typeof parsed !== 'object') {
       return undefined;
@@ -25,16 +27,25 @@ function parseAuthContext(value: string): AuthContext | undefined {
       return undefined;
     }
 
-    if (parsed.tenantId.trim().length === 0 || parsed.actorId.trim().length === 0) {
+    if (
+      parsed.tenantId.trim().length === 0 ||
+      parsed.actorId.trim().length === 0
+    ) {
       return undefined;
     }
 
-    if (parsed.role !== 'platform_admin' && parsed.role !== 'tenant_admin' && parsed.role !== 'operator') {
+    if (
+      parsed.role !== 'platform_admin' &&
+      parsed.role !== 'tenant_admin' &&
+      parsed.role !== 'operator'
+    ) {
       return undefined;
     }
 
     const permissions = parsed.permissions
-      .filter((permission): permission is string => typeof permission === 'string')
+      .filter(
+        (permission): permission is string => typeof permission === 'string',
+      )
       .map((permission) => permission.trim())
       .filter((permission) => permission.length > 0);
 
@@ -53,7 +64,11 @@ function computeSignature(payload: string, secret: string): Buffer {
   return createHmac('sha256', secret).update(payload).digest();
 }
 
-function isSignatureValid(payload: string, signature: string, secret: string): boolean {
+function isSignatureValid(
+  payload: string,
+  signature: string,
+  secret: string,
+): boolean {
   const provided = Buffer.from(signature, 'hex');
   const expected = computeSignature(payload, secret);
 
@@ -64,7 +79,10 @@ function isSignatureValid(payload: string, signature: string, secret: string): b
   return timingSafeEqual(provided, expected);
 }
 
-function readHeaderValue(request: Request, headerName: string): string | undefined {
+function readHeaderValue(
+  request: Request,
+  headerName: string,
+): string | undefined {
   const value = request.header(headerName);
   if (typeof value !== 'string') {
     return undefined;
@@ -74,8 +92,14 @@ function readHeaderValue(request: Request, headerName: string): string | undefin
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function createAuthContextMiddleware(options: AuthContextMiddlewareOptions) {
-  return function authContextMiddleware(request: Request, response: Response, next: NextFunction): void {
+export function createAuthContextMiddleware(
+  options: AuthContextMiddlewareOptions,
+) {
+  return function authContextMiddleware(
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ): void {
     const requestPath = request.path ?? request.originalUrl ?? '';
     if (HEALTH_PATH_PATTERN.test(requestPath)) {
       next();
@@ -85,7 +109,11 @@ export function createAuthContextMiddleware(options: AuthContextMiddlewareOption
     const encodedContext = readHeaderValue(request, 'x-auth-context');
     const signature = readHeaderValue(request, 'x-auth-context-signature');
 
-    if (!encodedContext || !signature || !isSignatureValid(encodedContext, signature, options.secret)) {
+    if (
+      !encodedContext ||
+      !signature ||
+      !isSignatureValid(encodedContext, signature, options.secret)
+    ) {
       response.status(401).json({
         error: {
           code: 'AUTH_INVALID_CONTEXT',

@@ -2,6 +2,7 @@ import type { ArgumentsHost } from '@nestjs/common';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InvalidStatusTransitionError } from '../../modules/core-document/domain/status-transition';
 import { ApiExceptionFilter } from './api-exception.filter';
+import type { ApiErrorPayload } from '@minierp/shared';
 
 describe('ApiExceptionFilter', () => {
   const filter = new ApiExceptionFilter();
@@ -15,7 +16,11 @@ describe('ApiExceptionFilter', () => {
     process.env.NODE_ENV = originalNodeEnv;
   });
 
-  function createHost() {
+  function createHost(): {
+    host: ArgumentsHost;
+    status: jest.Mock;
+    json: jest.Mock;
+  } {
     const json = jest.fn();
     const status = jest.fn().mockReturnValue({ json });
 
@@ -32,14 +37,14 @@ describe('ApiExceptionFilter', () => {
     process.env.NODE_ENV = 'test';
     const { host, status, json } = createHost();
 
-    filter.catch(new HttpException('upstream unavailable', HttpStatus.SERVICE_UNAVAILABLE), host);
+    filter.catch(
+      new HttpException('upstream unavailable', HttpStatus.SERVICE_UNAVAILABLE),
+      host,
+    );
 
     expect(status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
-    expect(json).toHaveBeenCalledWith({
-      error: expect.objectContaining({
-        message: 'upstream unavailable',
-      }),
-    });
+    const calls = json.mock.calls as unknown as [[{ error: ApiErrorPayload }]];
+    expect(calls[0][0].error.message).toBe('upstream unavailable');
   });
 
   it('sanitizes 5xx message/details in production', () => {
@@ -61,13 +66,10 @@ describe('ApiExceptionFilter', () => {
     );
 
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
-    expect(json).toHaveBeenCalledWith({
-      error: expect.objectContaining({
-        message: 'Internal server error',
-        details: undefined,
-        transition: undefined,
-      }),
-    });
+    const calls = json.mock.calls as unknown as [[{ error: ApiErrorPayload }]];
+    expect(calls[0][0].error.message).toBe('Internal server error');
+    expect(calls[0][0].error.details).toBeUndefined();
+    expect(calls[0][0].error.transition).toBeUndefined();
   });
 
   it('does not sanitize 4xx in production', () => {
@@ -86,11 +88,10 @@ describe('ApiExceptionFilter', () => {
     );
 
     expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
-    expect(json).toHaveBeenCalledWith({
-      error: expect.objectContaining({
-        message: 'field a is required, field b must be positive',
-      }),
-    });
+    const calls = json.mock.calls as unknown as [[{ error: ApiErrorPayload }]];
+    expect(calls[0][0].error.message).toBe(
+      'field a is required, field b must be positive',
+    );
   });
 
   it('preserves explicit state transition category on conflict exceptions', () => {
@@ -111,19 +112,21 @@ describe('ApiExceptionFilter', () => {
     );
 
     expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
-    expect(json).toHaveBeenCalledWith({
-      error: expect.objectContaining({
-        code: 'VALIDATION_STATUS_TRANSITION_INVALID',
-        category: 'state_transition',
-        message: 'Illegal status transition for PO(PO-001): draft -> closed',
-        details: {
-          entity_type: 'PO',
-          entity_id: 'PO-001',
-          from_status: 'draft',
-          to_status: 'closed',
-          allowed_to_statuses: ['confirmed', 'cancelled'],
-        },
-      }),
+    const calls = json.mock.calls as unknown as [[{ error: ApiErrorPayload }]];
+    const error = calls[0][0].error as ApiErrorPayload & {
+      details: Record<string, unknown>;
+    };
+    expect(error.code).toBe('VALIDATION_STATUS_TRANSITION_INVALID');
+    expect(error.category).toBe('state_transition');
+    expect(error.message).toBe(
+      'Illegal status transition for PO(PO-001): draft -> closed',
+    );
+    expect(error.details).toEqual({
+      entity_type: 'PO',
+      entity_id: 'PO-001',
+      from_status: 'draft',
+      to_status: 'closed',
+      allowed_to_statuses: ['confirmed', 'cancelled'],
     });
   });
 });

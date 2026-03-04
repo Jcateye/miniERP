@@ -1,4 +1,9 @@
-export type InventoryReferenceType = 'GRN' | 'OUT' | 'STOCKTAKE' | 'ADJUSTMENT' | 'REVERSAL';
+export type InventoryReferenceType =
+  | 'GRN'
+  | 'OUT'
+  | 'STOCKTAKE'
+  | 'ADJUSTMENT'
+  | 'REVERSAL';
 
 export interface InventoryPostingLine {
   readonly skuId: string;
@@ -56,14 +61,19 @@ export interface IdempotencyRecord {
 }
 
 export interface InventoryConsistencyStore {
-  withTenantTransaction<T>(tenantId: string, work: (tx: InventoryTenantTransaction) => T | Promise<T>): Promise<T>;
+  withTenantTransaction<T>(
+    tenantId: string,
+    work: (tx: InventoryTenantTransaction) => T | Promise<T>,
+  ): Promise<T>;
 }
 
 export interface InventoryTenantTransaction {
   findIdempotencyRecord(idempotencyKey: string): IdempotencyRecord | undefined;
   saveIdempotencyRecord(record: IdempotencyRecord): void;
 
-  createLedgerEntry(entry: Omit<InventoryLedgerEntry, 'id' | 'postedAt'>): InventoryLedgerEntry;
+  createLedgerEntry(
+    entry: Omit<InventoryLedgerEntry, 'id' | 'postedAt'>,
+  ): InventoryLedgerEntry;
   findLedgerEntriesByIds(ledgerIds: readonly string[]): InventoryLedgerEntry[];
   findBalance(key: InventoryKey): number;
   saveBalance(key: InventoryKey, onHand: number): void;
