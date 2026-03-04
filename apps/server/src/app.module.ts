@@ -6,6 +6,7 @@ import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { MasterdataModule } from './modules/masterdata/masterdata.module';
 import { AuditService } from './audit/application/audit.service';
 import {
   AUDIT_STORE_TOKEN,
@@ -19,7 +20,14 @@ import { EvidenceModule } from './modules/evidence/evidence.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
-  imports: [DatabaseModule, HealthModule, DocumentsModule, EvidenceModule, InventoryModule],
+  imports: [
+    DatabaseModule,
+    HealthModule,
+    DocumentsModule,
+    EvidenceModule,
+    InventoryModule,
+    MasterdataModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
