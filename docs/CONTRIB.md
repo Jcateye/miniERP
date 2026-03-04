@@ -45,14 +45,13 @@ bun run test
 | `lint` | `turbo run lint` | 运行所有 workspace 的代码检查任务。 |
 | `db:generate` | `bun run --filter server db:generate` | 代理调用 server 的数据库生成脚本（当前为显式失败占位，提醒先接入 ORM 迁移工具，避免假成功）。 |
 | `db:migrate` | `bun run --filter server db:migrate` | 代理调用 server 的数据库迁移脚本（当前为显式失败占位，提醒先接入 ORM 迁移工具，避免假成功）。 |
-| `infra:up` | `docker compose -f infra/docker-compose.yml up -d` | 后台启动基础设施服务。 |
-| `infra:down` | `docker compose -f infra/docker-compose.yml down` | 停止基础设施服务。 |
-| `infra:logs` | `docker compose -f infra/docker-compose.yml logs -f` | 持续查看基础设施服务日志。 |
-| `infra:ps` | `docker compose -f infra/docker-compose.yml ps` | 查看基础设施服务状态。 |
+| `daily` | `./project.sh all start` | 日常一键启动：先探活外部 PostgreSQL/Redis，再启动 server/web。 |
+| `project` | `./project.sh` | 生命周期脚本入口（推荐双参数：`<scope> <command>`，如 `infra health`、`server logs`）。 |
 
 说明：
 - `package.json` 中没有脚本注释，以上脚本说明由脚本名称与命令语义推导。
 - 当前根脚本未提供“单测文件直跑”命令。
+- 中间件采用外部共享模式，`project.sh infra *` 仅做探活，不执行启停。
 
 ## CI/CD 与容器化
 
@@ -95,6 +94,7 @@ cp .env.example .env
 | `REDIS_HOST` | `localhost` | Redis 主机地址。 | 主机名/IP |
 | `REDIS_PORT` | `6379` | Redis 端口。 | 整数端口 |
 | `REDIS_URL` | `redis://${REDIS_HOST}:${REDIS_PORT}` | Redis 连接串。 | `redis://...` URL |
+| `REDIS_KEY_PREFIX` | `erp_` | Redis 业务 key 前缀，避免与共享实例其他项目冲突。 | 字符串前缀 |
 
 ## 测试流程
 

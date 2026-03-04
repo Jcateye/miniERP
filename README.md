@@ -38,6 +38,10 @@ bun install
 bun run dev
 bun run dev:web
 bun run dev:server
+bun run daily
+bun run project -- all doctor
+bun run project -- infra health
+bun run project -- server logs
 
 bun run build
 bun run lint
@@ -65,19 +69,19 @@ bun run --filter server test:e2e
 bun run --filter server test:e2e -- test/app.e2e-spec.ts
 ```
 
-### 基础设施命令
+### 外部中间件探活命令
 
 ```bash
-bun run infra:up
-bun run infra:ps
-bun run infra:logs
-bun run infra:down
+bun run project -- infra health
+bun run project -- infra doctor
 ```
 
 说明：
 - `apps/web` 当前无 `test` script。
 - 根 `db:generate` / `db:migrate` 会代理到 server；当前 server 已提供显式失败占位脚本，用于在未接入 ORM 迁移工具前避免“假成功”。
 - `turbo.json` 中 `lint` 与 `test` 依赖上游 `build`。
+- Redis key 前缀默认值为 `erp_`（可通过 `REDIS_KEY_PREFIX` 覆盖）。
+- 本地开发共享中间件（PostgreSQL/Redis/RabbitMQ/Nginx）与访问地址见 `docs/Macmini-infra.md`。
 
 ## 架构总览
 

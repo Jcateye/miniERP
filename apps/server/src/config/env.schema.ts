@@ -8,6 +8,7 @@ export interface EnvSchema {
   readonly API_PREFIX: string;
   readonly DATABASE_URL: string;
   readonly REDIS_URL: string;
+  readonly REDIS_KEY_PREFIX: string;
   readonly TENANT_HEADER: string;
   readonly AUTH_CONTEXT_SECRET: string;
 }
@@ -58,6 +59,14 @@ function parseTenantHeader(value: string | undefined): string {
   return value.trim();
 }
 
+function parseRedisKeyPrefix(value: string | undefined): string {
+  if (typeof value === 'undefined' || value.trim().length === 0) {
+    return 'erp_';
+  }
+
+  return value.trim();
+}
+
 function parseAuthContextSecret(value: string | undefined, nodeEnv: NodeEnv): string {
   if (typeof value !== 'undefined' && value.trim().length > 0) {
     return value.trim();
@@ -83,6 +92,7 @@ export function parseEnv(env: NodeJS.ProcessEnv = process.env): EnvSchema {
     API_PREFIX: parseApiPrefix(env.API_PREFIX),
     DATABASE_URL: parseRequiredEnv(env.DATABASE_URL, 'DATABASE_URL'),
     REDIS_URL: parseRequiredEnv(env.REDIS_URL, 'REDIS_URL'),
+    REDIS_KEY_PREFIX: parseRedisKeyPrefix(env.REDIS_KEY_PREFIX),
     TENANT_HEADER: parseTenantHeader(env.TENANT_HEADER),
     AUTH_CONTEXT_SECRET: parseAuthContextSecret(env.AUTH_CONTEXT_SECRET, nodeEnv),
   };

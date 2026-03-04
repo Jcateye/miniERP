@@ -11,6 +11,27 @@ describe('parseEnv', () => {
     expect(env.AUTH_CONTEXT_SECRET).toBe('test-only-auth-context-secret');
   });
 
+  it('defaults redis key prefix to erp_', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgres://u:p@localhost:5432/db',
+      REDIS_URL: 'redis://localhost:6379',
+    });
+
+    expect(env.REDIS_KEY_PREFIX).toBe('erp_');
+  });
+
+  it('uses provided redis key prefix', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgres://u:p@localhost:5432/db',
+      REDIS_URL: 'redis://localhost:6379',
+      REDIS_KEY_PREFIX: 'erp_custom_',
+    });
+
+    expect(env.REDIS_KEY_PREFIX).toBe('erp_custom_');
+  });
+
   it('throws in production when auth context secret is missing', () => {
     expect(() =>
       parseEnv({

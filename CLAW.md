@@ -31,17 +31,15 @@ bun install
 bun run dev
 bun run dev:web
 bun run dev:server
+bun run daily
+bun run project -- all doctor
+bun run project -- infra health
+bun run project -- server logs
 
 # 质量
 bun run build
 bun run lint
 bun run test
-
-# 基础设施
-bun run infra:up
-bun run infra:ps
-bun run infra:logs
-bun run infra:down
 ```
 
 ### 定向命令
@@ -70,6 +68,7 @@ bun run --filter server test:e2e -- test/app.e2e-spec.ts
 - `apps/web` 当前无 `test` script。
 - 根 `db:generate` / `db:migrate` 依赖 server 中同名脚本；当前为显式失败占位脚本（未接入 ORM 迁移工具前避免“假成功”）。
 - Turborepo 配置中，`lint` 和 `test` 依赖上游 `build`。
+- 本地基础设施（共享 PostgreSQL/Redis/RabbitMQ/Nginx）与访问方式以 `docs/Macmini-infra.md` 为准。
 
 ---
 

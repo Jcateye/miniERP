@@ -17,14 +17,13 @@ bun install
 bun run dev
 bun run dev:web
 bun run dev:server
+bun run daily
+bun run project -- all doctor
+bun run project -- infra health
+bun run project -- server logs
 bun run build
 bun run lint
 bun run test
-
-bun run infra:up
-bun run infra:ps
-bun run infra:logs
-bun run infra:down
 ```
 
 Targeted testing/build:
@@ -41,12 +40,18 @@ Important command quirks:
 - `apps/web` has no `test` script.
 - Root `db:generate` / `db:migrate` now route to server placeholder scripts that **fail explicitly** until ORM migration tooling is integrated.
 - `turbo.json` makes root `lint` and `test` depend on upstream `build` (expect slower runs than plain lint/test).
+- Team local infra operations also use `bun run daily` / `bun run project -- ...` wrappers from repo root scripts.
 
 ## Testing policy
 
 - Preferred runner: **Jest (server)**.
 - Default entrypoint: root `bun run test` (turbo aggregation).
 - For deterministic debugging, prefer server-scoped commands (`--filter server ...`) over root aggregation.
+
+## Local development infrastructure
+
+- Source of truth for local shared middleware (PostgreSQL/Redis/RabbitMQ/Nginx): `docs/Macmini-infra.md`.
+- When infra connectivity or local domain routing behaves unexpectedly, check that document first before changing app code.
 
 ## Required env quirks
 

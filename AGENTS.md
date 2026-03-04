@@ -25,6 +25,7 @@ miniERP 是一个 **design-first + runnable monorepo**：
 5. `.claude/rules/erp-rules.md`
 6. `openspec/config.yaml`
 7. `docs/commit.md`（提交信息规范，含执行者恢复信息）
+8. `docs/Macmini-infra.md`（本地开发基础设施：共享中间件、访问地址、排障）
 
 ---
 
@@ -36,6 +37,10 @@ bun install
 bun run dev
 bun run dev:web
 bun run dev:server
+bun run daily
+bun run project -- all doctor
+bun run project -- infra health
+bun run project -- server logs
 
 bun run build
 bun run lint
@@ -63,18 +68,17 @@ bun run --filter server test:e2e
 bun run --filter server test:e2e -- test/app.e2e-spec.ts
 ```
 
-### 基础设施
+### 外部中间件探活
 
 ```bash
-bun run infra:up
-bun run infra:ps
-bun run infra:logs
-bun run infra:down
+bun run project -- infra health
+bun run project -- infra doctor
 ```
 
 注意：
 - `apps/web` 当前无 `test` script。
 - 根 `db:generate` / `db:migrate` 会代理到 server；当前 server 提供显式失败占位脚本（未接入 ORM 迁移工具前避免“假成功”）。
+- 本地基础设施（共享 PostgreSQL/Redis/RabbitMQ/Nginx）与访问地址以 `docs/Macmini-infra.md` 为准。
 
 ---
 
