@@ -29,8 +29,15 @@ async function bootstrap() {
   const config = loadAppConfig();
   const app = await NestFactory.create(AppModule);
 
-  app.use(createAuthContextMiddleware({ secret: config.authContextSecret }));
-  app.use(createTenantContextMiddleware(config.tenantHeader));
+  app.use(
+    createAuthContextMiddleware({
+      secret: config.authContextSecret,
+      nodeEnv: config.nodeEnv,
+    }),
+  );
+  app.use(
+    createTenantContextMiddleware(config.tenantHeader, config.nodeEnv),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({

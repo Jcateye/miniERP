@@ -91,6 +91,36 @@ describe('tenantContextMiddleware', () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it('bypasses tenant requirement for swagger docs endpoint in development', () => {
+    const middleware = createTenantContextMiddleware('x-tenant-id', 'development');
+    const request = createRequest({}, '/api/docs');
+    const { response, status } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('does not bypass tenant requirement for swagger docs endpoint in production', () => {
+    const middleware = createTenantContextMiddleware('x-tenant-id', 'production');
+    const request = createRequest({}, '/api/docs');
+    const { response, status, json } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'TENANT_MISSING',
+        message: 'Missing required tenant header: x-tenant-id',
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('generates request id when x-request-id is not provided', () => {
     const middleware = createTenantContextMiddleware('x-tenant-id');
     const request = createRequest({

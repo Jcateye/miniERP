@@ -3,8 +3,22 @@ import type { AuthenticatedRequest } from '../iam/auth-context';
 import { tenantContextStorage } from './tenant-context';
 
 const HEALTH_PATH_PATTERN = /\/health\/(live|ready)\/?$/u;
+const SWAGGER_PATH_PATTERN = /\/docs(?:\/.*)?$|\/docs-(json|yaml)$/u;
 
-export function createTenantContextMiddleware(tenantHeader: string) {
+type NodeEnv = 'development' | 'test' | 'production';
+
+function shouldBypassTenantValidation(requestPath: string, nodeEnv: NodeEnv): boolean {
+  if (HEALTH_PATH_PATTERN.test(requestPath)) {
+    return true;
+  }
+
+  return nodeEnv === 'development' && SWAGGER_PATH_PATTERN.test(requestPath);
+}
+
+export function createTenantContextMiddleware(
+  tenantHeader: string,
+  nodeEnv: NodeEnv = 'production',
+) {
   const normalizedTenantHeader = tenantHeader.toLowerCase();
 
   return function tenantContextMiddleware(
@@ -13,7 +27,7 @@ export function createTenantContextMiddleware(tenantHeader: string) {
     next: NextFunction,
   ): void {
     const requestPath = request.path ?? request.originalUrl ?? '';
-    if (HEALTH_PATH_PATTERN.test(requestPath)) {
+    if (shouldBypassTenantValidation(requestPath, nodeEnv)) {
       next();
       return;
     }

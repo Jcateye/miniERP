@@ -32,7 +32,10 @@ describe('authContextMiddleware', () => {
   }
 
   it('rejects request when signature is invalid', () => {
-    const middleware = createAuthContextMiddleware({ secret });
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'development',
+    });
     const encoded = encodeContext({
       tenantId: '1001',
       actorId: '2001',
@@ -59,7 +62,10 @@ describe('authContextMiddleware', () => {
   });
 
   it('skips auth validation for health endpoint', () => {
-    const middleware = createAuthContextMiddleware({ secret });
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'development',
+    });
     const request = createRequest({});
     Object.assign(request, {
       path: '/health/live',
@@ -75,7 +81,10 @@ describe('authContextMiddleware', () => {
   });
 
   it('skips auth validation for prefixed health endpoint', () => {
-    const middleware = createAuthContextMiddleware({ secret });
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'development',
+    });
     const request = createRequest({});
     Object.assign(request, {
       path: '/api/health/ready',
@@ -90,8 +99,55 @@ describe('authContextMiddleware', () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it('skips auth validation for swagger docs endpoint in development', () => {
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'development',
+    });
+    const request = createRequest({});
+    Object.assign(request, {
+      path: '/api/docs',
+      originalUrl: '/api/docs',
+    });
+    const { response, status } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('does not skip auth validation for swagger docs endpoint in production', () => {
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'production',
+    });
+    const request = createRequest({});
+    Object.assign(request, {
+      path: '/api/docs',
+      originalUrl: '/api/docs',
+    });
+    const { response, status, json } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'AUTH_INVALID_CONTEXT',
+        message: 'Missing or invalid authenticated context',
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('attaches parsed auth context when payload and signature are valid', () => {
-    const middleware = createAuthContextMiddleware({ secret });
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'development',
+    });
     const encoded = encodeContext({
       tenantId: '1001',
       actorId: '2001',

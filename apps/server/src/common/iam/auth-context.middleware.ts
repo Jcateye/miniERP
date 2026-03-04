@@ -3,9 +3,22 @@ import type { NextFunction, Request, Response } from 'express';
 import type { AuthContext, AuthenticatedRequest } from './auth-context';
 
 const HEALTH_PATH_PATTERN = /\/health\/(live|ready)\/?$/u;
+const SWAGGER_PATH_PATTERN = /\/docs(?:\/.*)?$|\/docs-(json|yaml)$/u;
 
 interface AuthContextMiddlewareOptions {
   readonly secret: string;
+  readonly nodeEnv: 'development' | 'test' | 'production';
+}
+
+function shouldBypassAuth(
+  requestPath: string,
+  nodeEnv: AuthContextMiddlewareOptions['nodeEnv'],
+): boolean {
+  if (HEALTH_PATH_PATTERN.test(requestPath)) {
+    return true;
+  }
+
+  return nodeEnv === 'development' && SWAGGER_PATH_PATTERN.test(requestPath);
 }
 
 function parseAuthContext(value: string): AuthContext | undefined {
@@ -101,7 +114,7 @@ export function createAuthContextMiddleware(
     next: NextFunction,
   ): void {
     const requestPath = request.path ?? request.originalUrl ?? '';
-    if (HEALTH_PATH_PATTERN.test(requestPath)) {
+    if (shouldBypassAuth(requestPath, options.nodeEnv)) {
       next();
       return;
     }
