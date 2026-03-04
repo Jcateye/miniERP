@@ -6,13 +6,22 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_DIR="${TMPDIR:-/tmp}/minierp-runtime"
 LOG_DIR="${LOG_DIR:-$ROOT_DIR/logs}"
 
-WEB_HEALTH_URL="${WEB_HEALTH_URL:-http://localhost:3000}"
-SERVER_HEALTH_URL="${SERVER_HEALTH_URL:-http://localhost:3001/health/ready}"
+SERVER_PORT="${SERVER_PORT:-3001}"
+WEB_PORT="${WEB_PORT:-3000}"
 
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+POSTGRES_DB="${POSTGRES_DB:-minierp}"
+POSTGRES_USER="${POSTGRES_USER:-minierp}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-change_me}"
 REDIS_HOST="${REDIS_HOST:-localhost}"
 REDIS_PORT="${REDIS_PORT:-6379}"
+
+DATABASE_URL="${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}}"
+REDIS_URL="${REDIS_URL:-redis://${REDIS_HOST}:${REDIS_PORT}}"
+
+WEB_HEALTH_URL="${WEB_HEALTH_URL:-http://localhost:${WEB_PORT}}"
+SERVER_HEALTH_URL="${SERVER_HEALTH_URL:-http://localhost:${SERVER_PORT}/api/health/ready}"
 
 mkdir -p "$RUNTIME_DIR"
 mkdir -p "$LOG_DIR"
@@ -106,7 +115,7 @@ stop_service() {
     return 0
   fi
 
-  echo "[project] 停止 $service（pid=$pid）..."
+  echo "[project] 停止 ${service} (pid=${pid}) ..."
   kill "$pid" >/dev/null 2>&1 || true
 
   for _ in {1..20}; do
@@ -240,8 +249,8 @@ server_check() {
 }
 
 app_start() {
-  start_service "server" "bun run dev:server"
-  start_service "web" "bun run dev:web"
+  start_service "server" "PORT=${SERVER_PORT} DATABASE_URL='${DATABASE_URL}' REDIS_URL='${REDIS_URL}' AUTH_CONTEXT_SECRET='${AUTH_CONTEXT_SECRET:-dev-only-auth-context-secret}' bun run dev:server"
+  start_service "web" "PORT=${WEB_PORT} NEXT_PUBLIC_API_BASE_URL='${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${SERVER_PORT}}' bun run dev:web"
 }
 
 app_stop() {
