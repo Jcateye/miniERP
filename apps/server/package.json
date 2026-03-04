@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "openapi:generate": "bun run scripts/generate-openapi.ts",
     "openapi:check": "bun run scripts/generate-openapi.ts && bun run scripts/check-openapi-quality.ts",
+    "codemap:update": "bun run scripts/update-codemaps.ts",
     "db:generate": "node -e \"console.error('db:generate unavailable: no ORM generator is configured in apps/server. Please integrate Prisma/TypeORM migration tooling before using this command.'); process.exit(1);\"",
     "db:migrate": "node -e \"console.error('db:migrate unavailable: no ORM migration runner is configured in apps/server. Please integrate Prisma/TypeORM migration tooling before using this command.'); process.exit(1);\""
   },
