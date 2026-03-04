@@ -3,8 +3,8 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { AuditService } from '../../audit/application/audit.service';
-import { TenantContextService } from '../../common/tenant/tenant-context.service';
+import { AuditService } from '../../../audit/application/audit.service';
+import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 import { ZodError } from 'zod';
 import {
   evidenceBindingSchema,

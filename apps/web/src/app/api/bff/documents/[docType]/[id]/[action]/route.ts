@@ -10,12 +10,27 @@ export async function POST(
   const { docType, id, action } = await context.params;
   const normalizedDocType = docType.toUpperCase() as DocumentType;
 
+  // Phase 2.1: BFF 强制 Idempotency-Key
+  const idempotencyKey = request.headers.get('Idempotency-Key');
+  if (!idempotencyKey || idempotencyKey.trim() === '') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'IDEMPOTENCY_KEY_REQUIRED',
+          message: 'Idempotency-Key header is required for document actions',
+          category: 'validation',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     const response = await fetch(buildBackendUrl(`/documents/${normalizedDocType}/${id}/${action}`), {
       method: 'POST',
       headers: {
         ...createServerHeaders(),
-        ...(request.headers.get('Idempotency-Key') ? { 'Idempotency-Key': request.headers.get('Idempotency-Key') as string } : {}),
+        'Idempotency-Key': idempotencyKey,
       },
       cache: 'no-store',
     });

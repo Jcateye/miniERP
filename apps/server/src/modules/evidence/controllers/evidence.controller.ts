@@ -7,9 +7,9 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { EvidenceBindingService } from '../../../evidence/application/evidence-binding.service';
+import { EvidenceBindingService } from '../application/evidence-binding.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
-import { InMemoryEvidenceBindingRepository } from '../../../evidence/infrastructure/evidence-binding.repository';
+import { InMemoryEvidenceBindingRepository, type EvidenceBindingRecord } from '../infrastructure/evidence-binding.repository';
 
 export interface EvidenceLinkItem {
   id: string;
@@ -63,7 +63,7 @@ export class EvidenceController {
     const normalizedEntityId = entityId ?? '3001';
 
     // Get bindings from repository
-    const bindings = this.repository.findByTenant(ctx.tenantId).filter((b) => {
+    const bindings = this.repository.findByTenant(ctx.tenantId).filter((b: EvidenceBindingRecord) => {
       if (b.entityType !== normalizedEntityType) return false;
       if (b.entityId !== normalizedEntityId) return false;
       if (b.bindingLevel !== normalizedScope) return false;
@@ -72,7 +72,7 @@ export class EvidenceController {
     });
 
     // Build response
-    const items: EvidenceLinkItem[] = bindings.map((b, idx) => ({
+    const items: EvidenceLinkItem[] = bindings.map((b: EvidenceBindingRecord) => ({
       id: b.id,
       assetId: `${b.evidenceId}`,
       scope: b.bindingLevel,
