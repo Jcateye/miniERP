@@ -1,4 +1,4 @@
-# MiniERP 架构 ADR 总览索引（ADR-001 ~ ADR-005）
+# MiniERP 架构 ADR 总览索引（ADR-001 ~ ADR-006）
 
 ## 1. 文档目的
 本索引用于汇总 MiniERP 当前已形成的核心架构决策记录（ADR），作为后续研发实施、评审和验收的统一入口。
@@ -19,6 +19,7 @@
 | [ADR-003](./ADR-003-evidence-storage-pipeline.md) | 证据系统存储与处理流水线 | 附件证据与审计 | Proposed | P1 |
 | [ADR-004](./ADR-004-inventory-consistency-and-idempotency.md) | 库存一致性与过账幂等策略 | 核心交易一致性 | Proposed | P0 |
 | [ADR-005](./ADR-005-frontend-template-governance.md) | 前端模板化实现规范 | 前端工程治理 | Proposed | P1 |
+| [ADR-006](./ADR-006-backend-minimum-integration-closure.md) | 后端最小联调闭环优先策略（Documents + Evidence + Inventory） | 联调落地与能力补齐 | Proposed | P0 |
 
 ---
 
@@ -32,6 +33,7 @@
 | 库存一致性 | ledger 事实源 + 幂等 + 锁 + 原子事务 + 反向补偿 | ADR-004 |
 | 证据系统 | 预签名直传 + 异步处理 + 全链路审计 + 生命周期保留 | ADR-003 |
 | 前端架构 | 模板壳 + VM Hook + Query/RHF/URL 分层状态 | ADR-005 |
+| 联调策略 | 先打通 Documents + Evidence + Inventory 最小闭环，再扩展全实体 CRUD | ADR-006 |
 | 安全治理 | OAuth2 + Scope + tenant 绑定 + 审计留痕 | ADR-001/002/003 |
 | 测试与验证 | Unit + Integration + E2E（80%+ 覆盖） | ADR-001/004/005 |
 
@@ -44,13 +46,14 @@ ADR-001（总体基线）
   ├─ ADR-002（多租户隔离）
   ├─ ADR-004（库存一致性与幂等）
   ├─ ADR-003（证据系统流水线）
-  └─ ADR-005（前端模板治理）
+  ├─ ADR-005（前端模板治理）
+  └─ ADR-006（后端最小联调闭环策略）
 ```
 
 建议实施顺序：
-1. **P0 先行**：ADR-001 -> ADR-002 + ADR-004
+1. **P0 先行**：ADR-001 -> ADR-002 + ADR-004 + ADR-006
 2. **P1 跟进**：ADR-003 + ADR-005
-3. **并行推进**：ADR-003 与 ADR-005 可并行，但都应依赖 ADR-001 统一边界
+3. **并行推进**：ADR-003 与 ADR-005 可并行，但都应依赖 ADR-001 统一边界；ADR-006 用于联调阶段优先落地
 
 ---
 
@@ -58,9 +61,9 @@ ADR-001（总体基线）
 
 | 阶段 | 必须落地 ADR | 核心交付物 |
 |---|---|---|
-| MVP | ADR-001, ADR-002, ADR-004 | 模块边界、租户隔离、库存过账幂等与一致性闭环 |
+| MVP | ADR-001, ADR-002, ADR-004, ADR-006 | 模块边界、租户隔离、库存过账幂等一致性、documents/evidence/inventory 最小联调闭环 |
 | Beta | ADR-003, ADR-005 | 证据系统全链路、前端模板化批量落地 |
-| GA | ADR-001~005 全量治理 | 可观测、压测、审计与运维闭环 |
+| GA | ADR-001~006 全量治理 | 可观测、压测、审计与运维闭环 |
 
 ---
 
