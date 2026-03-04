@@ -2,106 +2,102 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What this repo is
+## Scope
 
-miniERP is a **design-first + runnable scaffold** monorepo:
-- Product/interaction intent lives in `designs/` (spec docs)
-- Runtime code lives in `apps/web`, `apps/server`, `packages/shared`
+miniERP is a design-first monorepo:
+- Product intent: `designs/`
+- Runtime code: `apps/web`, `apps/server`, `packages/shared`
 
-If design and code differ, treat `designs/` as intent and `apps/*` as current implementation truth.
+When intent and runtime differ, use `designs/` to understand goals and `apps/*` as implementation truth.
 
-## Read first (high ROI)
-
-1. `README.md`
-2. `designs/ui/minierp_page_spec.md` (T1–T4 template system)
-3. `designs/ui/miniERP_evidence_system.md` (two-layer evidence model)
-4. `designs/ui/miniERP_design_summary.md`
-5. `.claude/rules/erp-rules.md`
-6. `openspec/config.yaml`
-
-## Monorepo map
-
-- `apps/web` — Next.js 15 + React 19 frontend (`src/app`)
-- `apps/server` — NestJS 11 backend
-- `packages/shared` — shared contracts/constants/utils
-- `designs` — UI/PRD/spec source of truth
-- `openspec` — spec-driven change artifacts
-
-## Common commands (repo root)
+## Non-obvious commands (repo root)
 
 ```bash
 bun install
-
 bun run dev
 bun run dev:web
 bun run dev:server
-
+bun run build
 bun run lint
 bun run test
-bun run build
+
+bun run infra:up
+bun run infra:ps
+bun run infra:logs
+bun run infra:down
 ```
 
-### Targeted commands
+Targeted testing/build:
 
 ```bash
-# server
-bun run --filter server dev
 bun run --filter server test
 bun run --filter server test -- src/path/to/file.spec.ts
-bun run --filter server test:watch
-bun run --filter server test:cov
-bun run --filter server test:e2e
-
-# web
-bun run --filter web dev
+bun run --filter server test -- src/path/to/file.spec.ts -t "test name"
+bun run --filter server test:e2e -- test/app.e2e-spec.ts
 bun run --filter web build
-bun run --filter web lint
 ```
 
-Notes:
-- `apps/web` currently has no test script.
-- Root `db:generate` / `db:migrate` proxy to server, but server does not yet define those scripts.
+Important command quirks:
+- `apps/web` has no `test` script.
+- Root `db:generate` / `db:migrate` now route to server placeholder scripts that **fail explicitly** until ORM migration tooling is integrated.
+- `turbo.json` makes root `lint` and `test` depend on upstream `build` (expect slower runs than plain lint/test).
 
-## Big-picture architecture
+## Testing policy
 
-### 1) Template-driven UI
+- Preferred runner: **Jest (server)**.
+- Default entrypoint: root `bun run test` (turbo aggregation).
+- For deterministic debugging, prefer server-scoped commands (`--filter server ...`) over root aggregation.
 
-Pages should be built from the four archetypes in `designs/ui/minierp_page_spec.md`:
-- T1 OverviewLayout
-- T2 WorkbenchLayout
-- T3 DetailLayout
-- T4 WizardLayout
+## Required env quirks
 
-If a page matches ~80%+ of an archetype, reuse that template and only replace fields/data.
+From runtime config behavior (`apps/server/src/config/env.schema.ts`, BFF headers):
 
-### 2) Evidence is cross-domain capability
+- Required for server startup: `DATABASE_URL`, `REDIS_URL`.
+- `AUTH_CONTEXT_SECRET`:
+  - required outside `development/test`
+  - dev/test can use fallback secrets, but do not rely on fallback for production-like verification.
+- `API_PREFIX` defaults to `api` (affects backend route prefix).
+- `PORT` default is `3000` in server config; `.env.example` sets `3001`.
+- `NEXT_PUBLIC_API_BASE_URL` must match actual backend endpoint used by BFF.
 
-`designs/ui/miniERP_evidence_system.md` defines two layers used across purchase/sales/inventory:
-- Document-level evidence (global attachments)
-- Row-level evidence (SKU-line drawer workflow)
+## Project-specific architecture decisions
 
-Keep this model consistent when implementing GRN/OUT/stocktake-like flows.
+1. **Template-first frontend**: T1–T4 page families are the default approach (`designs/ui/minierp_page_spec.md`).
+2. **Two-layer evidence model**: document-level + row-level evidence (`designs/ui/miniERP_evidence_system.md`).
+3. **Web data path**: hooks/components -> SDK/BFF -> `/api/bff/*` -> backend.
+4. **Fixture fallback boundary**: BFF fallback is allowed only in `development/test`; non-dev env should surface upstream unavailability.
+5. **Shared contract boundary**: cross-layer types/constants/utilities belong in `packages/shared`.
 
-### 3) Runtime layering
+## Business invariants (non-negotiable)
 
-- Web (`apps/web`): routing, page composition, interaction
-- Server (`apps/server`): domain APIs and state transitions
-- Shared (`packages/shared`): cross-layer contracts and utility primitives
+From `.claude/rules/erp-rules.md`:
+- Document number format: `DOC-{type}-{YYYYMMDD}-{seq}`
+- Monetary computation: must use `decimal.js`
+- Document states: explicit transitions + auditable history
 
-### 4) Current maturity (important)
+## Repo etiquette
 
-Runtime is scaffold-level today:
-- Web: minimal landing page
-- Server: basic hello-world skeleton (AppController/AppService)
-- Shared: foundational ERP types/constants/utils already present
+Current repo-enforced/source-backed expectations:
+- Keep docs in sync when changing shared facts across:
+  - `CLAUDE.md`
+  - `AGENTS.md`
+  - `README.md`
+  - `CLAW.md`
+- Commit message source of truth:
+  - `docs/commit.md` (includes executor/session resume metadata format)
+- CI source of truth:
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/cd-staging.yml`
 
-Implement features incrementally on top of this scaffold.
+Not explicitly enforced in-repo today (set by PR convention when needed):
+- branch naming scheme
+- PR template/body format
 
-## Business constraints (from `.claude/rules/erp-rules.md`)
+## Common pitfalls
 
-- Document number: `DOC-{type}-{YYYYMMDD}-{seq}`
-- Monetary calculation: use `decimal.js` (avoid raw float arithmetic)
-- Document states: explicit transitions + auditable changes
+- Root test/lint/build behavior is turbo-driven, not single-package behavior.
+- Web may appear “healthy” in dev/test while backend is down if BFF fixture fallback is active.
+- `db:*` commands currently exist to fail fast (not to execute real migrations yet).
 
 ## OpenSpec workflow
 
@@ -112,13 +108,7 @@ Common commands:
 - `/opsx:verify`
 - `/opsx:archive`
 
-Recommended flow:
-1. Plan (`/plan` or `/opsx:new`)
-2. Implement (`/opsx:apply`, optional `/tdd`)
-3. Verify (`/opsx:verify`, optional `/verify`)
-4. Archive (`/opsx:archive`)
-
-## Also check these instruction files when present
+## Also check when present
 
 - `.cursor/rules/*` or `.cursorrules`
 - `.github/copilot-instructions.md`

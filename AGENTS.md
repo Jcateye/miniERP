@@ -1,37 +1,34 @@
-# AGENTS.md - AI Assistant Context
+# AGENTS.md - Agent 执行上下文
 
-此文件为 Codex 与其他子代理提供项目上下文。
+此文件提供给 Claude/Codex/子代理，目标是让 agent 快速进入可执行状态。
 
 ---
 
-## 项目是什么
+## 1) 项目定位（先建立共识）
 
-miniERP 是一个**设计优先 + 可运行骨架**的 monorepo：
-- 产品/交互意图在 `designs/`（spec 文档）
-- 运行时代码在 `apps/web`、`apps/server`、`packages/shared`
+miniERP 是一个 **design-first + runnable monorepo**：
+- 产品意图：`designs/`
+- 运行时代码：`apps/web`、`apps/server`、`packages/shared`
 
-当设计与代码不一致时：
-- `designs/` 代表产品意图
-- `apps/*` 代表当前实现真相
+若设计与代码冲突：
+1. 用 `designs/` 理解业务意图
+2. 以 `apps/*` 当前实现作为落地真相
 
-## 优先阅读（高 ROI）
+---
+
+## 2) 进入任务前先读
 
 1. `README.md`
 2. `designs/ui/minierp_page_spec.md`（T1–T4 模板体系）
-3. `designs/ui/miniERP_evidence_system.md`（两层凭证模型）
+3. `designs/ui/miniERP_evidence_system.md`（单据级/行级凭证）
 4. `designs/ui/miniERP_design_summary.md`
 5. `.claude/rules/erp-rules.md`
 6. `openspec/config.yaml`
+7. `docs/commit.md`（提交信息规范，含执行者恢复信息）
 
-## Monorepo 边界
+---
 
-- `apps/web`：Next.js 15 + React 19 前端（`src/app`）
-- `apps/server`：NestJS 11 后端
-- `packages/shared`：跨端共享 contracts/constants/utils
-- `designs`：UI/PRD/spec 设计来源
-- `openspec`：spec-driven 变更工件
-
-## 常用命令（仓库根目录）
+## 3) 高频命令（仓库根目录）
 
 ```bash
 bun install
@@ -40,99 +37,129 @@ bun run dev
 bun run dev:web
 bun run dev:server
 
+bun run build
 bun run lint
 bun run test
-bun run build
 ```
 
 ### 定向命令
 
 ```bash
-# server
-bun run --filter server dev
-bun run --filter server test
-bun run --filter server test -- src/path/to/file.spec.ts
-bun run --filter server test:watch
-bun run --filter server test:cov
-bun run --filter server test:e2e
-
 # web
 bun run --filter web dev
 bun run --filter web build
 bun run --filter web lint
+
+# server
+bun run --filter server dev
+bun run --filter server build
+bun run --filter server lint
+bun run --filter server test
+bun run --filter server test -- src/path/to/file.spec.ts
+bun run --filter server test -- src/path/to/file.spec.ts -t "test name"
+bun run --filter server test:watch
+bun run --filter server test:cov
+bun run --filter server test:e2e
+bun run --filter server test:e2e -- test/app.e2e-spec.ts
 ```
 
-说明：
-- `apps/web` 当前没有 test script。
-- 根目录 `db:generate` / `db:migrate` 会代理到 server，但 server 目前未定义对应脚本。
+### 基础设施
 
-## 架构要点（Big Picture）
+```bash
+bun run infra:up
+bun run infra:ps
+bun run infra:logs
+bun run infra:down
+```
 
-### 1) 模板驱动 UI
+注意：
+- `apps/web` 当前无 `test` script。
+- 根 `db:generate` / `db:migrate` 会代理到 server；当前 server 提供显式失败占位脚本（未接入 ORM 迁移工具前避免“假成功”）。
 
-页面优先复用 `designs/ui/minierp_page_spec.md` 的四类模板：
-- T1 OverviewLayout
-- T2 WorkbenchLayout
-- T3 DetailLayout
-- T4 WizardLayout
+---
 
-若页面与某模板匹配约 80% 以上，应复用模板并仅替换字段/数据。
+## 4) 架构执行要点（Agent 视角）
 
-### 2) 凭证是跨域能力
+### A. 前端：模板优先 + 配置装配
+- 路由主入口：`apps/web/src/app/(dashboard)/...`
+- 页面配置：`apps/web/src/components/business/erp-page-config.tsx`
+- 页面装配：`apps/web/src/components/business/erp-page-assemblies.tsx`
+- 模板壳：`apps/web/src/components/layouts/`
 
-`designs/ui/miniERP_evidence_system.md` 定义两层模型：
-- 单据级凭证（全局附件）
-- 行级凭证（SKU 行 drawer 工作流）
+默认策略：优先复用 T1/T2/T3/T4，而不是新增一次性页面结构。
 
-在采购/销售/库存相关流程中保持一致。
+### B. 凭证模型是跨域能力
+- 单据级凭证 + 行级凭证（line drawer）
+- 相关组件：
+  - `apps/web/src/components/evidence/evidence-panel.tsx`
+  - `apps/web/src/components/evidence/line-evidence-drawer.tsx`
+- 相关 BFF 路由：
+  - `apps/web/src/app/api/bff/evidence/upload-intents/route.ts`
+  - `apps/web/src/app/api/bff/evidence/links/route.ts`
 
-### 3) Runtime 分层
+### C. Web 数据链路：SDK -> BFF -> Backend
+- 客户端通过 `lib/bff/client.ts` + `lib/sdk/client.ts` 请求 `/api/bff/*`
+- BFF 转发后端并注入租户/签名头
+- 部分 GET 在上游不可用时仅在 `development/test` 回退 fixtures（`lib/bff/server-fixtures.ts`）
 
-- Web（`apps/web`）：路由、页面组合、交互
-- Server（`apps/server`）：领域 API 与状态流转
-- Shared（`packages/shared`）：跨层协议与通用基础
+### D. Server 全局约束
+- `main.ts`：auth context、tenant context、中间件 + 全局 ValidationPipe
+- `app.module.ts`：全局响应包裹拦截器 + 全局异常过滤器
+- 响应约定被 web SDK/BFF 依赖
 
-### 4) 当前成熟度（重要）
+### E. 领域实现组织
+- 领域能力在 `apps/server/src/modules/*`
+- 共享能力在 `common`、`audit`、`evidence`、`platform`、`database`
+- 库存能力示例：`modules/inventory/application/inventory-posting.service.ts`
+  - 幂等键
+  - payload hash 冲突检测
+  - 库存下穿保护
+  - reversal 与原台账关联
 
-当前运行时代码仍是骨架：
-- Web：最小落地页
-- Server：基础 hello-world 骨架
-- Shared：已具备基础 ERP 类型/常量/工具
+### F. 契约边界
+- `packages/shared` 是前后端共享契约边界（types/constants/utils）
+- 新增跨层数据结构时优先沉淀 shared
 
-功能实现应按增量方式推进。
+---
 
-## 业务约束（来自 `.claude/rules/erp-rules.md`）
+## 5) 业务硬约束（必须遵守）
 
-- 单据号格式：`DOC-{type}-{YYYYMMDD}-{seq}`
-- 金额计算：必须使用 `decimal.js`（避免直接浮点运算）
-- 单据状态：必须显式流转且可审计
+来自 `.claude/rules/erp-rules.md`：
+- 单据号：`DOC-{type}-{YYYYMMDD}-{seq}`
+- 金额：必须使用 `decimal.js`
+- 状态：显式流转 + 可审计
 
-## OpenSpec 工作流
+---
 
-常用命令：
-- `/opsx:new`
-- `/opsx:ff`
-- `/opsx:apply`
-- `/opsx:verify`
-- `/opsx:archive`
+## 6) OpenSpec 工作流
 
-推荐流程：
-1. 规划（`/plan` 或 `/opsx:new`）
-2. 实现（`/opsx:apply`，可选 `/tdd`）
-3. 验证（`/opsx:verify`，可选 `/verify`）
-4. 归档（`/opsx:archive`）
+常用：`/opsx:new` `/opsx:ff` `/opsx:apply` `/opsx:verify` `/opsx:archive`
 
-## Agent 沟通要求
+推荐：规划 -> 实现 -> 验证 -> 归档
+
+---
+
+## 7) 沟通语言
 
 **所有 agents 必须使用中文与用户沟通。**
 
-调用 agent 时，在 prompt 中附加：
+调用 agent 时在 prompt 附加：
 
 ```text
 使用中文与我沟通。
 ```
 
-## 额外指令文件（若存在需检查）
+---
 
-- `.cursor/rules/*` 或 `.cursorrules`
-- `.github/copilot-instructions.md`
+## 8) 文档一致性约定（四文档）
+
+以下四个文件共享同一组“核心事实”：
+- `CLAUDE.md`
+- `AGENTS.md`
+- `README.md`
+- `CLAW.md`
+
+更新原则：
+1. 先改 `CLAUDE.md` 的核心事实
+2. 同步改另外三份，但保留各自受众风格
+3. 若命令/架构/约束变更，四份文档必须同批更新
