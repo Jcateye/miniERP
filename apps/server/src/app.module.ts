@@ -7,6 +7,7 @@ import { ApiResponseInterceptor } from './common/interceptors/api-response.inter
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuditService } from './audit/application/audit.service';
+import { AUDIT_STORE_TOKEN, InMemoryAuditStore } from './audit/application/audit.store';
 import { IamGuard } from './common/iam/iam.guard';
 import { PlatformAccessService } from './platform/application/platform-access.service';
 import { TenantContextService } from './common/tenant/tenant-context.service';
@@ -17,6 +18,10 @@ import { TenantContextService } from './common/tenant/tenant-context.service';
   providers: [
     AppService,
     TenantContextService,
+    {
+      provide: AUDIT_STORE_TOKEN,
+      useClass: InMemoryAuditStore,
+    },
     AuditService,
     PlatformAccessService,
     IamGuard,

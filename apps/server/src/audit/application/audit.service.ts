@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { redactAuditMetadata } from '../domain/audit-redactor';
-import { InMemoryAuditStore, type AuditEvent, type AuditStore } from './audit.store';
+import { AUDIT_STORE_TOKEN, type AuditEvent, type IAuditStore } from './audit.store';
 
 interface RecordAuditInput {
   readonly requestId: string;
@@ -16,7 +16,7 @@ interface RecordAuditInput {
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly auditStore: AuditStore = new InMemoryAuditStore()) {}
+  constructor(@Inject(AUDIT_STORE_TOKEN) private readonly auditStore: IAuditStore) {}
 
   recordAuthorization(input: RecordAuditInput): void {
     this.recordEvent(input);
