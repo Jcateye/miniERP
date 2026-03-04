@@ -1,23 +1,24 @@
-import { ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { loadAppConfig } from './config/app.config';
+import { loadAppConfig, type AppConfig } from './config/app.config';
 import { createAuthContextMiddleware } from './common/iam/auth-context.middleware';
 import { createTenantContextMiddleware } from './common/tenant/tenant-context.middleware';
 
-import { INestApplication } from '@nestjs/common';
-
-function setupSwagger(app: INestApplication) {
-  const config = new DocumentBuilder()
+function setupSwagger(app: INestApplication, config: AppConfig) {
+  const swaggerConfig = new DocumentBuilder()
     .setTitle('miniERP API')
     .setDescription('miniERP 后端服务 API 文档')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+
+  // 使用 config.globalPrefix 动态设置 docs 路径，保持与 API 路由一致
+  const docsPath = config.globalPrefix.length > 0 ? `${config.globalPrefix}/docs` : 'docs';
+  SwaggerModule.setup(docsPath, app, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },
@@ -43,7 +44,7 @@ async function bootstrap() {
     app.setGlobalPrefix(config.globalPrefix);
   }
 
-  setupSwagger(app);
+  setupSwagger(app, config);
 
   await app.listen(config.port);
 }
