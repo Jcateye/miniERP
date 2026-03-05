@@ -23,9 +23,9 @@
 
 ## 3. Stream B - masterdata
 
-- [ ] 3.1 将 sku/warehouse/supplier/customer repository 切换为 Prisma 持久化实现。
-- [ ] 3.2 保持 CRUD + 查询与 shared contract 对齐。
-- [ ] 3.3 输出交付：`MASTERDATA-READY`。
+- [x] 3.1 将 sku/warehouse/supplier/customer repository 切换为 Prisma 持久化实现。
+- [x] 3.2 保持 CRUD + 查询与 shared contract 对齐。
+- [x] 3.3 输出交付：`MASTERDATA-READY`。
 
 ## 4. Stream E - inventory
 
@@ -36,10 +36,10 @@
 
 ## 5. Stream F - evidence
 
-- [ ] 5.1 落地 evidence_asset + evidence_link 持久化与 scope 约束。
-- [ ] 5.2 完成 upload-intent/links 的最小真实链路。
-- [ ] 5.3 对齐 document/line 查询与审计。
-- [ ] 5.4 输出交付：`EVIDENCE-READY`。
+- [x] 5.1 落地 evidence_asset + evidence_link 持久化与 scope 约束。
+- [x] 5.2 完成 upload-intent/links 的最小真实链路。
+- [x] 5.3 对齐 document/line 查询与审计。
+- [x] 5.4 输出交付：`EVIDENCE-READY`。
 
 ## 6. Stream C - purchase+inbound（依赖 B+E）
 
