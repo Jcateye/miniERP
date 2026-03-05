@@ -7,8 +7,10 @@ import { InMemorySkuRepository } from './infrastructure/in-memory-sku.repository
 import { InMemoryWarehouseRepository } from './infrastructure/in-memory-warehouse.repository';
 import { InMemorySupplierRepository } from './infrastructure/in-memory-supplier.repository';
 import { InMemoryCustomerRepository } from './infrastructure/in-memory-customer.repository';
+import { WarehouseController } from './controllers/warehouse.controller';
 
 @Module({
+  controllers: [WarehouseController],
   providers: [
     // SKU
     {
