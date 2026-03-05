@@ -130,7 +130,7 @@ describe('Server foundation (e2e)', () => {
       app = moduleFixture.createNestApplication();
       await app.init();
     } catch (error) {
-      await Promise.allSettled([
+      const cleanupResults = await Promise.allSettled([
         app ? app.close() : Promise.resolve(),
         stopProbeServer(databaseProbeServer),
         stopProbeServer(redisProbeServer),
@@ -139,6 +139,21 @@ describe('Server foundation (e2e)', () => {
       databaseProbeServer = undefined;
       redisProbeServer = undefined;
       restoreEnv(originalNodeEnv, originalDatabaseUrl, originalRedisUrl);
+
+      const cleanupErrors = cleanupResults
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected',
+        )
+        .map((result) => result.reason);
+
+      if (cleanupErrors.length > 0) {
+        throw new AggregateError(
+          [error, ...cleanupErrors],
+          'beforeEach failed with cleanup errors',
+        );
+      }
+
       throw error;
     }
   });
@@ -156,12 +171,15 @@ describe('Server foundation (e2e)', () => {
 
     restoreEnv(originalNodeEnv, originalDatabaseUrl, originalRedisUrl);
 
-    const cleanupErrors = cleanupResults.filter(
-      (result): result is PromiseRejectedResult => result.status === 'rejected',
-    );
+    const cleanupErrors = cleanupResults
+      .filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === 'rejected',
+      )
+      .map((result) => result.reason);
 
     if (cleanupErrors.length > 0) {
-      throw cleanupErrors[0].reason;
+      throw new AggregateError(cleanupErrors, 'afterEach cleanup failed');
     }
   });
 
