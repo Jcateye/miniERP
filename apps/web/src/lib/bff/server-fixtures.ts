@@ -156,7 +156,17 @@ export function createServerHeaders() {
   const authContext = {
     tenantId,
     actorId: process.env.MINIERP_ACTOR_ID ?? '9001',
-    permissions: ['evidence:link:create', 'evidence:link:read', 'evidence:*'],
+    permissions: [
+      'evidence:link:create',
+      'evidence:link:read',
+      'evidence:*',
+      'masterdata.warehouse.read',
+      'masterdata.warehouse.write',
+      'masterdata.supplier.read',
+      'masterdata.supplier.write',
+      'masterdata.customer.read',
+      'masterdata.customer.write',
+    ],
     role: 'tenant_admin',
   };
 
