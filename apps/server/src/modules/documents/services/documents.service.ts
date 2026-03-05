@@ -113,6 +113,8 @@ export class DocumentsService {
       { id: '4002', docType: 'SO', status: 'confirmed', totalQty: '54', totalAmount: '68900' },
       { id: '5001', docType: 'OUT', status: 'draft', totalQty: '160', totalAmount: '152400' },
       { id: '5002', docType: 'OUT', status: 'posted', totalQty: '54', totalAmount: '68900' },
+      { id: '6001', docType: 'ADJ', status: 'draft', totalQty: '-4', totalAmount: '0' },
+      { id: '6002', docType: 'ADJ', status: 'posted', totalQty: '2', totalAmount: '0' },
     ];
 
     for (const demo of demoDocs) {
@@ -143,9 +145,9 @@ export class DocumentsService {
             docId: demo.id,
             lineNo: 1,
             skuId: 'CAB-HDMI-2M',
-            qty: '120',
-            unitPrice: '320',
-            amount: '38400',
+            qty: demo.docType === 'ADJ' ? '-4' : '120',
+            unitPrice: demo.docType === 'ADJ' ? '0' : '320',
+            amount: demo.docType === 'ADJ' ? '0' : '38400',
             taxAmount: '0',
           },
           {
@@ -153,9 +155,9 @@ export class DocumentsService {
             docId: demo.id,
             lineNo: 2,
             skuId: 'ADP-USB-C-DP',
-            qty: '80',
-            unitPrice: '420',
-            amount: '33600',
+            qty: demo.docType === 'ADJ' ? '2' : '80',
+            unitPrice: demo.docType === 'ADJ' ? '0' : '420',
+            amount: demo.docType === 'ADJ' ? '0' : '33600',
             taxAmount: '0',
           },
         ],
@@ -209,8 +211,8 @@ export class DocumentsService {
     actorId: string,
     requestId: string,
   ): Promise<DocumentActionResult> {
-    // HIGH-1 Fix: 幂等性检查 - 相同 key 返回缓存结果
-    const cacheKey = `${tenantId}:${idempotencyKey}`;
+    // HIGH-1 Fix: 幂等性检查 - 绑定单据与动作维度避免串单
+    const cacheKey = `${tenantId}:${docType}:${id}:${action}:${idempotencyKey}`;
     const cachedResult = this.idempotencyCache.get(cacheKey);
     if (cachedResult) {
       return cachedResult;
@@ -257,6 +259,36 @@ export class DocumentsService {
 
     const previousStatus = doc.status;
 
+    let inventoryPosted = false;
+    let ledgerEntryIds: string[] = [];
+
+    // Post to inventory for GRN/OUT/ADJ
+    if ((docType === 'GRN' || docType === 'OUT' || docType === 'ADJ') && action === 'post') {
+      const referenceType = docType === 'ADJ' ? 'ADJUSTMENT' : docType;
+      const result = await this.inventoryPostingService.post(
+        tenantId,
+        {
+          idempotencyKey,
+          referenceType,
+          referenceId: id,
+          lines: doc.lines.map((line) => ({
+            skuId: line.skuId,
+            warehouseId: 'WH-001',
+            quantityDelta:
+              docType === 'GRN'
+                ? parseInt(line.qty, 10)
+                : docType === 'OUT'
+                  ? -parseInt(line.qty, 10)
+                  : parseInt(line.qty, 10),
+          })),
+        },
+        requestId,
+      );
+
+      inventoryPosted = true;
+      ledgerEntryIds = result.ledgerEntries.map((e) => e.id);
+    }
+
     // Update status
     const updatedDoc: DocumentDetail = {
       ...doc,
@@ -265,27 +297,6 @@ export class DocumentsService {
       updatedBy: actorId,
     };
     this.documents.set(key, updatedDoc);
-
-    let inventoryPosted = false;
-    let ledgerEntryIds: string[] = [];
-
-    // Post to inventory for GRN/OUT
-    if ((docType === 'GRN' || docType === 'OUT') && action === 'post') {
-      const quantityDelta = docType === 'GRN' ? 1 : -1;
-      const result = await this.inventoryPostingService.post(tenantId, {
-        idempotencyKey,
-        referenceType: docType,
-        referenceId: id,
-        lines: doc.lines.map((line) => ({
-          skuId: line.skuId,
-          warehouseId: 'WH-001',
-          quantityDelta: parseInt(line.qty, 10) * quantityDelta,
-        })),
-      }, requestId);
-
-      inventoryPosted = true;
-      ledgerEntryIds = result.ledgerEntries.map((e) => e.id);
-    }
 
     this.auditService.recordAuthorization({
       requestId,

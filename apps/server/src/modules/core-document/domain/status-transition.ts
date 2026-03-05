@@ -7,7 +7,7 @@ export const CORE_DOCUMENT_MODULES = [
   'outbound',
 ] as const;
 
-export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT'] as const;
+export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT', 'ADJ'] as const;
 
 export const CORE_DOCUMENT_STATUSES = [
   'draft',
@@ -106,8 +106,16 @@ const STATUS_GRAPH: StatusGraph = {
     closed: [],
     validating: [],
   },
+  ADJ: {
+    draft: ['validating', 'cancelled'],
+    validating: ['posted', 'cancelled'],
+    posted: [],
+    cancelled: [],
+    confirmed: [],
+    closed: [],
+    picking: [],
+  },
 };
-
 const MODULE_BOUNDARIES: Readonly<
   Record<CoreDocumentModule, DocumentModuleBoundary>
 > = {

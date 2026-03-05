@@ -65,6 +65,13 @@ describe('DocumentsService', () => {
       expect(result.pageSize).toBe(20);
     });
 
+    it('should return adjustment documents for ADJ docType', () => {
+      const result = service.list({ docType: 'ADJ' }, '1001');
+
+      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.data.every((doc) => doc.docType === 'ADJ')).toBe(true);
+    });
+
     it('should only return documents matching tenant', () => {
       const result = service.list({ docType: 'PO' }, '1001');
 
@@ -220,6 +227,44 @@ describe('DocumentsService', () => {
 
       expect(inventoryPostingService.post).toHaveBeenCalled();
       expect(result.inventoryPosted).toBe(true);
+    });
+
+    it('should call inventory posting with ADJUSTMENT reference on ADJ post', async () => {
+      await service.executeAction(
+        'ADJ',
+        '6001',
+        'validate',
+        'idem-key-adj-validate',
+        '1001',
+        'user-001',
+        'req-001',
+      );
+
+      mockInventoryPostingService.post.mockResolvedValue({
+        ledgerEntries: [{ id: 'ledger-adj-001' }],
+        balanceSnapshots: [],
+      });
+
+      const result = await service.executeAction(
+        'ADJ',
+        '6001',
+        'post',
+        'idem-key-adj-post',
+        '1001',
+        'user-001',
+        'req-001',
+      );
+
+      expect(inventoryPostingService.post).toHaveBeenCalledWith(
+        '1001',
+        expect.objectContaining({
+          referenceType: 'ADJUSTMENT',
+          referenceId: '6001',
+        }),
+        'req-001',
+      );
+      expect(result.inventoryPosted).toBe(true);
+      expect(result.ledgerEntryIds).toContain('ledger-adj-001');
     });
 
     it('should record audit on successful action', async () => {

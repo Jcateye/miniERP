@@ -721,6 +721,7 @@ export const inventoryReorderConfig: WorkbenchAssemblyConfig = {
 
 export const stocktakeWorkbenchConfig: WorkbenchAssemblyConfig = {
   contract: createWorkbenchContract('/stocktake', '盘点工作台', '盘点任务、差异复核与调整发布入口。', createTag('Stocktake', 'warning'), { key: 'new-stocktake', label: '新建盘点', href: '/stocktake/new', tone: 'primary' }),
+  docType: 'ADJ',
   rows: stocktakeRows,
   columns: [
     { key: 'docNo', label: '盘点单号', type: 'link' },
@@ -816,6 +817,7 @@ export const outDetailConfig: DetailAssemblyConfig = {
 
 export const stocktakeDetailConfig: DetailAssemblyConfig = {
   contract: createDetailContract('/stocktake/[id]', '盘点详情', '盘点差异、复核与调整凭证。', createTag('待复核', 'warning'), { key: 'review', label: '复核并调整', tone: 'primary' }),
+  docType: 'ADJ',
   entityType: 'stocktake',
   record: createDetailRecord('6001', '盘点详情', 'DOC-ADJ-20260303-001', '盘点负责人', 'stocktake'),
 };

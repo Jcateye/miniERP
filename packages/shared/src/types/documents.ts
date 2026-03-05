@@ -9,7 +9,7 @@ import type { DecimalString, BigIntString } from './api';
 export type { DecimalString, BigIntString } from './api';
 
 // 核心单据类型
-export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT'] as const;
+export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT', 'ADJ'] as const;
 export type CoreDocumentType = (typeof CORE_DOCUMENT_TYPES)[number];
 
 // 核心单据状态

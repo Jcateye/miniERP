@@ -82,6 +82,17 @@ describe('DocumentsController', () => {
         '1001',
       );
     });
+
+    it('should support ADJ docType list', async () => {
+      mockDocumentsService.list.mockReturnValue({ data: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
+
+      controller.list('ADJ');
+
+      expect(service.list).toHaveBeenCalledWith(
+        { docType: 'ADJ' },
+        '1001',
+      );
+    });
   });
 
   describe('getDetail', () => {
