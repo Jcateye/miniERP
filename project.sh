@@ -36,6 +36,78 @@ log_file() {
   echo "$LOG_DIR/${service}.log"
 }
 
+detect_lan_ip() {
+  local default_iface default_ip iface iface_ip
+  default_iface="$(route get default 2>/dev/null | awk '/interface:/{print $2}' | head -n 1)"
+
+  if [[ -n "${default_iface:-}" ]]; then
+    default_ip="$(ipconfig getifaddr "$default_iface" 2>/dev/null || true)"
+    if [[ -n "${default_ip:-}" ]]; then
+      echo "$default_ip"
+      return
+    fi
+  fi
+
+  for iface in $(ifconfig -l); do
+    case "$iface" in
+      lo*|utun*|awdl*|llw*|bridge*|gif*|stf*)
+        continue
+        ;;
+    esac
+
+    iface_ip="$(ipconfig getifaddr "$iface" 2>/dev/null || true)"
+    if [[ -n "${iface_ip:-}" ]]; then
+      echo "$iface_ip"
+      return
+    fi
+  done
+}
+
+print_access_urls() {
+  local lan_ip
+  lan_ip="$(detect_lan_ip || true)"
+
+  echo "[project] 访问地址"
+  echo "[project] web(local): http://localhost:${WEB_PORT}"
+  echo "[project] server(local): http://localhost:${SERVER_PORT}"
+  echo "[project] server health(local): ${SERVER_HEALTH_URL}"
+
+  if [[ -n "${lan_ip:-}" ]]; then
+    echo "[project] web(lan): http://${lan_ip}:${WEB_PORT}"
+    echo "[project] server(lan): http://${lan_ip}:${SERVER_PORT}"
+  else
+    echo "[project] lan 地址获取失败（请检查网络接口）"
+  fi
+}
+
+print_service_log_snippet() {
+  local service="$1"
+  local lines="${2:-20}"
+  local window_size="${3:-200}"
+  local log_path
+  local recent_window
+  local error_lines
+
+  log_path="$(log_file "$service")"
+
+  if [[ ! -f "$log_path" ]]; then
+    echo "[project] ${service} 日志不存在：${log_path}"
+    return 0
+  fi
+
+  recent_window="$(tail -n "$window_size" "$log_path" || true)"
+  error_lines="$(printf '%s\n' "$recent_window" | grep -Ei 'error|exception|failed|refused|timeout|unavailable|503|502|500|econn|nest\] .*\bERR\b' | tail -n "$lines" || true)"
+
+  if [[ -n "${error_lines:-}" ]]; then
+    echo "[project] ${service} 关键错误日志（最近窗口 ${window_size} 行内，展示最多 ${lines} 行）：${log_path}"
+    printf '%s\n' "$error_lines"
+    return 0
+  fi
+
+  echo "[project] ${service} 最近未发现明显错误，回退显示最新 ${lines} 行日志：${log_path}"
+  tail -n "$lines" "$log_path"
+}
+
 run_bun() {
   (cd "$ROOT_DIR" && bun "$@")
 }
@@ -248,9 +320,29 @@ server_check() {
   run_bun run --filter server build
 }
 
+app_post_start_report() {
+  local web_failed=0
+  local server_failed=0
+
+  print_access_urls
+
+  web_health || web_failed=1
+  server_health || server_failed=1
+
+  if [[ "$web_failed" -eq 1 || "$server_failed" -eq 1 ]]; then
+    echo "[project] 启动后健康检查失败，以下是简要错误日志"
+    [[ "$web_failed" -eq 1 ]] && print_service_log_snippet "web" 30
+    [[ "$server_failed" -eq 1 ]] && print_service_log_snippet "server" 30
+    return 1
+  fi
+
+  echo "[project] 启动后健康检查通过"
+}
+
 app_start() {
   start_service "server" "PORT=${SERVER_PORT} DATABASE_URL='${DATABASE_URL}' REDIS_URL='${REDIS_URL}' AUTH_CONTEXT_SECRET='${AUTH_CONTEXT_SECRET:-dev-only-auth-context-secret}' bun run dev:server"
   start_service "web" "PORT=${WEB_PORT} NEXT_PUBLIC_API_BASE_URL='${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${SERVER_PORT}}' bun run dev:web"
+  app_post_start_report
 }
 
 app_stop() {
