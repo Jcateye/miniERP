@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import {
   type CoreDocumentStatus,
   type CoreDocumentType,
@@ -7,8 +7,9 @@ import {
   InvalidStatusTransitionError,
 } from '../../core-document/domain/status-transition';
 import { AuditService } from '../../../audit/application/audit.service';
-import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
+import { PrismaService } from '../../../database/prisma.service';
+import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
 
 export interface DocumentListItem {
   id: string;
@@ -69,6 +70,27 @@ export interface DocumentActionResult {
   ledgerEntryIds?: string[];
 }
 
+export class DocumentNotFoundError extends Error {
+  constructor(docType: CoreDocumentType, id: string) {
+    super(`Document not found: ${docType}/${id}`);
+    this.name = 'DocumentNotFoundError';
+  }
+}
+
+export class UnknownDocumentActionError extends Error {
+  constructor(action: string) {
+    super(`Unknown action: ${action}`);
+    this.name = 'UnknownDocumentActionError';
+  }
+}
+
+export class OutboundStockInsufficientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OutboundStockInsufficientError';
+  }
+}
+
 const ACTION_TO_STATUS: Record<string, CoreDocumentStatus> = {
   confirm: 'confirmed',
   validate: 'validating',
@@ -82,14 +104,12 @@ const ACTION_TO_STATUS: Record<string, CoreDocumentStatus> = {
 export class DocumentsService {
   private readonly documents = new Map<string, DocumentDetail>();
   private readonly docNoCounter = new Map<string, number>();
-  // HIGH-1 Fix: 内存幂等性缓存（P0 阶段限制：重启后丢失）
-  // P1/P2 阶段需要替换为持久化存储
   private readonly idempotencyCache = new Map<string, DocumentActionResult>();
 
   constructor(
     private readonly auditService: AuditService,
-    private readonly tenantContextService: TenantContextService,
     private readonly inventoryPostingService: InventoryPostingService,
+    @Optional() private readonly prisma?: PrismaService,
   ) {
     this.seedDemoData();
   }
@@ -167,15 +187,16 @@ export class DocumentsService {
     }
   }
 
-  list(
+  async list(
     query: ListDocumentsQuery,
     tenantId: string,
-  ): PaginationEnvelope<DocumentListItem> {
+  ): Promise<PaginationEnvelope<DocumentListItem>> {
+    if (this.prisma && (query.docType === 'SO' || query.docType === 'OUT')) {
+      return this.listSalesOutboundFromDb(query, tenantId);
+    }
+
     const allDocs = Array.from(this.documents.values())
-      .filter(
-        (doc) =>
-          doc.tenantId === tenantId && doc.docType === query.docType,
-      )
+      .filter((doc) => doc.tenantId === tenantId && doc.docType === query.docType)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     const page = query.page ?? 1;
@@ -194,11 +215,15 @@ export class DocumentsService {
     };
   }
 
-  getDetail(
+  async getDetail(
     docType: CoreDocumentType,
     id: string,
     tenantId: string,
-  ): DocumentDetail | null {
+  ): Promise<DocumentDetail | null> {
+    if (this.prisma && (docType === 'SO' || docType === 'OUT')) {
+      return this.getSalesOutboundDetailFromDb(docType, id, tenantId);
+    }
+
     return this.documents.get(`${tenantId}:${docType}:${id}`) ?? null;
   }
 
@@ -211,7 +236,352 @@ export class DocumentsService {
     actorId: string,
     requestId: string,
   ): Promise<DocumentActionResult> {
-    // HIGH-1 Fix: 幂等性检查 - 绑定单据与动作维度避免串单
+    if (this.prisma && (docType === 'SO' || docType === 'OUT')) {
+      return this.executeSalesOutboundActionInDb(
+        docType,
+        id,
+        action,
+        idempotencyKey,
+        tenantId,
+        actorId,
+        requestId,
+      );
+    }
+
+    return this.executeActionInMemory(
+      docType,
+      id,
+      action,
+      idempotencyKey,
+      tenantId,
+      actorId,
+      requestId,
+    );
+  }
+
+  private async listSalesOutboundFromDb(
+    query: ListDocumentsQuery,
+    tenantId: string,
+  ): Promise<PaginationEnvelope<DocumentListItem>> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+    const tenantBigInt = BigInt(tenantId);
+
+    if (query.docType === 'SO') {
+      const [rows, total] = await Promise.all([
+        this.prisma!.salesOrder.findMany({
+          where: { tenantId: tenantBigInt },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: pageSize,
+          include: {
+            _count: { select: { SalesOrderLine: true } },
+          },
+        }),
+        this.prisma!.salesOrder.count({ where: { tenantId: tenantBigInt } }),
+      ]);
+
+      const data: DocumentListItem[] = rows.map((row) => ({
+        id: row.id.toString(),
+        tenantId,
+        docNo: row.docNo,
+        docType: 'SO',
+        docDate: row.docDate.toISOString().slice(0, 10),
+        status: row.status as CoreDocumentStatus,
+        remarks: row.remarks,
+        createdAt: row.createdAt.toISOString(),
+        createdBy: row.createdBy,
+        updatedAt: row.updatedAt.toISOString(),
+        updatedBy: row.updatedBy,
+        deletedAt: row.deletedAt?.toISOString() ?? null,
+        deletedBy: row.deletedBy,
+        lineCount: row._count.SalesOrderLine,
+        totalQty: row.totalQty.toString(),
+        totalAmount: row.totalAmount.toString(),
+      }));
+
+      return {
+        data,
+        total,
+        page,
+        pageSize,
+        totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
+      };
+    }
+
+    const [rows, total] = await Promise.all([
+      this.prisma!.outbound.findMany({
+        where: { tenantId: tenantBigInt },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: {
+          _count: { select: { OutboundLine: true } },
+        },
+      }),
+      this.prisma!.outbound.count({ where: { tenantId: tenantBigInt } }),
+    ]);
+
+    const data: DocumentListItem[] = rows.map((row) => ({
+      id: row.id.toString(),
+      tenantId,
+      docNo: row.docNo,
+      docType: 'OUT',
+      docDate: row.docDate.toISOString().slice(0, 10),
+      status: row.status as CoreDocumentStatus,
+      remarks: row.remarks,
+      createdAt: row.createdAt.toISOString(),
+      createdBy: row.createdBy,
+      updatedAt: row.updatedAt.toISOString(),
+      updatedBy: row.updatedBy,
+      deletedAt: row.deletedAt?.toISOString() ?? null,
+      deletedBy: row.deletedBy,
+      lineCount: row._count.OutboundLine,
+      totalQty: row.totalQty.toString(),
+      totalAmount: '0',
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
+    };
+  }
+
+  private async getSalesOutboundDetailFromDb(
+    docType: Extract<CoreDocumentType, 'SO' | 'OUT'>,
+    id: string,
+    tenantId: string,
+  ): Promise<DocumentDetail | null> {
+    const tenantBigInt = BigInt(tenantId);
+    const docBigInt = BigInt(id);
+
+    if (docType === 'SO') {
+      const row = await this.prisma!.salesOrder.findFirst({
+        where: { id: docBigInt, tenantId: tenantBigInt },
+        include: { SalesOrderLine: { orderBy: { lineNo: 'asc' } } },
+      });
+
+      if (!row) {
+        return null;
+      }
+
+      return {
+        id: row.id.toString(),
+        tenantId,
+        docNo: row.docNo,
+        docType,
+        docDate: row.docDate.toISOString().slice(0, 10),
+        status: row.status as CoreDocumentStatus,
+        remarks: row.remarks,
+        createdAt: row.createdAt.toISOString(),
+        createdBy: row.createdBy,
+        updatedAt: row.updatedAt.toISOString(),
+        updatedBy: row.updatedBy,
+        deletedAt: row.deletedAt?.toISOString() ?? null,
+        deletedBy: row.deletedBy,
+        lineCount: row.SalesOrderLine.length,
+        totalQty: row.totalQty.toString(),
+        totalAmount: row.totalAmount.toString(),
+        lines: row.SalesOrderLine.map((line) => ({
+          id: line.id.toString(),
+          docId: row.id.toString(),
+          lineNo: line.lineNo,
+          skuId: line.skuId.toString(),
+          qty: line.qty.toString(),
+          unitPrice: line.unitPrice.toString(),
+          amount: line.amount.toString(),
+          taxAmount: '0',
+        })),
+      };
+    }
+
+    const row = await this.prisma!.outbound.findFirst({
+      where: { id: docBigInt, tenantId: tenantBigInt },
+      include: { OutboundLine: { orderBy: { lineNo: 'asc' } } },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id.toString(),
+      tenantId,
+      docNo: row.docNo,
+      docType,
+      docDate: row.docDate.toISOString().slice(0, 10),
+      status: row.status as CoreDocumentStatus,
+      remarks: row.remarks,
+      createdAt: row.createdAt.toISOString(),
+      createdBy: row.createdBy,
+      updatedAt: row.updatedAt.toISOString(),
+      updatedBy: row.updatedBy,
+      deletedAt: row.deletedAt?.toISOString() ?? null,
+      deletedBy: row.deletedBy,
+      lineCount: row.OutboundLine.length,
+      totalQty: row.totalQty.toString(),
+      totalAmount: '0',
+      lines: row.OutboundLine.map((line) => ({
+        id: line.id.toString(),
+        docId: row.id.toString(),
+        lineNo: line.lineNo,
+        skuId: line.skuId.toString(),
+        qty: line.qty.toString(),
+        unitPrice: '0',
+        amount: '0',
+        taxAmount: '0',
+      })),
+    };
+  }
+
+  private async executeSalesOutboundActionInDb(
+    docType: Extract<CoreDocumentType, 'SO' | 'OUT'>,
+    id: string,
+    action: string,
+    idempotencyKey: string,
+    tenantId: string,
+    actorId: string,
+    requestId: string,
+  ): Promise<DocumentActionResult> {
+    const cacheKey = `${tenantId}:${docType}:${id}:${action}:${idempotencyKey}`;
+    const cachedResult = this.idempotencyCache.get(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    const targetStatus = ACTION_TO_STATUS[action];
+    if (!targetStatus) {
+      throw new UnknownDocumentActionError(action);
+    }
+
+    const detail = await this.getSalesOutboundDetailFromDb(docType, id, tenantId);
+    if (!detail) {
+      throw new DocumentNotFoundError(docType, id);
+    }
+
+    const attempt: StatusTransitionAttempt = {
+      entityType: docType,
+      entityId: id,
+      fromStatus: detail.status,
+      toStatus: targetStatus,
+    };
+
+    try {
+      const allowed = getAllowedNextStatuses(docType, detail.status);
+      if (!allowed.includes(targetStatus)) {
+        throw new InvalidStatusTransitionError(attempt, allowed);
+      }
+    } catch (error) {
+      this.auditService.recordAuthorization({
+        requestId,
+        tenantId,
+        actorId,
+        action: `document.${action}`,
+        entityType: 'document',
+        entityId: id,
+        result: 'deny',
+        reason: 'INVALID_STATUS_TRANSITION',
+        metadata: { docType, fromStatus: detail.status, toStatus: targetStatus },
+      });
+      throw error;
+    }
+
+    const previousStatus = detail.status;
+    let inventoryPosted = false;
+    let ledgerEntryIds: string[] = [];
+
+    if (docType === 'OUT' && action === 'post') {
+      try {
+        const result = await this.inventoryPostingService.post(
+          tenantId,
+          {
+            idempotencyKey,
+            referenceType: 'OUT',
+            referenceId: id,
+            lines: detail.lines.map((line) => ({
+              skuId: line.skuId,
+              warehouseId: 'WH-001',
+              quantityDelta: -Math.abs(Math.trunc(Number(line.qty) || 0)),
+            })),
+          },
+          requestId,
+        );
+
+        inventoryPosted = true;
+        ledgerEntryIds = result.ledgerEntries.map((entry) => entry.id);
+      } catch (error) {
+        if (error instanceof InventoryInsufficientStockError) {
+          throw new OutboundStockInsufficientError(error.message);
+        }
+        throw error;
+      }
+    }
+
+    if (docType === 'SO') {
+      await this.prisma!.salesOrder.update({
+        where: { id: BigInt(id) },
+        data: {
+          status: targetStatus,
+          updatedBy: actorId,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      await this.prisma!.outbound.update({
+        where: { id: BigInt(id) },
+        data: {
+          status: targetStatus,
+          updatedBy: actorId,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    this.auditService.recordAuthorization({
+      requestId,
+      tenantId,
+      actorId,
+      action: `document.${action}`,
+      entityType: 'document',
+      entityId: id,
+      result: 'success',
+      metadata: {
+        docType,
+        previousStatus,
+        newStatus: targetStatus,
+        inventoryPosted,
+        ledgerEntryIds,
+      },
+    });
+
+    const result: DocumentActionResult = {
+      success: true,
+      documentId: id,
+      docType,
+      previousStatus,
+      newStatus: targetStatus,
+      action,
+      inventoryPosted,
+      ledgerEntryIds,
+    };
+
+    this.idempotencyCache.set(cacheKey, result);
+    return result;
+  }
+
+  private async executeActionInMemory(
+    docType: CoreDocumentType,
+    id: string,
+    action: string,
+    idempotencyKey: string,
+    tenantId: string,
+    actorId: string,
+    requestId: string,
+  ): Promise<DocumentActionResult> {
     const cacheKey = `${tenantId}:${docType}:${id}:${action}:${idempotencyKey}`;
     const cachedResult = this.idempotencyCache.get(cacheKey);
     if (cachedResult) {
@@ -222,12 +592,12 @@ export class DocumentsService {
     const doc = this.documents.get(key);
 
     if (!doc) {
-      throw new Error(`Document not found: ${docType}/${id}`);
+      throw new DocumentNotFoundError(docType, id);
     }
 
     const targetStatus = ACTION_TO_STATUS[action];
     if (!targetStatus) {
-      throw new Error(`Unknown action: ${action}`);
+      throw new UnknownDocumentActionError(action);
     }
 
     const attempt: StatusTransitionAttempt = {
@@ -258,38 +628,42 @@ export class DocumentsService {
     }
 
     const previousStatus = doc.status;
-
     let inventoryPosted = false;
     let ledgerEntryIds: string[] = [];
 
-    // Post to inventory for GRN/OUT/ADJ
     if ((docType === 'GRN' || docType === 'OUT' || docType === 'ADJ') && action === 'post') {
-      const referenceType = docType === 'ADJ' ? 'ADJUSTMENT' : docType;
-      const result = await this.inventoryPostingService.post(
-        tenantId,
-        {
-          idempotencyKey,
-          referenceType,
-          referenceId: id,
-          lines: doc.lines.map((line) => ({
-            skuId: line.skuId,
-            warehouseId: 'WH-001',
-            quantityDelta:
-              docType === 'GRN'
-                ? parseInt(line.qty, 10)
-                : docType === 'OUT'
-                  ? -parseInt(line.qty, 10)
-                  : parseInt(line.qty, 10),
-          })),
-        },
-        requestId,
-      );
+      try {
+        const referenceType = docType === 'ADJ' ? 'ADJUSTMENT' : docType;
+        const result = await this.inventoryPostingService.post(
+          tenantId,
+          {
+            idempotencyKey,
+            referenceType,
+            referenceId: id,
+            lines: doc.lines.map((line) => ({
+              skuId: line.skuId,
+              warehouseId: 'WH-001',
+              quantityDelta:
+                docType === 'GRN'
+                  ? parseInt(line.qty, 10)
+                  : docType === 'OUT'
+                    ? -parseInt(line.qty, 10)
+                    : parseInt(line.qty, 10),
+            })),
+          },
+          requestId,
+        );
 
-      inventoryPosted = true;
-      ledgerEntryIds = result.ledgerEntries.map((e) => e.id);
+        inventoryPosted = true;
+        ledgerEntryIds = result.ledgerEntries.map((e) => e.id);
+      } catch (error) {
+        if (docType === 'OUT' && error instanceof InventoryInsufficientStockError) {
+          throw new OutboundStockInsufficientError(error.message);
+        }
+        throw error;
+      }
     }
 
-    // Update status
     const updatedDoc: DocumentDetail = {
       ...doc,
       status: targetStatus,
@@ -326,7 +700,6 @@ export class DocumentsService {
       ledgerEntryIds,
     };
 
-    // HIGH-1 Fix: 缓存结果以实现幂等性
     this.idempotencyCache.set(cacheKey, result);
 
     return result;

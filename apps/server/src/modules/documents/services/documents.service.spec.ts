@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DocumentsService } from './documents.service';
 import { AuditService } from '../../../audit/application/audit.service';
-import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
 import { InvalidStatusTransitionError } from '../../core-document/domain/status-transition';
+import { PrismaService } from '../../../database/prisma.service';
+import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
@@ -14,17 +15,24 @@ describe('DocumentsService', () => {
     recordAuthorization: jest.fn(),
   };
 
-  const mockTenantContextService = {
-    getRequiredContext: jest.fn().mockReturnValue({
-      tenantId: '1001',
-      actorId: 'user-001',
-      requestId: 'req-001',
-    }),
-  };
-
   const mockInventoryPostingService = {
     post: jest.fn(),
     reverse: jest.fn(),
+  };
+
+  const mockPrisma = {
+    salesOrder: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+    outbound: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -36,12 +44,12 @@ describe('DocumentsService', () => {
           useValue: mockAuditService,
         },
         {
-          provide: TenantContextService,
-          useValue: mockTenantContextService,
-        },
-        {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
+        },
+        {
+          provide: PrismaService,
+          useValue: mockPrisma,
         },
       ],
     }).compile();
@@ -56,8 +64,8 @@ describe('DocumentsService', () => {
   });
 
   describe('list', () => {
-    it('should return paginated documents filtered by docType', () => {
-      const result = service.list({ docType: 'PO' }, '1001');
+    it('should return paginated documents filtered by docType', async () => {
+      const result = await service.list({ docType: 'PO' }, '1001');
 
       expect(result.data).toBeDefined();
       expect(result.total).toBeGreaterThan(0);
@@ -65,15 +73,15 @@ describe('DocumentsService', () => {
       expect(result.pageSize).toBe(20);
     });
 
-    it('should return adjustment documents for ADJ docType', () => {
-      const result = service.list({ docType: 'ADJ' }, '1001');
+    it('should return adjustment documents for ADJ docType', async () => {
+      const result = await service.list({ docType: 'ADJ' }, '1001');
 
       expect(result.data.length).toBeGreaterThan(0);
       expect(result.data.every((doc) => doc.docType === 'ADJ')).toBe(true);
     });
 
-    it('should only return documents matching tenant', () => {
-      const result = service.list({ docType: 'PO' }, '1001');
+    it('should only return documents matching tenant', async () => {
+      const result = await service.list({ docType: 'PO' }, '1001');
 
       result.data.forEach((doc) => {
         expect(doc.tenantId).toBe('1001');
@@ -82,8 +90,8 @@ describe('DocumentsService', () => {
   });
 
   describe('getDetail', () => {
-    it('should return document with lines', () => {
-      const result = service.getDetail('PO', '2001', '1001');
+    it('should return document with lines', async () => {
+      const result = await service.getDetail('PO', '2001', '1001');
 
       expect(result).not.toBeNull();
       expect(result?.id).toBe('2001');
@@ -92,14 +100,14 @@ describe('DocumentsService', () => {
       expect(result?.lines.length).toBeGreaterThan(0);
     });
 
-    it('should return null for non-existent document', () => {
-      const result = service.getDetail('PO', '9999', '1001');
+    it('should return null for non-existent document', async () => {
+      const result = await service.getDetail('PO', '9999', '1001');
 
       expect(result).toBeNull();
     });
 
-    it('should return null for cross-tenant access', () => {
-      const result = service.getDetail('PO', '2001', '9999');
+    it('should return null for cross-tenant access', async () => {
+      const result = await service.getDetail('PO', '2001', '9999');
 
       expect(result).toBeNull();
     });
@@ -198,8 +206,59 @@ describe('DocumentsService', () => {
     });
 
     it('should call inventory posting on OUT post (from picking)', async () => {
-      // OUT 状态流: draft -> picking -> posted
-      // 先将 5001 从 draft -> picking
+      mockPrisma.outbound.findFirst
+        .mockResolvedValueOnce({
+          id: BigInt(5001),
+          tenantId: BigInt(1001),
+          docNo: 'DOC-OUT-20260305-001',
+          docDate: new Date('2026-03-05'),
+          status: 'draft',
+          soId: null,
+          warehouseId: null,
+          remarks: null,
+          totalQty: { toString: () => '5' },
+          createdAt: new Date('2026-03-05T10:00:00Z'),
+          createdBy: '9001',
+          updatedAt: new Date('2026-03-05T10:00:00Z'),
+          updatedBy: '9001',
+          deletedAt: null,
+          deletedBy: null,
+          OutboundLine: [
+            {
+              id: BigInt(1),
+              lineNo: 1,
+              skuId: BigInt(11),
+              qty: { toString: () => '5' },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          id: BigInt(5001),
+          tenantId: BigInt(1001),
+          docNo: 'DOC-OUT-20260305-001',
+          docDate: new Date('2026-03-05'),
+          status: 'picking',
+          soId: null,
+          warehouseId: null,
+          remarks: null,
+          totalQty: { toString: () => '5' },
+          createdAt: new Date('2026-03-05T10:00:00Z'),
+          createdBy: '9001',
+          updatedAt: new Date('2026-03-05T10:00:00Z'),
+          updatedBy: '9001',
+          deletedAt: null,
+          deletedBy: null,
+          OutboundLine: [
+            {
+              id: BigInt(1),
+              lineNo: 1,
+              skuId: BigInt(11),
+              qty: { toString: () => '5' },
+            },
+          ],
+        });
+      mockPrisma.outbound.update.mockResolvedValue({});
+
       await service.executeAction(
         'OUT',
         '5001',
@@ -307,6 +366,83 @@ describe('DocumentsService', () => {
           reason: 'INVALID_STATUS_TRANSITION',
         }),
       );
+    });
+  });
+
+  describe('stream D persisted sales/outbound', () => {
+    beforeEach(() => {
+      mockPrisma.salesOrder.findMany.mockResolvedValue([
+        {
+          id: BigInt(1),
+          tenantId: BigInt(1001),
+          docNo: 'DOC-SO-20260305-001',
+          docDate: new Date('2026-03-05'),
+          status: 'draft',
+          remarks: null,
+          createdAt: new Date('2026-03-05T10:00:00Z'),
+          createdBy: '9001',
+          updatedAt: new Date('2026-03-05T10:00:00Z'),
+          updatedBy: '9001',
+          deletedAt: null,
+          deletedBy: null,
+          totalQty: { toString: () => '10' },
+          totalAmount: { toString: () => '100' },
+          _count: { SalesOrderLine: 1 },
+        },
+      ]);
+      mockPrisma.salesOrder.count.mockResolvedValue(1);
+    });
+
+    it('lists SO documents from prisma when prisma is available', async () => {
+      const result = await service.list({ docType: 'SO' }, '1001');
+
+      expect(mockPrisma.salesOrder.findMany).toHaveBeenCalled();
+      expect(result.data[0]?.docType).toBe('SO');
+      expect(result.total).toBe(1);
+    });
+
+    it('returns semantic stock error when OUT post is insufficient', async () => {
+      mockPrisma.outbound.findFirst.mockResolvedValue({
+        id: BigInt(5001),
+        tenantId: BigInt(1001),
+        docNo: 'DOC-OUT-20260305-001',
+        docDate: new Date('2026-03-05'),
+        status: 'picking',
+        soId: null,
+        warehouseId: null,
+        remarks: null,
+        totalQty: { toString: () => '5' },
+        createdAt: new Date('2026-03-05T10:00:00Z'),
+        createdBy: '9001',
+        updatedAt: new Date('2026-03-05T10:00:00Z'),
+        updatedBy: '9001',
+        deletedAt: null,
+        deletedBy: null,
+        OutboundLine: [
+          {
+            id: BigInt(1),
+            lineNo: 1,
+            skuId: BigInt(11),
+            qty: { toString: () => '5' },
+          },
+        ],
+      });
+
+      mockInventoryPostingService.post.mockRejectedValue(
+        new InventoryInsufficientStockError('11', 'WH-001', 0, 5),
+      );
+
+      await expect(
+        service.executeAction(
+          'OUT',
+          '5001',
+          'post',
+          'idem-out-1',
+          '1001',
+          'user-001',
+          'req-001',
+        ),
+      ).rejects.toThrow('Insufficient stock');
     });
   });
 });

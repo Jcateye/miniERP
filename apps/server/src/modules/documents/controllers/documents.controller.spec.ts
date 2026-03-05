@@ -1,6 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DocumentsController } from './documents.controller';
-import { DocumentsService } from '../services/documents.service';
+import {
+  DocumentNotFoundError,
+  DocumentsService,
+  OutboundStockInsufficientError,
+  UnknownDocumentActionError,
+} from '../services/documents.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 
 describe('DocumentsController', () => {
@@ -174,7 +179,7 @@ describe('DocumentsController', () => {
 
     it('should return error for unknown action', async () => {
       mockDocumentsService.executeAction.mockRejectedValue(
-        new Error('Unknown action: invalid'),
+        new UnknownDocumentActionError('invalid'),
       );
 
       const result = await controller.executeAction(
@@ -195,7 +200,7 @@ describe('DocumentsController', () => {
 
     it('should return error for document not found', async () => {
       mockDocumentsService.executeAction.mockRejectedValue(
-        new Error('Document not found: PO/9999'),
+        new DocumentNotFoundError('PO', '9999'),
       );
 
       const result = await controller.executeAction(
@@ -210,6 +215,28 @@ describe('DocumentsController', () => {
         error: {
           code: 'DOCUMENT_NOT_FOUND',
           message: 'Document not found: PO/9999',
+        },
+      });
+    });
+
+    it('should return semantic stock conflict for outbound post', async () => {
+      mockDocumentsService.executeAction.mockRejectedValue(
+        new OutboundStockInsufficientError('Insufficient stock for outbound posting'),
+      );
+
+      const result = await controller.executeAction(
+        'OUT',
+        '5001',
+        'post',
+        'idem-key-004',
+        {},
+      );
+
+      expect(result).toEqual({
+        error: {
+          code: 'OUTBOUND_STOCK_INSUFFICIENT',
+          message: 'Insufficient stock for outbound posting',
+          category: 'conflict',
         },
       });
     });

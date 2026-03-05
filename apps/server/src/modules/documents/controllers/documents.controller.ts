@@ -14,7 +14,12 @@ import {
   type CoreDocumentType,
   CORE_DOCUMENT_TYPES,
 } from '../../core-document/domain/status-transition';
-import { DocumentsService } from '../services/documents.service';
+import {
+  DocumentNotFoundError,
+  DocumentsService,
+  OutboundStockInsufficientError,
+  UnknownDocumentActionError,
+} from '../services/documents.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 
 @Controller('documents')
@@ -97,23 +102,30 @@ export class DocumentsController {
 
       return result;
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.message.includes('not found')) {
-          return {
-            error: {
-              code: 'DOCUMENT_NOT_FOUND',
-              message: error.message,
-            },
-          };
-        }
-        if (error.message.includes('Unknown action')) {
-          return {
-            error: {
-              code: 'UNKNOWN_ACTION',
-              message: error.message,
-            },
-          };
-        }
+      if (error instanceof DocumentNotFoundError) {
+        return {
+          error: {
+            code: 'DOCUMENT_NOT_FOUND',
+            message: error.message,
+          },
+        };
+      }
+      if (error instanceof UnknownDocumentActionError) {
+        return {
+          error: {
+            code: 'UNKNOWN_ACTION',
+            message: error.message,
+          },
+        };
+      }
+      if (error instanceof OutboundStockInsufficientError) {
+        return {
+          error: {
+            code: 'OUTBOUND_STOCK_INSUFFICIENT',
+            message: error.message,
+            category: 'conflict',
+          },
+        };
       }
       throw error;
     }
