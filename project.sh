@@ -80,10 +80,24 @@ print_access_urls() {
   fi
 }
 
+service_log_line_count() {
+  local service="$1"
+  local log_path
+
+  log_path="$(log_file "$service")"
+  if [[ ! -f "$log_path" ]]; then
+    echo 0
+    return
+  fi
+
+  wc -l <"$log_path" | tr -d ' '
+}
+
 print_service_log_snippet() {
   local service="$1"
   local lines="${2:-20}"
-  local window_size="${3:-200}"
+  local since_line="${3:-0}"
+  local window_size="${4:-200}"
   local log_path
   local recent_window
   local error_lines
@@ -95,17 +109,69 @@ print_service_log_snippet() {
     return 0
   fi
 
-  recent_window="$(tail -n "$window_size" "$log_path" || true)"
+  if [[ "$since_line" -gt 0 ]]; then
+    recent_window="$(tail -n "+$((since_line + 1))" "$log_path" | tail -n "$window_size" || true)"
+  else
+    recent_window="$(tail -n "$window_size" "$log_path" || true)"
+  fi
+
   error_lines="$(printf '%s\n' "$recent_window" | grep -Ei 'error|exception|failed|refused|timeout|unavailable|503|502|500|econn|nest\] .*\bERR\b' | tail -n "$lines" || true)"
 
   if [[ -n "${error_lines:-}" ]]; then
-    echo "[project] ${service} 关键错误日志（最近窗口 ${window_size} 行内，展示最多 ${lines} 行）：${log_path}"
+    echo "[project] ${service} 关键错误日志（本次启动窗口内，展示最多 ${lines} 行）：${log_path}"
     printf '%s\n' "$error_lines"
     return 0
   fi
 
-  echo "[project] ${service} 最近未发现明显错误，回退显示最新 ${lines} 行日志：${log_path}"
-  tail -n "$lines" "$log_path"
+  if [[ -n "${recent_window:-}" ]]; then
+    echo "[project] ${service} 本次启动窗口未发现明显错误，回退显示窗口内最新 ${lines} 行日志：${log_path}"
+    printf '%s\n' "$recent_window" | tail -n "$lines"
+    return 0
+  fi
+
+  echo "[project] ${service} 本次启动窗口内无新增日志"
+}
+
+print_health_failure_detail() {
+  local service="$1"
+  local url="$2"
+  local probe_output
+
+  probe_output="$(curl -sS "$url" 2>&1 || true)"
+  probe_output="${probe_output//$'\n'/ }"
+
+  if [[ -n "${probe_output:-}" ]]; then
+    echo "[project] ${service} health detail: ${probe_output:0:240}"
+  fi
+}
+
+wait_for_health() {
+  local service="$1"
+  local url="$2"
+  local max_attempts="${3:-15}"
+  local sleep_seconds="${4:-1}"
+  local attempt
+
+  require_curl
+
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      if [[ "$attempt" -eq 1 ]]; then
+        echo "[project] ${service} health ok: ${url}"
+      else
+        echo "[project] ${service} health ok: ${url}（第 ${attempt}/${max_attempts} 次重试成功）"
+      fi
+      return 0
+    fi
+
+    if [[ "$attempt" -lt "$max_attempts" ]]; then
+      sleep "$sleep_seconds"
+    fi
+  done
+
+  echo "[project] ${service} health failed: ${url}（重试 ${max_attempts} 次仍失败）"
+  print_health_failure_detail "$service" "$url"
+  return 1
 }
 
 run_bun() {
@@ -321,18 +387,20 @@ server_check() {
 }
 
 app_post_start_report() {
+  local server_log_start="$1"
+  local web_log_start="$2"
   local web_failed=0
   local server_failed=0
 
   print_access_urls
 
-  web_health || web_failed=1
-  server_health || server_failed=1
+  wait_for_health "web" "$WEB_HEALTH_URL" 15 1 || web_failed=1
+  wait_for_health "server" "$SERVER_HEALTH_URL" 15 1 || server_failed=1
 
   if [[ "$web_failed" -eq 1 || "$server_failed" -eq 1 ]]; then
     echo "[project] 启动后健康检查失败，以下是简要错误日志"
-    [[ "$web_failed" -eq 1 ]] && print_service_log_snippet "web" 30
-    [[ "$server_failed" -eq 1 ]] && print_service_log_snippet "server" 30
+    [[ "$web_failed" -eq 1 ]] && print_service_log_snippet "web" 30 "$web_log_start" 200
+    [[ "$server_failed" -eq 1 ]] && print_service_log_snippet "server" 30 "$server_log_start" 200
     return 1
   fi
 
@@ -340,9 +408,15 @@ app_post_start_report() {
 }
 
 app_start() {
+  local server_log_start
+  local web_log_start
+
+  server_log_start="$(service_log_line_count "server")"
+  web_log_start="$(service_log_line_count "web")"
+
   start_service "server" "PORT=${SERVER_PORT} DATABASE_URL='${DATABASE_URL}' REDIS_URL='${REDIS_URL}' AUTH_CONTEXT_SECRET='${AUTH_CONTEXT_SECRET:-dev-only-auth-context-secret}' bun run dev:server"
   start_service "web" "PORT=${WEB_PORT} NEXT_PUBLIC_API_BASE_URL='${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${SERVER_PORT}}' bun run dev:web"
-  app_post_start_report
+  app_post_start_report "$server_log_start" "$web_log_start"
 }
 
 app_stop() {
