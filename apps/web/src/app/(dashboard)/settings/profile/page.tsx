@@ -43,7 +43,7 @@ export default function ProfilePage() {
     ];
 
     return (
-        <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 24, height: '100vh', overflow: 'auto' }}>
+        <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 24, minHeight: '100%', overflow: 'auto' }}>
             <PageHeader
                 title="个人中心"
                 subtitle="管理您的账户信息和偏好设置"

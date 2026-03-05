@@ -40,7 +40,7 @@ export default function TenantSettingsPage() {
     ];
 
     return (
-        <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 24, height: '100vh', overflow: 'auto' }}>
+        <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 24, minHeight: '100%', overflow: 'auto' }}>
             <PageHeader
                 title="租户设置"
                 actions={<ActionButton label="保存" tone="primary" />}

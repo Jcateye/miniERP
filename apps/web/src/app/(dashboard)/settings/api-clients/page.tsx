@@ -21,7 +21,7 @@ const columns: TableColumn[] = [
 
 export default function ApiClientsPage() {
     return (
-        <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 24, height: '100vh', overflow: 'hidden' }}>
+        <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 24, minHeight: '100%', overflow: 'hidden' }}>
             <PageHeader
                 title="API 客户端管理"
                 actions={

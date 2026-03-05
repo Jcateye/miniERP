@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, UserPlus, ClipboardCheck, Truck, Search } from 'lucide-react';
+import { LayoutGrid, UserPlus, Settings, Truck, Search } from 'lucide-react';
 import { PageHeader, KPICard } from '@/components/ui';
 
 const kpis = [
@@ -18,10 +18,10 @@ const todos = [
 ];
 
 const quickActions = [
-  { label: '新建 SKU', icon: Plus, href: '/skus/new', fill: '#C05A3C' },
+  { label: 'SKU 工作台', icon: LayoutGrid, href: '/skus', fill: '#C05A3C' },
   { label: '创建入库 GRN', icon: UserPlus, href: '/purchasing/grn/new', fill: '#1a1a1a' },
   { label: '创建出库 OUT', icon: Truck, href: '/sales/out/new', fill: '#1a1a1a' },
-  { label: '快速查询', icon: Search, href: '/inventory', fill: '#1a1a1a' },
+  { label: '设置中心', icon: Settings, href: '/settings', fill: '#1a1a1a' },
 ];
 
 const timeline = [

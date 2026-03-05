@@ -33,7 +33,7 @@ export default function MasterDataPage() {
   const [activeNav, setActiveNav] = useState('categories');
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100%' }}>
       {/* Secondary Nav */}
       <div style={{
         width: 220,
