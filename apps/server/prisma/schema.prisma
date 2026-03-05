@@ -1,0 +1,584 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EvidenceScope {
+  document
+  line
+}
+
+model Tenant {
+  id        BigInt   @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @default("system") @map("created_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @default("system") @map("updated_by")
+
+  @@map("tenant")
+}
+
+model User {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  username    String
+  email       String
+  passwordHash String   @map("password_hash")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, username])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("user")
+}
+
+model Role {
+  id        BigInt   @id @default(autoincrement())
+  tenantId  BigInt   @map("tenant_id")
+  code      String
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @default("system") @map("created_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @default("system") @map("updated_by")
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("role")
+}
+
+model Permission {
+  id        BigInt   @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("permission")
+}
+
+model UserRole {
+  id        BigInt   @id @default(autoincrement())
+  tenantId  BigInt   @map("tenant_id")
+  userId    BigInt   @map("user_id")
+  roleId    BigInt   @map("role_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, userId, roleId])
+  @@index([tenantId, userId])
+  @@map("user_role")
+}
+
+model ApiClient {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  clientId    String   @map("client_id")
+  clientSecretHash String @map("client_secret_hash")
+  scopes      String
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, clientId])
+  @@index([tenantId])
+  @@map("api_client")
+}
+
+model ApiCallLog {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  clientId    String   @map("client_id")
+  path        String
+  method      String
+  statusCode  Int      @map("status_code")
+  requestId   String?  @map("request_id")
+  calledAt    DateTime @default(now()) @map("called_at")
+
+  @@index([tenantId, calledAt])
+  @@map("api_call_log")
+}
+
+model Sku {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  skuCode     String    @map("sku_code")
+  name        String
+  categoryId  String?   @map("category_id")
+  unit        String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, skuCode])
+  @@index([tenantId, isActive])
+  @@map("sku")
+}
+
+model SkuMapping {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  skuId       BigInt   @map("sku_id")
+  sourceType  String   @map("source_type")
+  externalCode String  @map("external_code")
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, sourceType, externalCode])
+  @@index([tenantId, skuId])
+  @@map("sku_mapping")
+}
+
+model SkuSubstitution {
+  id               BigInt   @id @default(autoincrement())
+  tenantId         BigInt   @map("tenant_id")
+  skuId            BigInt   @map("sku_id")
+  substituteSkuId  BigInt   @map("substitute_sku_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, skuId, substituteSkuId])
+  @@index([tenantId, skuId])
+  @@map("sku_substitution")
+}
+
+model Warehouse {
+  id            BigInt    @id @default(autoincrement())
+  tenantId      BigInt    @map("tenant_id")
+  code          String
+  name          String
+  address       String?
+  contactPerson String?   @map("contact_person")
+  contactPhone  String?   @map("contact_phone")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  createdBy     String    @default("system") @map("created_by")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  updatedBy     String    @default("system") @map("updated_by")
+  deletedAt     DateTime? @map("deleted_at")
+  deletedBy     String?   @map("deleted_by")
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("warehouse")
+}
+
+model Supplier {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  code        String
+  name        String
+  contactName String?   @map("contact_name")
+  phone       String?
+  email       String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("supplier")
+}
+
+model Customer {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  code        String
+  name        String
+  contactName String?   @map("contact_name")
+  phone       String?
+  email       String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("customer")
+}
+
+model PurchaseOrder {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  docNo       String    @map("doc_no")
+  docDate     DateTime  @map("doc_date")
+  status      String
+  supplierId  BigInt?   @map("supplier_id")
+  warehouseId BigInt?   @map("warehouse_id")
+  remarks     String?
+  totalQty    Decimal   @default(0) @map("total_qty") @db.Decimal(20, 6)
+  totalAmount Decimal   @default(0) @map("total_amount") @db.Decimal(20, 6)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, docNo])
+  @@index([tenantId, status, docDate])
+  @@map("purchase_order")
+}
+
+model PurchaseOrderLine {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  poId        BigInt   @map("po_id")
+  lineNo      Int      @map("line_no")
+  skuId       BigInt   @map("sku_id")
+  qty         Decimal  @db.Decimal(20, 6)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(20, 6)
+  amount      Decimal  @db.Decimal(20, 6)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, poId, lineNo])
+  @@index([tenantId, poId])
+  @@map("purchase_order_line")
+}
+
+model Grn {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  docNo       String    @map("doc_no")
+  docDate     DateTime  @map("doc_date")
+  status      String
+  poId        BigInt?   @map("po_id")
+  warehouseId BigInt?   @map("warehouse_id")
+  remarks     String?
+  totalQty    Decimal   @default(0) @map("total_qty") @db.Decimal(20, 6)
+  totalAmount Decimal   @default(0) @map("total_amount") @db.Decimal(20, 6)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, docNo])
+  @@index([tenantId, status, docDate])
+  @@map("grn")
+}
+
+model GrnLine {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  grnId       BigInt   @map("grn_id")
+  lineNo      Int      @map("line_no")
+  skuId       BigInt   @map("sku_id")
+  qty         Decimal  @db.Decimal(20, 6)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(20, 6)
+  amount      Decimal  @db.Decimal(20, 6)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, grnId, lineNo])
+  @@index([tenantId, grnId])
+  @@map("grn_line")
+}
+
+model SalesOrder {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  docNo       String    @map("doc_no")
+  docDate     DateTime  @map("doc_date")
+  status      String
+  customerId  BigInt?   @map("customer_id")
+  warehouseId BigInt?   @map("warehouse_id")
+  remarks     String?
+  totalQty    Decimal   @default(0) @map("total_qty") @db.Decimal(20, 6)
+  totalAmount Decimal   @default(0) @map("total_amount") @db.Decimal(20, 6)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, docNo])
+  @@index([tenantId, status, docDate])
+  @@map("sales_order")
+}
+
+model SalesOrderLine {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  soId        BigInt   @map("so_id")
+  lineNo      Int      @map("line_no")
+  skuId       BigInt   @map("sku_id")
+  qty         Decimal  @db.Decimal(20, 6)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(20, 6)
+  amount      Decimal  @db.Decimal(20, 6)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, soId, lineNo])
+  @@index([tenantId, soId])
+  @@map("sales_order_line")
+}
+
+model Outbound {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  docNo       String    @map("doc_no")
+  docDate     DateTime  @map("doc_date")
+  status      String
+  soId        BigInt?   @map("so_id")
+  warehouseId BigInt?   @map("warehouse_id")
+  remarks     String?
+  totalQty    Decimal   @default(0) @map("total_qty") @db.Decimal(20, 6)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, docNo])
+  @@index([tenantId, status, docDate])
+  @@map("outbound")
+}
+
+model OutboundLine {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  outboundId  BigInt   @map("outbound_id")
+  lineNo      Int      @map("line_no")
+  skuId       BigInt   @map("sku_id")
+  qty         Decimal  @db.Decimal(20, 6)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, outboundId, lineNo])
+  @@index([tenantId, outboundId])
+  @@map("outbound_line")
+}
+
+model Stocktake {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  docNo       String    @map("doc_no")
+  docDate     DateTime  @map("doc_date")
+  status      String
+  warehouseId BigInt?   @map("warehouse_id")
+  remarks     String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, docNo])
+  @@index([tenantId, status, docDate])
+  @@map("stocktake")
+}
+
+model StocktakeLine {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  stocktakeId BigInt   @map("stocktake_id")
+  lineNo      Int      @map("line_no")
+  skuId       BigInt   @map("sku_id")
+  systemQty   Decimal  @map("system_qty") @db.Decimal(20, 6)
+  countedQty  Decimal  @map("counted_qty") @db.Decimal(20, 6)
+  diffQty     Decimal  @map("diff_qty") @db.Decimal(20, 6)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, stocktakeId, lineNo])
+  @@index([tenantId, stocktakeId])
+  @@map("stocktake_line")
+}
+
+model Quotation {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  quoteNo     String    @map("quote_no")
+  customerId  BigInt?   @map("customer_id")
+  status      String
+  currentVersion Int?   @map("current_version")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   String    @default("system") @map("created_by")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedBy   String    @default("system") @map("updated_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedBy   String?   @map("deleted_by")
+
+  @@unique([tenantId, quoteNo])
+  @@index([tenantId, status, createdAt])
+  @@map("quotation")
+}
+
+model QuotationVersion {
+  id            BigInt   @id @default(autoincrement())
+  tenantId      BigInt   @map("tenant_id")
+  quotationId   BigInt   @map("quotation_id")
+  versionNo     Int      @map("version_no")
+  status        String
+  totalAmount   Decimal  @default(0) @map("total_amount") @db.Decimal(20, 6)
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdBy     String   @default("system") @map("created_by")
+
+  @@unique([tenantId, quotationId, versionNo])
+  @@index([tenantId, quotationId])
+  @@map("quotation_version")
+}
+
+model QuotationLine {
+  id                 BigInt   @id @default(autoincrement())
+  tenantId           BigInt   @map("tenant_id")
+  quotationVersionId BigInt   @map("quotation_version_id")
+  lineNo             Int      @map("line_no")
+  skuId              BigInt   @map("sku_id")
+  qty                Decimal  @db.Decimal(20, 6)
+  unitPrice          Decimal  @map("unit_price") @db.Decimal(20, 6)
+  amount             Decimal  @db.Decimal(20, 6)
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, quotationVersionId, lineNo])
+  @@index([tenantId, quotationVersionId])
+  @@map("quotation_line")
+}
+
+model InventoryLedger {
+  id                 BigInt   @id @default(autoincrement())
+  tenantId           BigInt   @map("tenant_id")
+  skuId              String   @map("sku_id")
+  warehouseId        String   @map("warehouse_id")
+  quantityDelta      Int      @map("quantity_delta")
+  referenceType      String   @map("reference_type")
+  referenceId        String   @map("reference_id")
+  reversalOfLedgerId BigInt?  @map("reversal_of_ledger_id")
+  postedAt           DateTime @default(now()) @map("posted_at")
+  requestId          String?  @map("request_id")
+
+  @@index([tenantId, skuId, postedAt])
+  @@index([tenantId, referenceType, referenceId])
+  @@map("inventory_ledger")
+}
+
+model InventoryBalance {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  skuId       String   @map("sku_id")
+  warehouseId String   @map("warehouse_id")
+  onHand      Int      @default(0) @map("on_hand")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, skuId, warehouseId])
+  @@index([tenantId, warehouseId])
+  @@map("inventory_balance")
+}
+
+model EvidenceAsset {
+  id            BigInt   @id @default(autoincrement())
+  tenantId      BigInt   @map("tenant_id")
+  objectKey     String   @map("object_key")
+  fileName      String   @map("file_name")
+  contentType   String   @map("content_type")
+  sizeBytes     BigInt   @default(0) @map("size_bytes")
+  status        String
+  uploadedBy    String?  @map("uploaded_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, objectKey])
+  @@index([tenantId, status])
+  @@map("evidence_asset")
+}
+
+model EvidenceLink {
+  id          BigInt        @id @default(autoincrement())
+  tenantId    BigInt        @map("tenant_id")
+  assetId     BigInt        @map("asset_id")
+  entityType  String        @map("entity_type")
+  entityId    String        @map("entity_id")
+  scope       EvidenceScope @default(document)
+  lineRef     String?       @map("line_ref")
+  tag         String
+  createdAt   DateTime      @default(now()) @map("created_at")
+  createdBy   String?       @map("created_by")
+
+  @@index([tenantId, entityType, entityId, lineRef])
+  @@unique([tenantId, assetId, entityType, entityId, scope, lineRef])
+  @@map("evidence_link")
+}
+
+model AuditLog {
+  id          BigInt   @id @default(autoincrement())
+  requestId   String   @map("request_id")
+  tenantId    BigInt   @map("tenant_id")
+  actorId     String   @map("actor_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  result      String
+  reason      String?
+  metadata    Json?
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+
+  @@index([tenantId, occurredAt])
+  @@map("audit_log")
+}
+
+model StateTransitionLog {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    BigInt   @map("tenant_id")
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  fromStatus  String?  @map("from_status")
+  toStatus    String   @map("to_status")
+  actorId     String   @map("actor_id")
+  requestId   String   @map("request_id")
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+
+  @@index([tenantId, entityType, entityId, occurredAt])
+  @@map("state_transition_log")
+}
+
+model IdempotencyRecord {
+  id             BigInt   @id @default(autoincrement())
+  tenantId       BigInt   @map("tenant_id")
+  actionType     String   @map("action_type")
+  idempotencyKey String   @map("idempotency_key")
+  payloadHash    String   @map("payload_hash")
+  requestId      String   @map("request_id")
+  responseBody   Json?    @map("response_body")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, idempotencyKey, actionType])
+  @@index([tenantId, actionType, createdAt])
+  @@map("idempotency_record")
+}
+
+model OutboxEvent {
+  id            BigInt    @id @default(autoincrement())
+  tenantId      BigInt    @map("tenant_id")
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id")
+  eventType     String    @map("event_type")
+  payload       Json
+  status        String    @default("pending")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  publishedAt   DateTime? @map("published_at")
+
+  @@index([tenantId, status, createdAt])
+  @@map("outbox_event")
+}

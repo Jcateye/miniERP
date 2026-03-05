@@ -45,6 +45,9 @@ bun run project -- server logs
 bun run build
 bun run lint
 bun run test
+bun run db:generate
+bun run db:migrate
+bun run db:seed
 ```
 
 ### 定向命令
@@ -77,7 +80,7 @@ bun run project -- infra doctor
 
 注意：
 - `apps/web` 当前无 `test` script。
-- 根 `db:generate` / `db:migrate` 会代理到 server；当前 server 提供显式失败占位脚本（未接入 ORM 迁移工具前避免“假成功”）。
+- 根 `db:generate` / `db:migrate` / `db:seed` 会代理到 server Prisma 脚本。
 - 本地基础设施（共享 PostgreSQL/Redis/RabbitMQ/Nginx）与访问地址以 `docs/Macmini-infra.md` 为准。
 
 ---

@@ -66,7 +66,7 @@ bun run --filter server test:e2e -- test/app.e2e-spec.ts
 ### 命令注意事项
 
 - `apps/web` 当前无 `test` script。
-- 根 `db:generate` / `db:migrate` 依赖 server 中同名脚本；当前为显式失败占位脚本（未接入 ORM 迁移工具前避免“假成功”）。
+- 根 `db:generate` / `db:migrate` / `db:seed` 依赖 server Prisma 脚本。
 - Turborepo 配置中，`lint` 和 `test` 依赖上游 `build`。
 - 本地基础设施（共享 PostgreSQL/Redis/RabbitMQ/Nginx）与访问方式以 `docs/Macmini-infra.md` 为准。
 

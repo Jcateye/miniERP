@@ -1,1 +1,1 @@
-/Users/haoqi/clawd/infra/Macmini-infra.md
+/Users/haoqi/Library/Mobile Documents/iCloud~md~obsidian/Documents/private_knowlegde/开发问题/Macmini-infra.md

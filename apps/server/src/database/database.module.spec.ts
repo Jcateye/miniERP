@@ -1,6 +1,7 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { DATABASE_URL_TOKEN, REDIS_URL_TOKEN } from './database.constants';
 import { DatabaseModule } from './database.module';
+import { PrismaService } from './prisma.service';
 
 describe('DatabaseModule', () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
@@ -56,6 +57,7 @@ describe('DatabaseModule', () => {
     expect(moduleRef.get<string>(REDIS_URL_TOKEN)).toBe(
       'redis://127.0.0.1:6379',
     );
+    expect(moduleRef.get<PrismaService>(PrismaService)).toBeDefined();
 
     await moduleRef.close();
   });

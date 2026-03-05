@@ -38,7 +38,7 @@ bun run --filter web build
 
 Important command quirks:
 - `apps/web` has no `test` script.
-- Root `db:generate` / `db:migrate` now route to server placeholder scripts that **fail explicitly** until ORM migration tooling is integrated.
+- Root `db:generate` / `db:migrate` / `db:seed` now route to server Prisma scripts.
 - `turbo.json` makes root `lint` and `test` depend on upstream `build` (expect slower runs than plain lint/test).
 - Team local infra operations also use `bun run daily` / `bun run project -- ...` wrappers from repo root scripts.
 

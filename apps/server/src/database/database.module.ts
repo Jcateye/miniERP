@@ -1,10 +1,12 @@
 import { Global, Module } from '@nestjs/common';
 import { parseEnv } from '../config/env.schema';
 import { DATABASE_URL_TOKEN, REDIS_URL_TOKEN } from './database.constants';
+import { PrismaService } from './prisma.service';
 
 @Global()
 @Module({
   providers: [
+    PrismaService,
     {
       provide: DATABASE_URL_TOKEN,
       useFactory: (): string => parseEnv(process.env).DATABASE_URL,
@@ -14,6 +16,6 @@ import { DATABASE_URL_TOKEN, REDIS_URL_TOKEN } from './database.constants';
       useFactory: (): string => parseEnv(process.env).REDIS_URL,
     },
   ],
-  exports: [DATABASE_URL_TOKEN, REDIS_URL_TOKEN],
+  exports: [PrismaService, DATABASE_URL_TOKEN, REDIS_URL_TOKEN],
 })
 export class DatabaseModule {}

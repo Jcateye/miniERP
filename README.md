@@ -46,6 +46,9 @@ bun run project -- server logs
 bun run build
 bun run lint
 bun run test
+bun run db:generate
+bun run db:migrate
+bun run db:seed
 ```
 
 ### 定向命令
@@ -78,7 +81,7 @@ bun run project -- infra doctor
 
 说明：
 - `apps/web` 当前无 `test` script。
-- 根 `db:generate` / `db:migrate` 会代理到 server；当前 server 已提供显式失败占位脚本，用于在未接入 ORM 迁移工具前避免“假成功”。
+- 根 `db:generate` / `db:migrate` / `db:seed` 会代理到 server Prisma 脚本。
 - `turbo.json` 中 `lint` 与 `test` 依赖上游 `build`。
 - Redis key 前缀默认值为 `erp_`（可通过 `REDIS_KEY_PREFIX` 覆盖）。
 - 本地开发共享中间件（PostgreSQL/Redis/RabbitMQ/Nginx）与访问地址见 `docs/Macmini-infra.md`。
