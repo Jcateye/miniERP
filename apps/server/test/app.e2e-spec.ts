@@ -1,13 +1,125 @@
-import { INestApplication } from '@nestjs/common';
+import { createHmac } from 'node:crypto';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as net from 'node:net';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { createAuthContextMiddleware } from '../src/common/iam/auth-context.middleware';
+import { createTenantContextMiddleware } from '../src/common/tenant/tenant-context.middleware';
+import { loadAppConfig, type AppConfig } from '../src/config/app.config';
 import { AppModule } from '../src/app.module';
 
 interface ProbeServer {
   readonly server: net.Server;
   readonly port: number;
+}
+
+interface EnvSnapshot {
+  readonly nodeEnv: string | undefined;
+  readonly databaseUrl: string | undefined;
+  readonly redisUrl: string | undefined;
+  readonly authContextSecret: string | undefined;
+}
+
+const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
+
+function snapshotEnv(): EnvSnapshot {
+  return {
+    nodeEnv: process.env.NODE_ENV,
+    databaseUrl: process.env.DATABASE_URL,
+    redisUrl: process.env.REDIS_URL,
+    authContextSecret: process.env.AUTH_CONTEXT_SECRET,
+  };
+}
+
+function restoreEnv(snapshot: EnvSnapshot): void {
+  if (typeof snapshot.nodeEnv === 'undefined') {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = snapshot.nodeEnv;
+  }
+
+  if (typeof snapshot.databaseUrl === 'undefined') {
+    delete process.env.DATABASE_URL;
+  } else {
+    process.env.DATABASE_URL = snapshot.databaseUrl;
+  }
+
+  if (typeof snapshot.redisUrl === 'undefined') {
+    delete process.env.REDIS_URL;
+  } else {
+    process.env.REDIS_URL = snapshot.redisUrl;
+  }
+
+  if (typeof snapshot.authContextSecret === 'undefined') {
+    delete process.env.AUTH_CONTEXT_SECRET;
+  } else {
+    process.env.AUTH_CONTEXT_SECRET = snapshot.authContextSecret;
+  }
+}
+
+function applyTestEnv(databasePort: number, redisPort: number): void {
+  process.env.NODE_ENV = 'test';
+  process.env.DATABASE_URL = `postgres://127.0.0.1:${databasePort}/test`;
+  process.env.REDIS_URL = `redis://127.0.0.1:${redisPort}`;
+  process.env.AUTH_CONTEXT_SECRET = TEST_AUTH_CONTEXT_SECRET;
+}
+
+function extractRejectedReasons(
+  results: PromiseSettledResult<unknown>[],
+): unknown[] {
+  return results
+    .filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    )
+    .map((result) => result.reason);
+}
+
+function encodeAuthContext(payload: {
+  tenantId: string;
+  actorId: string;
+  permissions: string[];
+  role: 'platform_admin' | 'tenant_admin' | 'operator';
+}): string {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+}
+
+function signAuthContext(payload: string, secret: string): string {
+  return createHmac('sha256', secret).update(payload).digest('hex');
+}
+
+function createRequestHeaders(
+  requestId: string,
+  config: AppConfig,
+): Record<string, string> {
+  const encodedContext = encodeAuthContext({
+    tenantId: '1001',
+    actorId: '9001',
+    permissions: ['evidence:*', 'masterdata.warehouse.read'],
+    role: 'tenant_admin',
+  });
+
+  return {
+    [config.tenantHeader]: '1001',
+    'x-request-id': requestId,
+    'x-auth-context': encodedContext,
+    'x-auth-context-signature': signAuthContext(
+      encodedContext,
+      config.authContextSecret,
+    ),
+  };
+}
+
+function toApiPath(path: string, config: AppConfig): string {
+  if (config.globalPrefix.length === 0) {
+    return path;
+  }
+
+  if (path === '/') {
+    return `/${config.globalPrefix}`;
+  }
+
+  return `/${config.globalPrefix}${path}`;
 }
 
 function startProbeServer(): Promise<ProbeServer> {
@@ -24,36 +136,9 @@ function startProbeServer(): Promise<ProbeServer> {
         return;
       }
 
-      resolve({
-        server,
-        port: address.port,
-      });
+      resolve({ server, port: address.port });
     });
   });
-}
-
-function restoreEnv(
-  nodeEnv: string | undefined,
-  databaseUrl: string | undefined,
-  redisUrl: string | undefined,
-): void {
-  if (typeof nodeEnv === 'undefined') {
-    delete process.env.NODE_ENV;
-  } else {
-    process.env.NODE_ENV = nodeEnv;
-  }
-
-  if (typeof databaseUrl === 'undefined') {
-    delete process.env.DATABASE_URL;
-  } else {
-    process.env.DATABASE_URL = databaseUrl;
-  }
-
-  if (typeof redisUrl === 'undefined') {
-    delete process.env.REDIS_URL;
-  } else {
-    process.env.REDIS_URL = redisUrl;
-  }
 }
 
 function stopProbeServer(server: net.Server | undefined): Promise<void> {
@@ -73,80 +158,113 @@ function stopProbeServer(server: net.Server | undefined): Promise<void> {
   });
 }
 
+async function startProbePair(): Promise<{
+  readonly databaseProbe: ProbeServer;
+  readonly redisProbe: ProbeServer;
+}> {
+  const probeResults = await Promise.allSettled([
+    startProbeServer(),
+    startProbeServer(),
+  ]);
+
+  const startedServers = probeResults
+    .filter(
+      (result): result is PromiseFulfilledResult<ProbeServer> =>
+        result.status === 'fulfilled',
+    )
+    .map((result) => result.value.server);
+
+  const probeFailure = probeResults.find(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  );
+
+  if (probeFailure) {
+    await Promise.allSettled(startedServers.map((server) => stopProbeServer(server)));
+    throw probeFailure.reason;
+  }
+
+  const [databaseProbe, redisProbe] = probeResults.map(
+    (result) => (result as PromiseFulfilledResult<ProbeServer>).value,
+  );
+
+  return { databaseProbe, redisProbe };
+}
+
+function applyAppRuntimeConfig(app: INestApplication<App>, config: AppConfig): void {
+  app.use(
+    createAuthContextMiddleware({
+      secret: config.authContextSecret,
+      nodeEnv: config.nodeEnv,
+    }),
+  );
+  app.use(createTenantContextMiddleware(config.tenantHeader, config.nodeEnv));
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
+  if (config.globalPrefix.length > 0) {
+    app.setGlobalPrefix(config.globalPrefix);
+  }
+}
+
+async function createTestingApp(): Promise<{
+  readonly app: INestApplication<App>;
+  readonly config: AppConfig;
+}> {
+  const moduleFixture: TestingModule = await Test.createTestingModule({
+    imports: [AppModule],
+  }).compile();
+
+  const nextApp = moduleFixture.createNestApplication();
+  const config = loadAppConfig();
+
+  applyAppRuntimeConfig(nextApp, config);
+
+  await nextApp.init();
+  return {
+    app: nextApp,
+    config,
+  };
+}
+
 describe('Server foundation (e2e)', () => {
   let app: INestApplication<App> | undefined;
+  let appConfig: AppConfig;
   let databaseProbeServer: net.Server | undefined;
   let redisProbeServer: net.Server | undefined;
-  let originalNodeEnv: string | undefined;
-  let originalDatabaseUrl: string | undefined;
-  let originalRedisUrl: string | undefined;
+  let envSnapshot: EnvSnapshot;
 
   beforeEach(async () => {
-    originalNodeEnv = process.env.NODE_ENV;
-    originalDatabaseUrl = process.env.DATABASE_URL;
-    originalRedisUrl = process.env.REDIS_URL;
+    envSnapshot = snapshotEnv();
 
-    const probeResults = await Promise.allSettled([
-      startProbeServer(),
-      startProbeServer(),
-    ]);
-
-    const startedProbeServers = probeResults
-      .filter(
-        (
-          result,
-        ): result is PromiseFulfilledResult<ProbeServer> =>
-          result.status === 'fulfilled',
-      )
-      .map((result) => result.value.server);
-
-    const probeFailure = probeResults.find(
-      (result): result is PromiseRejectedResult => result.status === 'rejected',
-    );
-
-    if (probeFailure) {
-      await Promise.allSettled(
-        startedProbeServers.map((server) => stopProbeServer(server)),
-      );
-      throw probeFailure.reason;
-    }
-
-    const [databaseProbe, redisProbe] = probeResults.map(
-      (result) => (result as PromiseFulfilledResult<ProbeServer>).value,
-    );
-
+    const { databaseProbe, redisProbe } = await startProbePair();
     databaseProbeServer = databaseProbe.server;
     redisProbeServer = redisProbe.server;
 
-    process.env.NODE_ENV = 'test';
-    process.env.DATABASE_URL = `postgres://127.0.0.1:${databaseProbe.port}/test`;
-    process.env.REDIS_URL = `redis://127.0.0.1:${redisProbe.port}`;
+    applyTestEnv(databaseProbe.port, redisProbe.port);
 
     try {
-      const moduleFixture: TestingModule = await Test.createTestingModule({
-        imports: [AppModule],
-      }).compile();
-
-      app = moduleFixture.createNestApplication();
-      await app.init();
+      const testingApp = await createTestingApp();
+      app = testingApp.app;
+      appConfig = testingApp.config;
     } catch (error) {
       const cleanupResults = await Promise.allSettled([
         app ? app.close() : Promise.resolve(),
         stopProbeServer(databaseProbeServer),
         stopProbeServer(redisProbeServer),
       ]);
+
       app = undefined;
       databaseProbeServer = undefined;
       redisProbeServer = undefined;
-      restoreEnv(originalNodeEnv, originalDatabaseUrl, originalRedisUrl);
+      restoreEnv(envSnapshot);
 
-      const cleanupErrors = cleanupResults
-        .filter(
-          (result): result is PromiseRejectedResult =>
-            result.status === 'rejected',
-        )
-        .map((result) => result.reason);
-
+      const cleanupErrors = extractRejectedReasons(cleanupResults);
       if (cleanupErrors.length > 0) {
         throw new AggregateError(
           [error, ...cleanupErrors],
@@ -168,16 +286,9 @@ describe('Server foundation (e2e)', () => {
     app = undefined;
     databaseProbeServer = undefined;
     redisProbeServer = undefined;
+    restoreEnv(envSnapshot);
 
-    restoreEnv(originalNodeEnv, originalDatabaseUrl, originalRedisUrl);
-
-    const cleanupErrors = cleanupResults
-      .filter(
-        (result): result is PromiseRejectedResult =>
-          result.status === 'rejected',
-      )
-      .map((result) => result.reason);
-
+    const cleanupErrors = extractRejectedReasons(cleanupResults);
     if (cleanupErrors.length > 0) {
       throw new AggregateError(cleanupErrors, 'afterEach cleanup failed');
     }
@@ -185,7 +296,8 @@ describe('Server foundation (e2e)', () => {
 
   it('/ (GET) returns wrapped payload', () => {
     return request(app!.getHttpServer())
-      .get('/')
+      .get(toApiPath('/', appConfig))
+      .set(createRequestHeaders('req-e2e-root', appConfig))
       .expect(200)
       .expect((response) => {
         expect(response.body).toEqual(
@@ -202,7 +314,7 @@ describe('Server foundation (e2e)', () => {
 
   it('/health/live (GET) returns liveness', () => {
     return request(app!.getHttpServer())
-      .get('/health/live')
+      .get(toApiPath('/health/live', appConfig))
       .expect(200)
       .expect((response) => {
         expect(response.body).toEqual(
@@ -218,7 +330,7 @@ describe('Server foundation (e2e)', () => {
 
   it('/health/ready (GET) returns readiness', () => {
     return request(app!.getHttpServer())
-      .get('/health/ready')
+      .get(toApiPath('/health/ready', appConfig))
       .expect(200)
       .expect((response) => {
         expect(response.body).toEqual(
@@ -230,6 +342,67 @@ describe('Server foundation (e2e)', () => {
                 expect.objectContaining({ name: 'database', status: 'up' }),
                 expect.objectContaining({ name: 'redis', status: 'up' }),
               ]),
+            }),
+          }),
+        );
+      });
+  });
+
+  it('/ (GET) returns 401 without auth context', () => {
+    return request(app!.getHttpServer())
+      .get(toApiPath('/', appConfig))
+      .set({
+        [appConfig.tenantHeader]: '1001',
+        'x-request-id': 'req-e2e-no-auth',
+      })
+      .expect(401)
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'AUTH_INVALID_CONTEXT',
+            }),
+          }),
+        );
+      });
+  });
+
+  it('/ (GET) returns 401 with invalid auth signature', () => {
+    const invalidSignatureHeaders = {
+      ...createRequestHeaders('req-e2e-invalid-signature', appConfig),
+      'x-auth-context-signature': 'invalid-signature',
+    };
+
+    return request(app!.getHttpServer())
+      .get(toApiPath('/', appConfig))
+      .set(invalidSignatureHeaders)
+      .expect(401)
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'AUTH_INVALID_CONTEXT',
+            }),
+          }),
+        );
+      });
+  });
+
+  it('/ (GET) returns 401 with tampered auth payload', () => {
+    const tamperedPayloadHeaders = {
+      ...createRequestHeaders('req-e2e-tampered-payload', appConfig),
+      'x-auth-context': 'invalid-base64-payload',
+    };
+
+    return request(app!.getHttpServer())
+      .get(toApiPath('/', appConfig))
+      .set(tamperedPayloadHeaders)
+      .expect(401)
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'AUTH_INVALID_CONTEXT',
             }),
           }),
         );
