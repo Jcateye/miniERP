@@ -93,6 +93,24 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
       onHand: state.balanceByKey.get(keyToString(key)) ?? 0,
     }));
   }
+
+  getAllBalanceSnapshots(tenantId: string): InventoryBalanceSnapshot[] {
+    const state = this.stateByTenant.get(tenantId) ?? createTenantState();
+
+    return [...state.balanceByKey.entries()].map(([rawKey, onHand]) => {
+      const [skuId, warehouseId] = rawKey.split('::');
+      return {
+        skuId,
+        warehouseId,
+        onHand,
+      };
+    });
+  }
+
+  getAllLedgerEntries(tenantId: string): InventoryLedgerEntry[] {
+    const state = this.stateByTenant.get(tenantId) ?? createTenantState();
+    return [...state.ledgerEntries.values()].map((entry) => ({ ...entry }));
+  }
 }
 
 class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
@@ -130,7 +148,8 @@ class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
       .map((id) => this.workingState.ledgerEntries.get(id))
       .filter(
         (entry): entry is InventoryLedgerEntry => typeof entry !== 'undefined',
-      );
+      )
+      .map((entry) => ({ ...entry }));
   }
 
   findBalance(key: InventoryKey): number {
