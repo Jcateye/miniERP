@@ -325,6 +325,27 @@ describe('Server foundation (e2e)', () => {
       });
   });
 
+  it('/ (GET) returns 403 when tenant header mismatches auth context', () => {
+    const mismatchTenantHeaders = {
+      ...createRequestHeaders('req-e2e-tenant-mismatch', appConfig),
+      [appConfig.tenantHeader]: '2002',
+    };
+
+    return request(app!.getHttpServer())
+      .get(toApiPath('/', appConfig))
+      .set(mismatchTenantHeaders)
+      .expect(403)
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'TENANT_MISMATCH',
+            }),
+          }),
+        );
+      });
+  });
+
   it('/ (GET) returns 401 without auth context', () => {
     return request(app!.getHttpServer())
       .get(toApiPath('/', appConfig))

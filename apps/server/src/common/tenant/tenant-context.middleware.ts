@@ -36,9 +36,26 @@ export function createTenantContextMiddleware(
     }
 
     const authenticatedRequest = request as Request & AuthenticatedRequest;
-    const tenantId =
-      authenticatedRequest.authContext?.tenantId ??
-      readHeaderValue(request, normalizedTenantHeader);
+    const headerTenantId = readHeaderValue(request, normalizedTenantHeader);
+    const authTenantId = authenticatedRequest.authContext?.tenantId;
+    const authRole = authenticatedRequest.authContext?.role;
+
+    if (
+      authTenantId &&
+      headerTenantId &&
+      authRole !== 'platform_admin' &&
+      authTenantId.trim() !== headerTenantId.trim()
+    ) {
+      response.status(403).json({
+        error: {
+          code: 'TENANT_MISMATCH',
+          message: 'Tenant in authenticated context does not match tenant header',
+        },
+      });
+      return;
+    }
+
+    const tenantId = authTenantId ?? headerTenantId;
 
     if (!tenantId) {
       response.status(400).json({
