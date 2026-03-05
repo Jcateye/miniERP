@@ -4,12 +4,41 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
+  Injectable,
+  Param,
   Post,
   Query,
+  ValidationPipe,
 } from '@nestjs/common';
 import { EvidenceBindingService } from '../../../evidence/application/evidence-binding.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
-import { InMemoryEvidenceBindingRepository } from '../../../evidence/infrastructure/evidence-binding.repository';
+import type { EvidenceBindingRecord } from '../../../evidence/infrastructure/evidence-binding.repository';
+
+// HIGH-3 Fix: 定义 Repository 接口而非依赖具体实现
+export interface EvidenceBindingRepository {
+  findByTenant(tenantId: string): EvidenceBinding[];
+  save(binding: EvidenceBinding): void;
+}
+
+export const EVIDENCE_BINDING_REPOSITORY_TOKEN = 'EVIDENCE_BINDING_REPOSITORY';
+
+// HIGH-2 Fix: 添加输入验证 DTO
+@Injectable()
+export class BindEvidenceDto {
+  evidenceId!: string;
+  entityType!: string;
+  entityId!: string;
+  scope?: 'document' | 'line';
+  lineRef?: string;
+  tag?: string;
+}
+
+@Injectable()
+export class UploadIntentDto {
+  fileName?: string;
+  contentType?: string;
+}
 
 export interface EvidenceLinkItem {
   id: string;
@@ -47,7 +76,9 @@ export class EvidenceController {
   constructor(
     private readonly evidenceBindingService: EvidenceBindingService,
     private readonly tenantContextService: TenantContextService,
-    private readonly repository: InMemoryEvidenceBindingRepository,
+    // HIGH-3 Fix: 使用接口注入
+    @Inject(EVIDENCE_BINDING_REPOSITORY_TOKEN)
+    private readonly repository: EvidenceBindingRepository,
   ) {}
 
   @Get('links')
@@ -72,7 +103,7 @@ export class EvidenceController {
     });
 
     // Build response
-    const items: EvidenceLinkItem[] = bindings.map((b, idx) => ({
+    const items: EvidenceLinkItem[] = bindings.map((b) => ({
       id: b.id,
       assetId: `${b.evidenceId}`,
       scope: b.bindingLevel,
@@ -124,17 +155,21 @@ export class EvidenceController {
 
   @Post('links')
   @HttpCode(HttpStatus.CREATED)
-  bindEvidence(@Body() body: Record<string, unknown>) {
+  bindEvidence(
+    @Body(new ValidationPipe({ transform: true, forbidNonWhitelisted: false }))
+    body: BindEvidenceDto,
+  ) {
     const ctx = this.tenantContextService.getRequiredContext();
 
+    // HIGH-2 Fix: DTO 已通过 ValidationPipe 验证，直接使用
     const result = this.evidenceBindingService.bindEvidence({
       tenantId: ctx.tenantId,
-      evidenceId: body.evidenceId as string,
-      entityType: body.entityType as string,
-      entityId: body.entityId as string,
-      bindingLevel: (body.scope as 'document' | 'line') ?? 'document',
-      lineId: body.lineRef as string | undefined,
-      tag: (body.tag as string) ?? 'default',
+      evidenceId: body.evidenceId,
+      entityType: body.entityType,
+      entityId: body.entityId,
+      bindingLevel: body.scope ?? 'document',
+      lineId: body.lineRef,
+      tag: body.tag ?? 'default',
     });
 
     return {
@@ -154,7 +189,10 @@ export class EvidenceController {
 
   @Post('upload-intents')
   @HttpCode(HttpStatus.OK)
-  createUploadIntent(@Body() body: Record<string, unknown>): UploadIntentResponse {
+  createUploadIntent(
+    @Body(new ValidationPipe({ transform: true, forbidNonWhitelisted: false }))
+    body: UploadIntentDto,
+  ): UploadIntentResponse {
     const ctx = this.tenantContextService.getRequiredContext();
     const uploadIntentId = `intent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -165,7 +203,7 @@ export class EvidenceController {
       uploadUrl: `${process.env.OBJECT_STORAGE_URL ?? 'http://localhost:9000'}/uploads/${ctx.tenantId}/${uploadIntentId}`,
       expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour
       fields: {
-        'Content-Type': (body.contentType as string) ?? 'application/octet-stream',
+        'Content-Type': body.contentType ?? 'application/octet-stream',
         'X-Tenant-Id': ctx.tenantId,
         'X-Upload-Intent-Id': uploadIntentId,
       },

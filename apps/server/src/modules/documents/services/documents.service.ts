@@ -82,6 +82,9 @@ const ACTION_TO_STATUS: Record<string, CoreDocumentStatus> = {
 export class DocumentsService {
   private readonly documents = new Map<string, DocumentDetail>();
   private readonly docNoCounter = new Map<string, number>();
+  // HIGH-1 Fix: 内存幂等性缓存（P0 阶段限制：重启后丢失）
+  // P1/P2 阶段需要替换为持久化存储
+  private readonly idempotencyCache = new Map<string, DocumentActionResult>();
 
   constructor(
     private readonly auditService: AuditService,
@@ -206,6 +209,13 @@ export class DocumentsService {
     actorId: string,
     requestId: string,
   ): Promise<DocumentActionResult> {
+    // HIGH-1 Fix: 幂等性检查 - 相同 key 返回缓存结果
+    const cacheKey = `${tenantId}:${idempotencyKey}`;
+    const cachedResult = this.idempotencyCache.get(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const key = `${tenantId}:${docType}:${id}`;
     const doc = this.documents.get(key);
 
@@ -294,7 +304,7 @@ export class DocumentsService {
       },
     });
 
-    return {
+    const result: DocumentActionResult = {
       success: true,
       documentId: id,
       docType,
@@ -304,5 +314,10 @@ export class DocumentsService {
       inventoryPosted,
       ledgerEntryIds,
     };
+
+    // HIGH-1 Fix: 缓存结果以实现幂等性
+    this.idempotencyCache.set(cacheKey, result);
+
+    return result;
   }
 }

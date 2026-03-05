@@ -1,13 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EvidenceController } from './evidence.controller';
+import { EvidenceController, EVIDENCE_BINDING_REPOSITORY_TOKEN } from './evidence.controller';
 import { EvidenceBindingService } from '../../../evidence/application/evidence-binding.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
-import { InMemoryEvidenceBindingRepository } from '../../../evidence/infrastructure/evidence-binding.repository';
 
 describe('EvidenceController', () => {
   let controller: EvidenceController;
   let evidenceBindingService: EvidenceBindingService;
-  let repository: InMemoryEvidenceBindingRepository;
 
   const mockTenantContext = {
     tenantId: '1001',
@@ -41,7 +39,7 @@ describe('EvidenceController', () => {
           useValue: mockTenantContextService,
         },
         {
-          provide: InMemoryEvidenceBindingRepository,
+          provide: EVIDENCE_BINDING_REPOSITORY_TOKEN,
           useValue: mockRepository,
         },
       ],
@@ -49,7 +47,6 @@ describe('EvidenceController', () => {
 
     controller = module.get<EvidenceController>(EvidenceController);
     evidenceBindingService = module.get<EvidenceBindingService>(EvidenceBindingService);
-    repository = module.get<InMemoryEvidenceBindingRepository>(InMemoryEvidenceBindingRepository);
   });
 
   afterEach(() => {
