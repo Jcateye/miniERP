@@ -2,6 +2,7 @@ import type {
   IdempotencyRecord,
   InventoryBalanceSnapshot,
   InventoryConsistencyStore,
+  InventoryIdempotencyAction,
   InventoryKey,
   InventoryLedgerEntry,
   InventoryTenantTransaction,
@@ -27,6 +28,13 @@ function createTenantState(): TenantState {
 
 function keyToString(key: InventoryKey): string {
   return `${key.skuId}::${key.warehouseId}`;
+}
+
+function idempotencyMapKey(
+  actionType: InventoryIdempotencyAction,
+  idempotencyKey: string,
+): string {
+  return `${actionType}::${idempotencyKey}`;
 }
 
 function deepCloneTenantState(state: TenantState): TenantState {
@@ -65,7 +73,7 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
       const currentState =
         this.stateByTenant.get(tenantId) ?? createTenantState();
       const workingState = deepCloneTenantState(currentState);
-      const tx = new InMemoryInventoryTenantTransaction(tenantId, workingState);
+      const tx = new InMemoryInventoryTenantTransaction(workingState);
 
       const result = await work(tx);
 
@@ -81,20 +89,9 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
     }
   }
 
-  getBalanceSnapshots(
+  async getAllBalanceSnapshots(
     tenantId: string,
-    keys: readonly InventoryKey[],
-  ): InventoryBalanceSnapshot[] {
-    const state = this.stateByTenant.get(tenantId) ?? createTenantState();
-
-    return keys.map((key) => ({
-      skuId: key.skuId,
-      warehouseId: key.warehouseId,
-      onHand: state.balanceByKey.get(keyToString(key)) ?? 0,
-    }));
-  }
-
-  getAllBalanceSnapshots(tenantId: string): InventoryBalanceSnapshot[] {
+  ): Promise<InventoryBalanceSnapshot[]> {
     const state = this.stateByTenant.get(tenantId) ?? createTenantState();
 
     return [...state.balanceByKey.entries()].map(([rawKey, onHand]) => {
@@ -107,7 +104,9 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
     });
   }
 
-  getAllLedgerEntries(tenantId: string): InventoryLedgerEntry[] {
+  async getAllLedgerEntries(
+    tenantId: string,
+  ): Promise<InventoryLedgerEntry[]> {
     const state = this.stateByTenant.get(tenantId) ?? createTenantState();
     return [...state.ledgerEntries.values()].map((entry) => ({ ...entry }));
   }
@@ -115,21 +114,28 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
 
 class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
   constructor(
-    private readonly tenantId: string,
     private readonly workingState: TenantState,
   ) {}
 
-  findIdempotencyRecord(idempotencyKey: string): IdempotencyRecord | undefined {
-    return this.workingState.idempotencyRecords.get(idempotencyKey);
+  async findIdempotencyRecord(
+    actionType: InventoryIdempotencyAction,
+    idempotencyKey: string,
+  ): Promise<IdempotencyRecord | undefined> {
+    return this.workingState.idempotencyRecords.get(
+      idempotencyMapKey(actionType, idempotencyKey),
+    );
   }
 
-  saveIdempotencyRecord(record: IdempotencyRecord): void {
-    this.workingState.idempotencyRecords.set(record.idempotencyKey, record);
+  async saveIdempotencyRecord(record: IdempotencyRecord): Promise<void> {
+    this.workingState.idempotencyRecords.set(
+      idempotencyMapKey(record.actionType, record.idempotencyKey),
+      record,
+    );
   }
 
-  createLedgerEntry(
+  async createLedgerEntry(
     entry: Omit<InventoryLedgerEntry, 'id' | 'postedAt'>,
-  ): InventoryLedgerEntry {
+  ): Promise<InventoryLedgerEntry> {
     const sequence = this.workingState.sequence + 1;
     const created: InventoryLedgerEntry = {
       ...entry,
@@ -143,7 +149,9 @@ class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
     return created;
   }
 
-  findLedgerEntriesByIds(ledgerIds: readonly string[]): InventoryLedgerEntry[] {
+  async findLedgerEntriesByIds(
+    ledgerIds: readonly string[],
+  ): Promise<InventoryLedgerEntry[]> {
     return ledgerIds
       .map((id) => this.workingState.ledgerEntries.get(id))
       .filter(
@@ -152,19 +160,19 @@ class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
       .map((entry) => ({ ...entry }));
   }
 
-  findBalance(key: InventoryKey): number {
+  async findBalance(key: InventoryKey): Promise<number> {
     return this.workingState.balanceByKey.get(keyToString(key)) ?? 0;
   }
 
-  saveBalance(key: InventoryKey, onHand: number): void {
+  async saveBalance(key: InventoryKey, onHand: number): Promise<void> {
     this.workingState.balanceByKey.set(keyToString(key), onHand);
   }
 
-  isLedgerReversed(ledgerId: string): boolean {
+  async isLedgerReversed(ledgerId: string): Promise<boolean> {
     return this.workingState.reversedLedgerIds.has(ledgerId);
   }
 
-  markLedgerReversed(ledgerId: string): void {
+  async markLedgerReversed(ledgerId: string): Promise<void> {
     this.workingState.reversedLedgerIds.add(ledgerId);
   }
 

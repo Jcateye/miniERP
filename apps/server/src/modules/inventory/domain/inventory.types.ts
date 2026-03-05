@@ -47,6 +47,10 @@ export interface InventoryPostingResult {
   readonly balanceSnapshots: readonly InventoryBalanceSnapshot[];
 }
 
+export type InventoryIdempotencyAction =
+  | 'inventory.post'
+  | 'inventory.reverse';
+
 export interface InventoryKey {
   readonly skuId: string;
   readonly warehouseId: string;
@@ -54,6 +58,7 @@ export interface InventoryKey {
 
 export interface IdempotencyRecord {
   readonly tenantId: string;
+  readonly actionType: InventoryIdempotencyAction;
   readonly idempotencyKey: string;
   readonly payloadHash: string;
   readonly result: InventoryPostingResult;
@@ -65,18 +70,28 @@ export interface InventoryConsistencyStore {
     tenantId: string,
     work: (tx: InventoryTenantTransaction) => T | Promise<T>,
   ): Promise<T>;
+
+  getAllBalanceSnapshots(
+    tenantId: string,
+  ): Promise<InventoryBalanceSnapshot[]>;
+  getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]>;
 }
 
 export interface InventoryTenantTransaction {
-  findIdempotencyRecord(idempotencyKey: string): IdempotencyRecord | undefined;
-  saveIdempotencyRecord(record: IdempotencyRecord): void;
+  findIdempotencyRecord(
+    actionType: InventoryIdempotencyAction,
+    idempotencyKey: string,
+  ): Promise<IdempotencyRecord | undefined>;
+  saveIdempotencyRecord(record: IdempotencyRecord): Promise<void>;
 
   createLedgerEntry(
     entry: Omit<InventoryLedgerEntry, 'id' | 'postedAt'>,
-  ): InventoryLedgerEntry;
-  findLedgerEntriesByIds(ledgerIds: readonly string[]): InventoryLedgerEntry[];
-  findBalance(key: InventoryKey): number;
-  saveBalance(key: InventoryKey, onHand: number): void;
-  isLedgerReversed(ledgerId: string): boolean;
-  markLedgerReversed(ledgerId: string): void;
+  ): Promise<InventoryLedgerEntry>;
+  findLedgerEntriesByIds(
+    ledgerIds: readonly string[],
+  ): Promise<InventoryLedgerEntry[]>;
+  findBalance(key: InventoryKey): Promise<number>;
+  saveBalance(key: InventoryKey, onHand: number): Promise<void>;
+  isLedgerReversed(ledgerId: string): Promise<boolean>;
+  markLedgerReversed(ledgerId: string): Promise<void>;
 }

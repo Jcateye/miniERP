@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DocumentsService } from './documents.service';
 import { AuditService } from '../../../audit/application/audit.service';
-import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
 import { InvalidStatusTransitionError } from '../../core-document/domain/status-transition';
 
@@ -12,14 +11,6 @@ describe('DocumentsService', () => {
 
   const mockAuditService = {
     recordAuthorization: jest.fn(),
-  };
-
-  const mockTenantContextService = {
-    getRequiredContext: jest.fn().mockReturnValue({
-      tenantId: '1001',
-      actorId: 'user-001',
-      requestId: 'req-001',
-    }),
   };
 
   const mockInventoryPostingService = {
@@ -34,10 +25,6 @@ describe('DocumentsService', () => {
         {
           provide: AuditService,
           useValue: mockAuditService,
-        },
-        {
-          provide: TenantContextService,
-          useValue: mockTenantContextService,
         },
         {
           provide: InventoryPostingService,
@@ -56,8 +43,8 @@ describe('DocumentsService', () => {
   });
 
   describe('list', () => {
-    it('should return paginated documents filtered by docType', () => {
-      const result = service.list({ docType: 'PO' }, '1001');
+    it('should return paginated documents filtered by docType', async () => {
+      const result = await service.list({ docType: 'PO' }, '1001');
 
       expect(result.data).toBeDefined();
       expect(result.total).toBeGreaterThan(0);
@@ -65,15 +52,15 @@ describe('DocumentsService', () => {
       expect(result.pageSize).toBe(20);
     });
 
-    it('should return adjustment documents for ADJ docType', () => {
-      const result = service.list({ docType: 'ADJ' }, '1001');
+    it('should return adjustment documents for ADJ docType', async () => {
+      const result = await service.list({ docType: 'ADJ' }, '1001');
 
       expect(result.data.length).toBeGreaterThan(0);
       expect(result.data.every((doc) => doc.docType === 'ADJ')).toBe(true);
     });
 
-    it('should only return documents matching tenant', () => {
-      const result = service.list({ docType: 'PO' }, '1001');
+    it('should only return documents matching tenant', async () => {
+      const result = await service.list({ docType: 'PO' }, '1001');
 
       result.data.forEach((doc) => {
         expect(doc.tenantId).toBe('1001');
@@ -82,8 +69,8 @@ describe('DocumentsService', () => {
   });
 
   describe('getDetail', () => {
-    it('should return document with lines', () => {
-      const result = service.getDetail('PO', '2001', '1001');
+    it('should return document with lines', async () => {
+      const result = await service.getDetail('PO', '2001', '1001');
 
       expect(result).not.toBeNull();
       expect(result?.id).toBe('2001');
@@ -92,14 +79,14 @@ describe('DocumentsService', () => {
       expect(result?.lines.length).toBeGreaterThan(0);
     });
 
-    it('should return null for non-existent document', () => {
-      const result = service.getDetail('PO', '9999', '1001');
+    it('should return null for non-existent document', async () => {
+      const result = await service.getDetail('PO', '9999', '1001');
 
       expect(result).toBeNull();
     });
 
-    it('should return null for cross-tenant access', () => {
-      const result = service.getDetail('PO', '2001', '9999');
+    it('should return null for cross-tenant access', async () => {
+      const result = await service.getDetail('PO', '2001', '9999');
 
       expect(result).toBeNull();
     });

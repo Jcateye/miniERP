@@ -25,25 +25,32 @@ export class DocumentsController {
   ) {}
 
   @Get()
-  list(@Query('docType') docType?: string) {
+  async list(
+    @Query('docType') docType?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
     const ctx = this.tenantContextService.getRequiredContext();
     const normalizedDocType = this.normalizeDocType(docType);
+    const normalizedPage = this.normalizePositiveInt(page, 'page');
+    const normalizedPageSize = this.normalizePositiveInt(pageSize, 'pageSize');
 
-    return this.documentsService.list(
-      { docType: normalizedDocType },
-      ctx.tenantId,
-    );
+    return this.documentsService.list({
+      docType: normalizedDocType,
+      page: normalizedPage,
+      pageSize: normalizedPageSize,
+    }, ctx.tenantId);
   }
 
   @Get(':docType/:id')
-  getDetail(
+  async getDetail(
     @Param('docType') docType: string,
     @Param('id') id: string,
   ) {
     const ctx = this.tenantContextService.getRequiredContext();
     const normalizedDocType = this.normalizeDocType(docType);
 
-    const doc = this.documentsService.getDetail(
+    const doc = await this.documentsService.getDetail(
       normalizedDocType,
       id,
       ctx.tenantId,
@@ -125,5 +132,20 @@ export class DocumentsController {
       throw new Error(`Invalid document type: ${docType}`);
     }
     return upper as CoreDocumentType;
+  }
+
+  private normalizePositiveInt(
+    value: string | undefined,
+    field: 'page' | 'pageSize',
+  ): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (!/^[1-9]\d*$/.test(value)) {
+      throw new Error(`${field} must be a positive integer`);
+    }
+
+    return Number(value);
   }
 }

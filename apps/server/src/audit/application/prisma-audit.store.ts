@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import type { AuditEvent, IAuditStore } from './audit.store';
 
@@ -30,7 +31,7 @@ export class PrismaAuditStore implements IAuditStore {
           entityId: event.entityId,
           result: event.result,
           reason: event.reason,
-          metadata: event.metadata,
+          metadata: event.metadata as unknown as Prisma.InputJsonValue,
           occurredAt: new Date(event.occurredAt),
         },
       })

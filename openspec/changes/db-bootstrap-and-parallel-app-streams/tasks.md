@@ -29,10 +29,10 @@
 
 ## 4. Stream E - inventory
 
-- [ ] 4.1 落地 ledger append-only 与 reversal 约束。
-- [ ] 4.2 落地幂等记录持久化与 payload hash 冲突校验。
-- [ ] 4.3 落地防负库存事务校验。
-- [ ] 4.4 输出交付：`INV-READY`。
+- [x] 4.1 落地 ledger append-only 与 reversal 约束。
+- [x] 4.2 落地幂等记录持久化与 payload hash 冲突校验。
+- [x] 4.3 落地防负库存事务校验。
+- [x] 4.4 输出交付：`INV-READY`。
 
 ## 5. Stream F - evidence
 
@@ -43,9 +43,9 @@
 
 ## 6. Stream C - purchase+inbound（依赖 B+E）
 
-- [ ] 6.1 落地 PO/GRN 状态机持久化与错误语义。
-- [ ] 6.2 落地 GRN 过账前校验与库存调用契约。
-- [ ] 6.3 输出交付：`PUR-IN-READY`。
+- [x] 6.1 落地 PO/GRN 状态机持久化与错误语义。
+- [x] 6.2 落地 GRN 过账前校验与库存调用契约。
+- [x] 6.3 输出交付：`PUR-IN-READY`。
 
 ## 7. Stream D - sales+outbound（依赖 B+E）
 
