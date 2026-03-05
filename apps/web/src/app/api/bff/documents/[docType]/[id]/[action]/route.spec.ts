@@ -113,6 +113,36 @@ describe('bff document action route', () => {
     expect((calls[0]?.init?.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-1');
   });
 
+  it('returns generic upstream error message for 5xx json response', async () => {
+    process.env.NODE_ENV = 'test';
+
+    globalThis.fetch = (async () =>
+      Response.json(
+        {
+          error: {
+            code: 'INTERNAL_DEBUG_ONLY',
+            message: 'stack trace leaked',
+          },
+        },
+        { status: 500 },
+      )) as typeof fetch;
+
+    const request = new Request('http://localhost', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'idem-1' },
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ docType: 'SO', id: '7001', action: 'confirm' }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.error.code).toBe('BFF_UPSTREAM_ERROR');
+    expect(body.error.message).toBe('Upstream service temporarily unavailable');
+    expect(response.headers.get('x-bff-fallback-hit')).toBe('0');
+  });
+
   it('returns 503 when upstream is unavailable', async () => {
     process.env.NODE_ENV = 'test';
 

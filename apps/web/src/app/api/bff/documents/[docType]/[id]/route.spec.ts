@@ -83,6 +83,29 @@ describe('bff document detail route', () => {
     expect(response.status).toBe(404);
     expect(body.error.code).toBe('DOCUMENT_NOT_FOUND');
   });
+  it('returns generic upstream error message for 5xx json response', async () => {
+    process.env.NODE_ENV = 'test';
+    globalThis.fetch = (async () =>
+      Response.json(
+        {
+          error: {
+            code: 'INTERNAL_DEBUG_ONLY',
+            message: 'stack trace leaked',
+          },
+        },
+        { status: 500 },
+      )) as typeof fetch;
+
+    const response = await GET(new Request('http://localhost'), {
+      params: Promise.resolve({ docType: 'SO', id: '7001' }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.error.code).toBe('BFF_UPSTREAM_ERROR');
+    expect(body.error.message).toBe('Upstream service temporarily unavailable');
+  });
+
   it('returns 503 when upstream is unavailable', async () => {
     process.env.NODE_ENV = 'test';
     globalThis.fetch = (async () => {
