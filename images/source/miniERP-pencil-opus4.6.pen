@@ -94,9 +94,8 @@
             },
             {
               "type": "frame",
-              "id": "E15NM",
-              "name": "Component/NavItem",
-              "reusable": true,
+              "id": "nEOTc",
+              "name": "nav2",
               "width": "fill_container",
               "gap": 14,
               "padding": [
@@ -107,20 +106,20 @@
               "children": [
                 {
                   "type": "icon_font",
-                  "id": "8DndT",
+                  "id": "k08yP",
                   "name": "navIcon",
                   "width": 20,
                   "height": 20,
-                  "iconFontName": "layout-grid",
+                  "iconFontName": "shopping-cart",
                   "iconFontFamily": "lucide",
                   "fill": "#666666"
                 },
                 {
                   "type": "text",
-                  "id": "PH7KY",
+                  "id": "49SEf",
                   "name": "navLabel",
                   "fill": "#666666",
-                  "content": "SKU 管理",
+                  "content": "采购管理",
                   "fontFamily": "Space Grotesk",
                   "fontSize": 13,
                   "fontWeight": "500",
@@ -129,74 +128,144 @@
               ]
             },
             {
-              "id": "nEOTc",
-              "type": "ref",
-              "ref": "E15NM",
-              "name": "nav2",
-              "descendants": {
-                "8DndT": {
-                  "iconFontName": "shopping-cart"
-                },
-                "PH7KY": {
-                  "content": "采购管理"
-                }
-              }
-            },
-            {
+              "type": "frame",
               "id": "qcuTh",
-              "type": "ref",
-              "ref": "E15NM",
               "name": "nav3",
-              "descendants": {
-                "8DndT": {
-                  "iconFontName": "truck"
+              "width": "fill_container",
+              "gap": 14,
+              "padding": [
+                10,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "GrlnN",
+                  "name": "navIcon",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "truck",
+                  "iconFontFamily": "lucide",
+                  "fill": "#666666"
                 },
-                "PH7KY": {
-                  "content": "销售出库"
+                {
+                  "type": "text",
+                  "id": "UIr1v",
+                  "name": "navLabel",
+                  "fill": "#666666",
+                  "content": "销售出库",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 13,
+                  "fontWeight": "500",
+                  "letterSpacing": 1
                 }
-              }
+              ]
             },
             {
+              "type": "frame",
               "id": "YNiOT",
-              "type": "ref",
-              "ref": "E15NM",
               "name": "nav4",
-              "descendants": {
-                "8DndT": {
-                  "iconFontName": "warehouse"
+              "width": "fill_container",
+              "gap": 14,
+              "padding": [
+                10,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "7r70W",
+                  "name": "navIcon",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "warehouse",
+                  "iconFontFamily": "lucide",
+                  "fill": "#666666"
                 },
-                "PH7KY": {
-                  "content": "库存中心"
+                {
+                  "type": "text",
+                  "id": "wsdxb",
+                  "name": "navLabel",
+                  "fill": "#666666",
+                  "content": "库存中心",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 13,
+                  "fontWeight": "500",
+                  "letterSpacing": 1
                 }
-              }
+              ]
             },
             {
+              "type": "frame",
               "id": "0MRGh",
-              "type": "ref",
-              "ref": "E15NM",
               "name": "nav5",
-              "descendants": {
-                "8DndT": {
-                  "iconFontName": "clipboard-check"
+              "width": "fill_container",
+              "gap": 14,
+              "padding": [
+                10,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "9nCmS",
+                  "name": "navIcon",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "clipboard-check",
+                  "iconFontFamily": "lucide",
+                  "fill": "#666666"
                 },
-                "PH7KY": {
-                  "content": "盘点"
+                {
+                  "type": "text",
+                  "id": "aiAQZ",
+                  "name": "navLabel",
+                  "fill": "#666666",
+                  "content": "盘点",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 13,
+                  "fontWeight": "500",
+                  "letterSpacing": 1
                 }
-              }
+              ]
             },
             {
+              "type": "frame",
               "id": "8JIEg",
-              "type": "ref",
-              "ref": "E15NM",
               "name": "nav6",
-              "descendants": {
-                "8DndT": {
-                  "iconFontName": "settings"
+              "width": "fill_container",
+              "gap": 14,
+              "padding": [
+                10,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "qq8Y9",
+                  "name": "navIcon",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "settings",
+                  "iconFontFamily": "lucide",
+                  "fill": "#666666"
                 },
-                "PH7KY": {
-                  "content": "设置"
+                {
+                  "type": "text",
+                  "id": "Vd9Hn",
+                  "name": "navLabel",
+                  "fill": "#666666",
+                  "content": "设置",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 13,
+                  "fontWeight": "500",
+                  "letterSpacing": 1
                 }
-              }
+              ]
             }
           ]
         }
@@ -13586,7 +13655,8 @@
               "fill": "#888888",
               "content": "轻量级进销存管理系统",
               "fontFamily": "Space Grotesk",
-              "fontSize": 16
+              "fontSize": 16,
+              "fontWeight": "normal"
             },
             {
               "type": "text",
@@ -13595,7 +13665,8 @@
               "fill": "#666666",
               "content": "让库存管理更简单、更高效",
               "fontFamily": "Space Grotesk",
-              "fontSize": 14
+              "fontSize": 14,
+              "fontWeight": "normal"
             }
           ]
         },
@@ -13641,7 +13712,8 @@
                   "fill": "#888888",
                   "content": "请输入您的账户信息",
                   "fontFamily": "Space Grotesk",
-                  "fontSize": 14
+                  "fontSize": 14,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -13829,7 +13901,8 @@
                   "fill": "#D94F4F",
                   "content": "⚠ 用户名或密码错误，请重试",
                   "fontFamily": "Space Grotesk",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 }
               ]
             }

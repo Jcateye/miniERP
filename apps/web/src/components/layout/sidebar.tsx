@@ -2,104 +2,136 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutGrid,
+  ShoppingCart,
+  Truck,
+  Warehouse,
+  ClipboardCheck,
+  Settings,
+} from 'lucide-react';
+import type { ComponentType } from 'react';
 
 interface NavItem {
   label: string;
   href: string;
+  icon: ComponentType<{ size?: number; color?: string }>;
 }
 
 const navItems: NavItem[] = [
-  { label: '运营工作台', href: '/' },
-  { label: 'SKU 管理', href: '/skus' },
-  { label: '采购概览', href: '/purchasing/overview' },
-  { label: 'GRN 工作台', href: '/purchasing/grn' },
-  { label: '销售概览', href: '/sales/overview' },
-  { label: '报价工作台', href: '/sales/quotations' },
-  { label: 'OUT 工作台', href: '/sales/out' },
-  { label: '库存查询', href: '/inventory' },
-  { label: '盘点工作台', href: '/stocktake' },
-  { label: '设置中心', href: '/settings' },
-  { label: '帮助说明', href: '/help' },
+  { label: 'SKU 管理', href: '/skus', icon: LayoutGrid },
+  { label: '采购管理', href: '/purchasing/overview', icon: ShoppingCart },
+  { label: '销售出库', href: '/sales/overview', icon: Truck },
+  { label: '库存中心', href: '/inventory', icon: Warehouse },
+  { label: '盘点', href: '/stocktake', icon: ClipboardCheck },
+  { label: '设置', href: '/settings', icon: Settings },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
+  const isHome = pathname === '/';
+
   return (
     <aside
       style={{
-        width: '260px',
-        minWidth: '260px',
-        background:
-          'linear-gradient(180deg, rgba(26,26,26,0.98), rgba(26,26,26,0.94)), radial-gradient(circle at top left, rgba(192,90,60,0.24), transparent 28%)',
+        width: 260,
+        minWidth: 260,
+        background: '#1a1a1a',
         color: '#fff',
         display: 'flex',
         flexDirection: 'column',
         position: 'sticky',
         top: 0,
         height: '100vh',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        padding: '40px 28px',
+        gap: 32,
       }}
     >
-      <div style={{ padding: '24px 20px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ fontFamily: 'var(--font-display-family), sans-serif', fontSize: 18, fontWeight: 700, letterSpacing: '0.08em' }}>
-          miniERP
-        </div>
-        <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.6, color: 'rgba(255,255,255,0.54)' }}>
-          Stage 1 收口页
-          <br />
-          T1 / T2 / T3 / T4 模板装配
-        </div>
-      </div>
+      {/* Logo */}
+      <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 10,
+          height: 10,
+          background: '#C05A3C',
+        }} />
+        <span style={{
+          fontFamily: 'var(--font-display-family), sans-serif',
+          fontSize: 16,
+          fontWeight: 700,
+          color: '#F5F3EF',
+          letterSpacing: 2,
+        }}>
+          MINIERP
+        </span>
+      </Link>
 
-      <nav style={{ flex: 1, padding: '14px 10px', overflowY: 'auto' }}>
+      {/* Navigation */}
+      <nav style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        flex: 1,
+      }}>
+        {/* Home / 工作台 is a special case */}
+        <Link
+          href="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            padding: '10px 12px',
+            borderRadius: 4,
+            background: isHome ? '#2a2a2a' : 'transparent',
+            textDecoration: 'none',
+            transition: 'background 0.15s',
+          }}
+        >
+          <LayoutGrid size={20} color={isHome ? '#C05A3C' : '#666666'} />
+          <span style={{
+            fontFamily: 'var(--font-display-family), sans-serif',
+            fontSize: 13,
+            fontWeight: isHome ? 600 : 500,
+            color: isHome ? '#C05A3C' : '#666666',
+            letterSpacing: 1,
+          }}>
+            工作台
+          </span>
+        </Link>
+
         {navItems.map((item) => {
           const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+          const IconComp = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
               style={{
-                display: 'block',
-                marginBottom: 6,
-                padding: '11px 12px',
-                borderRadius: 14,
-                color: active ? '#fff' : 'rgba(255,255,255,0.62)',
-                background: active ? 'rgba(192,90,60,0.86)' : 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '10px 12px',
+                borderRadius: 4,
+                background: active ? '#2a2a2a' : 'transparent',
                 textDecoration: 'none',
-                fontSize: 13,
-                fontWeight: active ? 700 : 500,
-                border: active ? '1px solid rgba(255,255,255,0.10)' : '1px solid transparent',
+                transition: 'background 0.15s',
               }}
             >
-              {item.label}
+              <IconComp size={20} color={active ? '#C05A3C' : '#666666'} />
+              <span style={{
+                fontFamily: 'var(--font-display-family), sans-serif',
+                fontSize: 13,
+                fontWeight: active ? 600 : 500,
+                color: active ? '#C05A3C' : '#666666',
+                letterSpacing: 1,
+              }}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
       </nav>
-
-      <div style={{ padding: '16px 18px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.46)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Gate
-        </div>
-        <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
-          {['DFP-READY', 'BE-READY', 'FE-E-READY'].map((label) => (
-            <div
-              key={label}
-              style={{
-                padding: '8px 10px',
-                borderRadius: 12,
-                background: 'rgba(255,255,255,0.06)',
-                fontSize: 12,
-                color: 'rgba(255,255,255,0.84)',
-              }}
-            >
-              {label}
-            </div>
-          ))}
-        </div>
-      </div>
     </aside>
   );
 }

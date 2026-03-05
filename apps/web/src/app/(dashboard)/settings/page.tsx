@@ -1,6 +1,5 @@
-import { OverviewAssembly } from '@/components/business/erp-page-assemblies';
-import { settingsOverviewConfig } from '@/components/business/erp-page-config';
+import { redirect } from 'next/navigation';
 
-export default function SettingsOverviewPage() {
-  return <OverviewAssembly config={settingsOverviewConfig} />;
+export default function SettingsPage() {
+  redirect('/settings/master-data');
 }

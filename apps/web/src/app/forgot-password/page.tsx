@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { AuthLayout } from '@/components/ui';
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
     return (
         <AuthLayout
             tagline="轻量级进销存管理系统"
-            tagline2="让库存管理更简单、更高效"
+            tagline2={undefined}
         >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: 40 }}>
                 <div>
@@ -18,22 +18,19 @@ export default function LoginPage() {
                         color: '#1a1a1a',
                         margin: '0 0 8px',
                     }}>
-                        登录
+                        忘记密码
                     </h1>
                     <p style={{ fontSize: 13, color: '#888888', margin: 0 }}>
-                        请输入您的账户信息
+                        输入您的邮箱，我们将发送重置链接
                     </p>
                 </div>
 
                 <form style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }}>
-                            邮箱 / 用户名
-                        </label>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }}>邮箱地址</label>
                         <input
-                            type="text"
-                            id="login-email"
-                            placeholder="请输入邮箱或用户名"
+                            type="email"
+                            placeholder="admin@company.com"
                             style={{
                                 padding: '10px 14px',
                                 border: '1px solid #E0DDD8',
@@ -49,46 +46,10 @@ export default function LoginPage() {
                             onFocus={(e) => (e.target.style.borderColor = '#C05A3C')}
                             onBlur={(e) => (e.target.style.borderColor = '#E0DDD8')}
                         />
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }}>
-                            密码
-                        </label>
-                        <input
-                            type="password"
-                            id="login-password"
-                            placeholder="请输入密码"
-                            style={{
-                                padding: '10px 14px',
-                                border: '1px solid #E0DDD8',
-                                borderRadius: 6,
-                                background: '#FFFFFF',
-                                fontSize: 14,
-                                color: '#1a1a1a',
-                                outline: 'none',
-                                fontFamily: 'inherit',
-                                width: '100%',
-                                boxSizing: 'border-box',
-                            }}
-                            onFocus={(e) => (e.target.style.borderColor = '#C05A3C')}
-                            onBlur={(e) => (e.target.style.borderColor = '#E0DDD8')}
-                        />
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#666666', cursor: 'pointer' }}>
-                            <input type="checkbox" id="remember-me" style={{ width: 16, height: 16, accentColor: '#C05A3C' }} />
-                            记住我登录
-                        </label>
-                        <Link href="/forgot-password" style={{ fontSize: 13, color: '#C05A3C', textDecoration: 'none' }}>
-                            忘记密码？
-                        </Link>
                     </div>
 
                     <button
                         type="submit"
-                        id="login-submit"
                         style={{
                             width: '100%',
                             padding: '12px',
@@ -103,14 +64,14 @@ export default function LoginPage() {
                             letterSpacing: '1px',
                         }}
                     >
-                        登 录
+                        发送重置链接
                     </button>
                 </form>
 
                 <p style={{ textAlign: 'center', fontSize: 13, color: '#888888', margin: 0 }}>
-                    还没有账户？{' '}
-                    <Link href="/register" style={{ color: '#C05A3C', textDecoration: 'none', fontWeight: 500 }}>
-                        立即注册
+                    想起密码了？{' '}
+                    <Link href="/login" style={{ color: '#C05A3C', textDecoration: 'none', fontWeight: 500 }}>
+                        返回登录
                     </Link>
                 </p>
             </div>
