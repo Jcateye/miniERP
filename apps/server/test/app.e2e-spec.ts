@@ -90,16 +90,30 @@ function signAuthContext(payload: string, secret: string): string {
 function createRequestHeaders(
   requestId: string,
   config: AppConfig,
+  options: {
+    role?: 'platform_admin' | 'tenant_admin' | 'operator';
+    tenantId?: string;
+    actorId?: string;
+    permissions?: string[];
+  } = {},
 ): Record<string, string> {
+  const tenantId = options.tenantId ?? '1001';
+  const actorId = options.actorId ?? '9001';
+  const role = options.role ?? 'tenant_admin';
+  const permissions = options.permissions ?? [
+    'evidence:*',
+    'masterdata.warehouse.read',
+  ];
+
   const encodedContext = encodeAuthContext({
-    tenantId: '1001',
-    actorId: '9001',
-    permissions: ['evidence:*', 'masterdata.warehouse.read'],
-    role: 'tenant_admin',
+    tenantId,
+    actorId,
+    permissions,
+    role,
   });
 
   return {
-    [config.tenantHeader]: '1001',
+    [config.tenantHeader]: tenantId,
     'x-request-id': requestId,
     'x-auth-context': encodedContext,
     'x-auth-context-signature': signAuthContext(
@@ -340,6 +354,32 @@ describe('Server foundation (e2e)', () => {
           expect.objectContaining({
             error: expect.objectContaining({
               code: 'TENANT_MISMATCH',
+            }),
+          }),
+        );
+      });
+  });
+
+  it('/ (GET) allows tenant mismatch for platform_admin auth context', () => {
+    const platformAdminHeaders = {
+      ...createRequestHeaders('req-e2e-platform-admin-mismatch', appConfig, {
+        role: 'platform_admin',
+        permissions: ['platform.audit.read'],
+      }),
+      [appConfig.tenantHeader]: '2002',
+    };
+
+    return request(app!.getHttpServer())
+      .get(toApiPath('/', appConfig))
+      .set(platformAdminHeaders)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            message: 'OK',
+            data: expect.objectContaining({
+              service: 'miniERP-server',
+              status: 'ok',
             }),
           }),
         );
