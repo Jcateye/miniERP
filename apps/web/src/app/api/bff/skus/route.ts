@@ -1,0 +1,183 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+import {
+  buildBackendUrl,
+  createServerHeaders,
+  isFixtureFallbackEnabled,
+  toFixtureFallbackDisabledResponse,
+  toUpstreamErrorResponse,
+  toUpstreamUnavailableResponse,
+} from '@/lib/bff/server-fixtures';
+
+interface SkuListItemDto {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  specification: string | null;
+  baseUnit: string;
+  categoryId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const SKU_FIXTURES: SkuListItemDto[] = [
+  {
+    id: 'sku_001',
+    tenantId: '1001',
+    code: 'CAB-HDMI-2M',
+    name: 'HDMI高清线 2米',
+    specification: 'HDMI 2.0, 4K@60Hz, 2米',
+    baseUnit: 'PCS',
+    categoryId: 'cat_cable',
+    isActive: true,
+    createdAt: '2026-03-01T08:00:00.000Z',
+    updatedAt: '2026-03-01T08:00:00.000Z',
+  },
+  {
+    id: 'sku_002',
+    tenantId: '1001',
+    code: 'ADP-USB-C-DP',
+    name: 'USB-C转DP适配器',
+    specification: 'USB-C to DisplayPort, 4K@60Hz',
+    baseUnit: 'PCS',
+    categoryId: 'cat_adapter',
+    isActive: true,
+    createdAt: '2026-03-01T08:00:00.000Z',
+    updatedAt: '2026-03-01T08:00:00.000Z',
+  },
+  {
+    id: 'sku_003',
+    tenantId: '1001',
+    code: 'CAB-LAN-CAT6',
+    name: '网线 CAT6',
+    specification: 'Cat6 UTP, 5米',
+    baseUnit: 'PCS',
+    categoryId: 'cat_cable',
+    isActive: true,
+    createdAt: '2026-03-02T09:30:00.000Z',
+    updatedAt: '2026-03-02T09:30:00.000Z',
+  },
+];
+
+function getSkuFixtures(filter?: {
+  code?: string;
+  name?: string;
+  categoryId?: string;
+  isActive?: boolean;
+}): SkuListItemDto[] {
+  let result = SKU_FIXTURES;
+
+  if (filter?.code) {
+    result = result.filter((sku) =>
+      sku.code.toLowerCase().includes(filter.code!.toLowerCase()),
+    );
+  }
+  if (filter?.name) {
+    result = result.filter((sku) =>
+      sku.name.toLowerCase().includes(filter.name!.toLowerCase()),
+    );
+  }
+  if (filter?.categoryId) {
+    result = result.filter((sku) => sku.categoryId === filter.categoryId);
+  }
+  if (filter?.isActive !== undefined) {
+    result = result.filter((sku) => sku.isActive === filter.isActive);
+  }
+
+  return result;
+}
+
+export async function GET(request: NextRequest) {
+  const code = request.nextUrl.searchParams.get('code') ?? undefined;
+  const name = request.nextUrl.searchParams.get('name') ?? undefined;
+  const categoryId = request.nextUrl.searchParams.get('categoryId') ?? undefined;
+  const isActiveParam = request.nextUrl.searchParams.get('isActive');
+  const isActive = isActiveParam ? isActiveParam === 'true' : undefined;
+
+  const queryParams = request.nextUrl.searchParams.toString();
+
+  try {
+    const response = await fetch(buildBackendUrl(`/skus?${queryParams}`), {
+      headers: createServerHeaders(),
+      cache: 'no-store',
+    });
+
+    if (response.ok) {
+      return NextResponse.json(await response.json());
+    }
+
+    if (!isFixtureFallbackEnabled()) {
+      return toFixtureFallbackDisabledResponse('Backend SKU list is unavailable in current environment');
+    }
+
+    return toUpstreamErrorResponse(response);
+  } catch {
+    if (!isFixtureFallbackEnabled()) {
+      return toFixtureFallbackDisabledResponse('Backend SKU list is unavailable in current environment');
+    }
+  }
+
+  // Fixture fallback
+  const fixtures = getSkuFixtures({ code, name, categoryId, isActive });
+
+  return NextResponse.json({
+    data: fixtures,
+    total: fixtures.length,
+    message: 'fixture',
+  });
+}
+
+export async function POST(request: Request) {
+  const idempotencyKey = request.headers.get('idempotency-key');
+
+  if (!idempotencyKey || idempotencyKey.trim() === '') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'IDEMPOTENCY_KEY_REQUIRED',
+          message: 'Idempotency-Key header is required for SKU creation',
+          category: 'validation',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Request body must be valid JSON',
+          category: 'validation',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const response = await fetch(buildBackendUrl('/skus'), {
+      method: 'POST',
+      headers: {
+        ...createServerHeaders(),
+        'idempotency-key': idempotencyKey,
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+    });
+
+    if (response.ok) {
+      return NextResponse.json(await response.json());
+    }
+
+    return toUpstreamErrorResponse(response);
+  } catch {
+    return toUpstreamUnavailableResponse('Backend SKU creation is unavailable');
+  }
+}
