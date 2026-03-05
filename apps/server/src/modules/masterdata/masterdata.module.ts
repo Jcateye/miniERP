@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { SkuService, SKU_REPOSITORY_TOKEN } from './application/sku.service';
+import { AuditModule } from '../../audit/audit.module';
+import { TenantModule } from '../../common/tenant/tenant.module';
+import { PlatformModule } from '../../platform/platform.module';
 import { WarehouseService, WAREHOUSE_REPOSITORY_TOKEN } from './application/warehouse.service';
 import { SupplierService, SUPPLIER_REPOSITORY_TOKEN } from './application/supplier.service';
 import { CustomerService, CUSTOMER_REPOSITORY_TOKEN } from './application/customer.service';
@@ -12,6 +15,7 @@ import { SupplierController } from './controllers/supplier.controller';
 import { CustomerController } from './controllers/customer.controller';
 
 @Module({
+  imports: [AuditModule, TenantModule, PlatformModule],
   controllers: [WarehouseController, SupplierController, CustomerController],
   providers: [
     // SKU

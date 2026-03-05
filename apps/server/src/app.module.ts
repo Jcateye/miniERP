@@ -7,14 +7,10 @@ import { ApiResponseInterceptor } from './common/interceptors/api-response.inter
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { MasterdataModule } from './modules/masterdata/masterdata.module';
-import { AuditService } from './audit/application/audit.service';
-import {
-  AUDIT_STORE_TOKEN,
-  InMemoryAuditStore,
-} from './audit/application/audit.store';
+import { AuditModule } from './audit/audit.module';
+import { PlatformModule } from './platform/platform.module';
+import { TenantModule } from './common/tenant/tenant.module';
 import { IamGuard } from './common/iam/iam.guard';
-import { PlatformAccessService } from './platform/application/platform-access.service';
-import { TenantContextService } from './common/tenant/tenant-context.service';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { EvidenceModule } from './modules/evidence/evidence.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
@@ -23,6 +19,9 @@ import { InventoryModule } from './modules/inventory/inventory.module';
   imports: [
     DatabaseModule,
     HealthModule,
+    AuditModule,
+    TenantModule,
+    PlatformModule,
     DocumentsModule,
     EvidenceModule,
     InventoryModule,
@@ -31,13 +30,6 @@ import { InventoryModule } from './modules/inventory/inventory.module';
   controllers: [AppController],
   providers: [
     AppService,
-    TenantContextService,
-    {
-      provide: AUDIT_STORE_TOKEN,
-      useClass: InMemoryAuditStore,
-    },
-    AuditService,
-    PlatformAccessService,
     IamGuard,
     {
       provide: APP_INTERCEPTOR,

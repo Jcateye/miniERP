@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { TenantModule } from '../../common/tenant/tenant.module';
 import { InventoryPostingService } from './application/inventory-posting.service';
 import { InMemoryInventoryConsistencyStore } from './infrastructure/in-memory-inventory-consistency.store';
 import { InventoryController } from './controllers/inventory.controller';
 
 @Module({
+  imports: [TenantModule],
   controllers: [InventoryController],
   providers: [
     InventoryPostingService,

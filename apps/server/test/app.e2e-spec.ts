@@ -49,11 +49,19 @@ describe('Server foundation (e2e)', () => {
     return request(app.getHttpServer())
       .get('/health/ready')
       .expect(200)
-      .expect({
-        message: 'Service is ready',
-        data: {
-          status: 'ready',
-        },
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            message: 'Service is ready',
+            data: expect.objectContaining({
+              status: 'ready',
+              dependencies: expect.arrayContaining([
+                expect.objectContaining({ name: 'database', status: 'up' }),
+                expect.objectContaining({ name: 'redis', status: 'up' }),
+              ]),
+            }),
+          }),
+        );
       });
   });
 });
