@@ -1,9 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Plus, Search, SlidersHorizontal } from 'lucide-react';
-import { PageHeader, ActionButton, DataTable, StatusBadge } from '@/components/ui';
-import type { TableColumn } from '@/components/ui';
+import { Download, Plus } from 'lucide-react';
+import {
+  PageHeader,
+  ActionButton,
+  SearchBar,
+  FilterTabs,
+  DataTable,
+  StatusBadge,
+  QuickPreview,
+} from '@/components/ui';
+import type { TableColumn, FilterTabItem } from '@/components/ui';
+
+/* -------- mock data -------- */
 
 const skuRows = [
   { id: '1', code: 'CAB-HDMI-2M', name: 'HDMI 2m 高速线缆/散装', category: '线材', unitPrice: '89元/条', stock: '562', minStock: '80', status: '在售' },
@@ -18,7 +28,12 @@ const statusToneMap: Record<string, 'success' | 'danger' | 'neutral'> = {
   '停售': 'danger',
 };
 
-const filterTabs = ['全部', '在售', '停售', '草稿'];
+const filterTabs: FilterTabItem[] = [
+  { key: 'all', label: '全部' },
+  { key: 'active', label: '在售' },
+  { key: 'inactive', label: '停售' },
+  { key: 'draft', label: '草稿' },
+];
 
 const columns: TableColumn[] = [
   { key: 'code', label: '编码', width: 160 },
@@ -35,67 +50,39 @@ const columns: TableColumn[] = [
   },
 ];
 
+/* -------- page -------- */
+
 export default function SKUWorkbenchPage() {
   const [selectedRow, setSelectedRow] = useState<Record<string, string> | null>(null);
 
   return (
     <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 24, height: '100vh', overflow: 'hidden' }}>
+      {/* 1. PageHeader — 标题 + 操作按钮 */}
       <PageHeader
         title="SKU 管理"
         subtitle="SKU 粒度 · 管理工作台"
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <>
             <ActionButton label="导入" icon={<Download size={14} />} tone="secondary" />
             <ActionButton label="导出" icon={<Download size={14} />} tone="secondary" />
             <ActionButton label="新建 SKU" icon={<Plus size={14} />} tone="primary" />
-          </div>
+          </>
         }
       />
 
-      {/* Search + Filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: '#fff', border: '1px solid #E0DDD8', borderRadius: 6,
-          padding: '0 12px', height: 40, flex: 1, maxWidth: 400,
-        }}>
-          <Search size={16} color="#888" />
-          <input placeholder="搜索 SKU编码, 名称, 产品编码, 规格码..." style={{
-            border: 'none', outline: 'none', fontSize: 13, background: 'transparent', fontFamily: 'inherit', width: '100%',
-          }} />
-        </div>
-        <button style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '0 14px', height: 40, border: '1px solid #E0DDD8',
-          borderRadius: 6, background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666', fontFamily: 'inherit',
-        }}>
-          <SlidersHorizontal size={14} /> 高级筛选
-        </button>
-      </div>
+      {/* 2. SearchBar — 搜索 + 高级筛选 */}
+      <SearchBar
+        placeholder="搜索 SKU编码, 名称, 产品编码, 规格码..."
+        showAdvancedFilter
+      />
 
-      {/* Filter tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {filterTabs.map((tab, idx) => (
-          <button key={tab} style={{
-            padding: '6px 14px',
-            borderRadius: 4,
-            border: idx === 0 ? '1px solid #1a1a1a' : '1px solid #E0DDD8',
-            background: idx === 0 ? '#1a1a1a' : 'transparent',
-            color: idx === 0 ? '#fff' : '#666',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}>
-            {tab}
-          </button>
-        ))}
-        <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>
-          显示 1 到 5 / 总 {skuRows.length} 条
-        </span>
-      </div>
+      {/* 3. FilterTabs — 状态标签切换 + 统计 */}
+      <FilterTabs
+        tabs={filterTabs}
+        summary={`显示 1 到 5 / 总 ${skuRows.length} 条`}
+      />
 
-      {/* Table + Quick Preview */}
+      {/* 4. DataTable + QuickPreview */}
       <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <DataTable
@@ -109,47 +96,24 @@ export default function SKUWorkbenchPage() {
           />
         </div>
 
-        {/* Quick Preview */}
+        {/* 5. QuickPreview 侧边预览面板 */}
         {selectedRow && (
-          <div style={{
-            width: 280,
-            background: '#FFFFFF',
-            borderLeft: '1px solid #E0DDD8',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            overflowY: 'auto',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-display-family), sans-serif' }}>
-                快速预览
-              </h3>
-              <button onClick={() => setSelectedRow(null)} style={{
-                border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 16, color: '#888',
-              }}>×</button>
-            </div>
-            <div style={{ fontFamily: 'var(--font-display-family), sans-serif', fontSize: 16, fontWeight: 700 }}>
-              {selectedRow.code}
-            </div>
-            <div style={{ fontSize: 13, color: '#666' }}>{selectedRow.name}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                ['分类', selectedRow.category],
-                ['实物库存', selectedRow.stock],
-                ['安全库存', selectedRow.minStock],
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                  <span style={{ color: '#888' }}>{label}</span>
-                  <span style={{ fontWeight: 600 }}>{value || '—'}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <ActionButton label="导入库" tone="primary" />
-              <ActionButton label="查看" tone="secondary" />
-            </div>
-          </div>
+          <QuickPreview
+            heading={selectedRow.code}
+            subheading={selectedRow.name}
+            fields={[
+              { label: '分类', value: selectedRow.category },
+              { label: '实物库存', value: selectedRow.stock },
+              { label: '安全库存', value: selectedRow.minStock },
+            ]}
+            onClose={() => setSelectedRow(null)}
+            actions={
+              <>
+                <ActionButton label="入库" tone="primary" />
+                <ActionButton label="查看" tone="secondary" />
+              </>
+            }
+          />
         )}
       </div>
     </div>

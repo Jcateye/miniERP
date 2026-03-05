@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutGrid,
   Package,
+  ShoppingCart,
+  Truck,
+  Warehouse,
   Settings,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -14,6 +17,9 @@ import { primaryNav, type PrimaryRouteItem } from '@/lib/navigation/route-manife
 const navIconMap: Record<PrimaryRouteItem['icon'], ComponentType<{ size?: number; color?: string }>> = {
   dashboard: LayoutGrid,
   sku: Package,
+  purchasing: ShoppingCart,
+  sales: Truck,
+  inventory: Warehouse,
   settings: Settings,
 };
 

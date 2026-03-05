@@ -1,7 +1,7 @@
 export type PrimaryRouteItem = {
   label: string;
   href: string;
-  icon: 'dashboard' | 'sku' | 'settings';
+  icon: 'dashboard' | 'sku' | 'purchasing' | 'sales' | 'inventory' | 'settings';
 };
 
 export type SecondaryRouteItem = {
@@ -19,6 +19,9 @@ export type RouteGroup = {
 export const primaryNav: PrimaryRouteItem[] = [
   { label: '工作台', href: '/', icon: 'dashboard' },
   { label: 'SKU 管理', href: '/skus', icon: 'sku' },
+  { label: '采购管理', href: '/purchasing', icon: 'purchasing' },
+  { label: '销售出入库', href: '/sales', icon: 'sales' },
+  { label: '库存中心', href: '/inventory', icon: 'inventory' },
   { label: '设置', href: '/settings', icon: 'settings' },
 ];
 
