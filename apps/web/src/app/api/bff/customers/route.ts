@@ -1,55 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import type { CreateCustomerCommand } from '@minierp/shared';
+
 import {
   buildBackendUrl,
   createServerHeaders,
-  isFixtureFallbackEnabled,
-  toFixtureFallbackDisabledResponse,
   toUpstreamErrorResponse,
+  toUpstreamUnavailableResponse,
 } from '@/lib/bff/server-fixtures';
 
-// Fixture data for development/test
-const customerFixtures = [
-  {
-    id: 'cust_001',
-    tenantId: '1001',
-    code: 'CUST-A',
-    name: '客户A',
-    contactPerson: '周八',
-    contactPhone: '137-0000-0001',
-    email: 'customerA@example.com',
-    address: '北京市朝阳区建国路88号',
-    isActive: true,
-    createdAt: '2026-02-01T08:00:00.000Z',
-    updatedAt: '2026-02-01T08:00:00.000Z',
-  },
-  {
-    id: 'cust_002',
-    tenantId: '1001',
-    code: 'CUST-B',
-    name: '客户B',
-    contactPerson: '吴九',
-    contactPhone: '137-0000-0002',
-    email: 'customerB@example.com',
-    address: '广州市天河区珠江新城',
-    isActive: true,
-    createdAt: '2026-02-10T09:00:00.000Z',
-    updatedAt: '2026-02-10T09:00:00.000Z',
-  },
-  {
-    id: 'cust_003',
-    tenantId: '1001',
-    code: 'CUST-C',
-    name: '客户C',
-    contactPerson: '郑十',
-    contactPhone: '137-0000-0003',
-    email: 'customerC@example.com',
-    address: '成都市高新区天府大道',
-    isActive: true,
-    createdAt: '2026-02-15T10:00:00.000Z',
-    updatedAt: '2026-02-15T10:00:00.000Z',
-  },
-];
+function isOptionalNullableString(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === 'string';
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function normalizeOptionalNullableString(value: string | null | undefined): string | null | undefined {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function parseCreateCustomerCommand(
+  payload: unknown,
+):
+  | { readonly ok: true; readonly data: CreateCustomerCommand }
+  | { readonly ok: false; readonly message: string } {
+  if (typeof payload !== 'object' || payload === null) {
+    return { ok: false, message: 'Request body must be an object' };
+  }
+
+  const candidate = payload as Record<string, unknown>;
+
+  if (!isNonEmptyString(candidate.code)) {
+    return { ok: false, message: 'code is required' };
+  }
+
+  if (!isNonEmptyString(candidate.name)) {
+    return { ok: false, message: 'name is required' };
+  }
+
+  if (!isOptionalNullableString(candidate.contactPerson)) {
+    return { ok: false, message: 'contactPerson must be string or null' };
+  }
+
+  if (!isOptionalNullableString(candidate.contactPhone)) {
+    return { ok: false, message: 'contactPhone must be string or null' };
+  }
+
+  if (!isOptionalNullableString(candidate.email)) {
+    return { ok: false, message: 'email must be string or null' };
+  }
+
+  if (!isOptionalNullableString(candidate.address)) {
+    return { ok: false, message: 'address must be string or null' };
+  }
+
+  return {
+    ok: true,
+    data: {
+      code: candidate.code.trim(),
+      name: candidate.name.trim(),
+      contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
+      contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
+      email: normalizeOptionalNullableString(candidate.email),
+      address: normalizeOptionalNullableString(candidate.address),
+    },
+  };
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -64,34 +87,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(await response.json());
     }
 
-    if (!isFixtureFallbackEnabled()) {
-      return toFixtureFallbackDisabledResponse('Backend customers list is unavailable in current environment');
-    }
+    return toUpstreamErrorResponse(response);
   } catch {
-    if (!isFixtureFallbackEnabled()) {
-      return toFixtureFallbackDisabledResponse('Backend customers list is unavailable in current environment');
-    }
+    return toUpstreamUnavailableResponse('Backend customers list is unavailable');
   }
-
-  // Fixture fallback
-  const isActive = searchParams.get('isActive');
-  let data = customerFixtures;
-
-  if (isActive !== null) {
-    const isActiveBool = isActive === 'true';
-    data = data.filter((c) => c.isActive === isActiveBool);
-  }
-
-  return NextResponse.json({ data, total: data.length });
 }
 
 export async function POST(request: NextRequest) {
+  let payload: unknown;
+
   try {
-    const body = await request.json();
+    payload = await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_JSON',
+          category: 'validation',
+          message: 'Request body must be valid JSON',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const parsed = parseCreateCustomerCommand(payload);
+  if (!parsed.ok) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_PAYLOAD',
+          category: 'validation',
+          message: parsed.message,
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
     const response = await fetch(buildBackendUrl('/customers'), {
       method: 'POST',
       headers: createServerHeaders(),
-      body: JSON.stringify(body),
+      body: JSON.stringify(parsed.data),
       cache: 'no-store',
     });
 
@@ -100,28 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     return toUpstreamErrorResponse(response);
-  } catch (error) {
-    if (!isFixtureFallbackEnabled()) {
-      return toFixtureFallbackDisabledResponse('Backend customers create is unavailable in current environment');
-    }
-
-    // Fixture fallback - simulate creation
-    const body = await request.json().catch(() => ({}));
-    const now = new Date().toISOString();
-    const newCustomer = {
-      id: `cust_${Date.now()}`,
-      tenantId: '1001',
-      code: body.code ?? 'CUST-NEW',
-      name: body.name ?? '新客户',
-      contactPerson: body.contactPerson ?? null,
-      contactPhone: body.contactPhone ?? null,
-      email: body.email ?? null,
-      address: body.address ?? null,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    return NextResponse.json(newCustomer, { status: 201 });
+  } catch {
+    return toUpstreamUnavailableResponse('Backend customers create is unavailable');
   }
 }
