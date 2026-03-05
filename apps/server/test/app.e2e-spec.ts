@@ -239,7 +239,7 @@ describe('Server foundation (e2e)', () => {
   let redisProbeServer: net.Server | undefined;
   let envSnapshot: EnvSnapshot;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     envSnapshot = snapshotEnv();
 
     const { databaseProbe, redisProbe } = await startProbePair();
@@ -268,7 +268,7 @@ describe('Server foundation (e2e)', () => {
       if (cleanupErrors.length > 0) {
         throw new AggregateError(
           [error, ...cleanupErrors],
-          'beforeEach failed with cleanup errors',
+          'beforeAll failed with cleanup errors',
         );
       }
 
@@ -276,7 +276,7 @@ describe('Server foundation (e2e)', () => {
     }
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     const cleanupResults = await Promise.allSettled([
       app ? app.close() : Promise.resolve(),
       stopProbeServer(databaseProbeServer),
@@ -290,7 +290,7 @@ describe('Server foundation (e2e)', () => {
 
     const cleanupErrors = extractRejectedReasons(cleanupResults);
     if (cleanupErrors.length > 0) {
-      throw new AggregateError(cleanupErrors, 'afterEach cleanup failed');
+      throw new AggregateError(cleanupErrors, 'afterAll cleanup failed');
     }
   });
 
