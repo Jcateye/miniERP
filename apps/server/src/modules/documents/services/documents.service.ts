@@ -1,4 +1,9 @@
-import { Injectable, Optional, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  Optional,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import Decimal from 'decimal.js';
 import {
   type CoreDocumentStatus,
@@ -257,7 +262,9 @@ export class DocumentsService {
     }
 
     const allDocs = Array.from(this.documents.values())
-      .filter((doc) => doc.tenantId === tenantId && doc.docType === query.docType)
+      .filter(
+        (doc) => doc.tenantId === tenantId && doc.docType === query.docType,
+      )
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     const page = query.page ?? 1;
@@ -465,7 +472,10 @@ export class DocumentsService {
     }
   }
 
-  private toCoreStatus(status: string, docType: CoreDocumentType): CoreDocumentStatus {
+  private toCoreStatus(
+    status: string,
+    docType: CoreDocumentType,
+  ): CoreDocumentStatus {
     if (!isCoreDocumentStatus(status)) {
       throw new Error(`Invalid persisted status for ${docType}: ${status}`);
     }
@@ -595,7 +605,9 @@ export class DocumentsService {
     }
 
     const [total, rows] = await Promise.all([
-      this.prisma.grn.count({ where: { tenantId: tenantDbId, deletedAt: null } }),
+      this.prisma.grn.count({
+        where: { tenantId: tenantDbId, deletedAt: null },
+      }),
       this.prisma.grn.findMany({
         where: { tenantId: tenantDbId, deletedAt: null },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -663,7 +675,12 @@ export class DocumentsService {
       });
 
       return {
-        ...this.mapPersistedHeaderToListItem(header, 'PO', tenantId, lines.length),
+        ...this.mapPersistedHeaderToListItem(
+          header,
+          'PO',
+          tenantId,
+          lines.length,
+        ),
         lines: lines.map((line) => this.toDocumentLine(header.id, line)),
       };
     }
@@ -682,7 +699,12 @@ export class DocumentsService {
     });
 
     return {
-      ...this.mapPersistedHeaderToListItem(header, 'GRN', tenantId, lines.length),
+      ...this.mapPersistedHeaderToListItem(
+        header,
+        'GRN',
+        tenantId,
+        lines.length,
+      ),
       lines: lines.map((line) => this.toDocumentLine(header.id, line)),
     };
   }
@@ -740,7 +762,11 @@ export class DocumentsService {
           entityId: id,
           result: 'deny',
           reason: 'INVALID_STATUS_TRANSITION',
-          metadata: { docType, fromStatus: previousStatus, toStatus: targetStatus },
+          metadata: {
+            docType,
+            fromStatus: previousStatus,
+            toStatus: targetStatus,
+          },
         });
         throw error;
       }
@@ -759,7 +785,10 @@ export class DocumentsService {
       });
 
       if (updateResult.count === 0) {
-        throw new InvalidStatusTransitionError(attempt, getAllowedNextStatuses(docType, previousStatus));
+        throw new InvalidStatusTransitionError(
+          attempt,
+          getAllowedNextStatuses(docType, previousStatus),
+        );
       }
 
       await this.prisma.stateTransitionLog.create({
@@ -834,7 +863,11 @@ export class DocumentsService {
         entityId: id,
         result: 'deny',
         reason: 'INVALID_STATUS_TRANSITION',
-        metadata: { docType, fromStatus: previousStatus, toStatus: targetStatus },
+        metadata: {
+          docType,
+          fromStatus: previousStatus,
+          toStatus: targetStatus,
+        },
       });
       throw error;
     }
@@ -850,43 +883,82 @@ export class DocumentsService {
 
       await this.validateGrnPrePost(tenantDbId, doc, lines);
 
-      const inventoryResult = await this.inventoryPostingService.post(
-        tenantId,
-        {
-          idempotencyKey,
-          referenceType: 'GRN',
-          referenceId: id,
-          lines: lines.map((line) => {
-            const qty = new Decimal(line.qty.toString());
-            return {
-              skuId: line.skuId.toString(),
-              warehouseId: doc.warehouseId!.toString(),
-              quantityDelta: qty.toNumber(),
-            };
-          }),
+      const prePostUpdateResult = await this.prisma.grn.updateMany({
+        where: {
+          tenantId: tenantDbId,
+          id: doc.id,
+          status: previousStatus,
+          deletedAt: null,
         },
-        requestId,
-      );
+        data: {
+          status: targetStatus,
+          updatedBy: actorId,
+        },
+      });
 
-      inventoryPosted = true;
-      ledgerEntryIds = inventoryResult.ledgerEntries.map((entry) => entry.id);
-    }
+      if (prePostUpdateResult.count === 0) {
+        throw new InvalidStatusTransitionError(
+          attempt,
+          getAllowedNextStatuses(docType, previousStatus),
+        );
+      }
 
-    const updateResult = await this.prisma.grn.updateMany({
-      where: {
-        tenantId: tenantDbId,
-        id: doc.id,
-        status: previousStatus,
-        deletedAt: null,
-      },
-      data: {
-        status: targetStatus,
-        updatedBy: actorId,
-      },
-    });
+      try {
+        const inventoryResult = await this.inventoryPostingService.post(
+          tenantId,
+          {
+            idempotencyKey,
+            referenceType: 'GRN',
+            referenceId: id,
+            lines: lines.map((line) => {
+              const qty = new Decimal(line.qty.toString());
+              return {
+                skuId: line.skuId.toString(),
+                warehouseId: doc.warehouseId!.toString(),
+                quantityDelta: qty.toNumber(),
+              };
+            }),
+          },
+          requestId,
+        );
 
-    if (updateResult.count === 0) {
-      throw new InvalidStatusTransitionError(attempt, getAllowedNextStatuses(docType, previousStatus));
+        inventoryPosted = true;
+        ledgerEntryIds = inventoryResult.ledgerEntries.map((entry) => entry.id);
+      } catch (error) {
+        await this.prisma.grn.updateMany({
+          where: {
+            tenantId: tenantDbId,
+            id: doc.id,
+            status: targetStatus,
+            deletedAt: null,
+          },
+          data: {
+            status: previousStatus,
+            updatedBy: actorId,
+          },
+        });
+        throw error;
+      }
+    } else {
+      const updateResult = await this.prisma.grn.updateMany({
+        where: {
+          tenantId: tenantDbId,
+          id: doc.id,
+          status: previousStatus,
+          deletedAt: null,
+        },
+        data: {
+          status: targetStatus,
+          updatedBy: actorId,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new InvalidStatusTransitionError(
+          attempt,
+          getAllowedNextStatuses(docType, previousStatus),
+        );
+      }
     }
 
     await this.prisma.stateTransitionLog.create({
@@ -932,7 +1004,12 @@ export class DocumentsService {
 
   private async validateGrnPrePost(
     tenantDbId: bigint,
-    grn: { id: bigint; poId: bigint | null; warehouseId: bigint | null; docNo: string },
+    grn: {
+      id: bigint;
+      poId: bigint | null;
+      warehouseId: bigint | null;
+      docNo: string;
+    },
     lines: Array<{
       lineNo: number;
       skuId: bigint;
@@ -1047,7 +1124,8 @@ export class DocumentsService {
     const poQtyBySku = new Map<string, Decimal>();
     for (const line of poLines) {
       const key = line.skuId.toString();
-      poQtyBySku.set(key, new Decimal(line.qty.toString()));
+      const current = poQtyBySku.get(key) ?? new Decimal(0);
+      poQtyBySku.set(key, current.add(line.qty.toString()));
     }
 
     const grnQtyBySku = new Map<string, Decimal>();

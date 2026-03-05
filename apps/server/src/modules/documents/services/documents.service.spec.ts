@@ -35,7 +35,9 @@ describe('DocumentsService', () => {
 
     service = module.get<DocumentsService>(DocumentsService);
     auditService = module.get<AuditService>(AuditService);
-    inventoryPostingService = module.get<InventoryPostingService>(InventoryPostingService);
+    inventoryPostingService = module.get<InventoryPostingService>(
+      InventoryPostingService,
+    );
   });
 
   afterEach(() => {
@@ -294,6 +296,155 @@ describe('DocumentsService', () => {
           reason: 'INVALID_STATUS_TRANSITION',
         }),
       );
+    });
+  });
+
+  describe('executeAction (persistent GRN post)', () => {
+    const decimalLike = (value: string) => ({
+      toString: () => value,
+    });
+
+    const mockPrisma = {
+      tenant: {
+        findFirst: jest.fn(),
+      },
+      grn: {
+        findFirst: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      grnLine: {
+        findMany: jest.fn(),
+      },
+      purchaseOrder: {
+        findFirst: jest.fn(),
+      },
+      purchaseOrderLine: {
+        findMany: jest.fn(),
+      },
+      stateTransitionLog: {
+        create: jest.fn(),
+      },
+    };
+
+    let persistentService: DocumentsService;
+
+    beforeEach(() => {
+      persistentService = new DocumentsService(
+        mockAuditService as unknown as AuditService,
+        mockInventoryPostingService as unknown as InventoryPostingService,
+        mockPrisma as never,
+      );
+
+      mockPrisma.tenant.findFirst.mockResolvedValue({ id: BigInt(1001) });
+      mockPrisma.grn.findFirst.mockResolvedValue({
+        id: BigInt(3001),
+        status: 'validating',
+        warehouseId: BigInt(2001),
+        poId: BigInt(4001),
+        docNo: 'DOC-GRN-20260305-001',
+        deletedAt: null,
+      });
+      mockPrisma.grnLine.findMany.mockResolvedValue([
+        { lineNo: 1, skuId: BigInt(9001), qty: decimalLike('3') },
+      ]);
+      mockPrisma.purchaseOrder.findFirst.mockResolvedValue({
+        id: BigInt(4001),
+        docNo: 'DOC-PO-20260305-001',
+        status: 'confirmed',
+      });
+      mockPrisma.purchaseOrderLine.findMany.mockResolvedValue([
+        { skuId: BigInt(9001), qty: decimalLike('3') },
+      ]);
+      mockPrisma.grn.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.stateTransitionLog.create.mockResolvedValue({ id: BigInt(1) });
+      mockInventoryPostingService.post.mockResolvedValue({
+        ledgerEntries: [{ id: 'ledger-001' }],
+        balanceSnapshots: [],
+      });
+    });
+
+    it('should fail before inventory posting when GRN status CAS is lost', async () => {
+      mockPrisma.grn.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        persistentService.executeAction(
+          'GRN',
+          '3001',
+          'post',
+          'idem-key-grn-persistent-cas-fail',
+          '1001',
+          'user-001',
+          'req-001',
+        ),
+      ).rejects.toThrow(InvalidStatusTransitionError);
+
+      expect(mockInventoryPostingService.post).not.toHaveBeenCalled();
+      expect(mockPrisma.stateTransitionLog.create).not.toHaveBeenCalled();
+    });
+
+    it('should rollback GRN status when inventory posting fails after status claim', async () => {
+      mockInventoryPostingService.post.mockRejectedValueOnce(
+        new Error('inventory unavailable'),
+      );
+
+      await expect(
+        persistentService.executeAction(
+          'GRN',
+          '3001',
+          'post',
+          'idem-key-grn-persistent-post-fail',
+          '1001',
+          'user-001',
+          'req-001',
+        ),
+      ).rejects.toThrow('inventory unavailable');
+
+      expect(mockPrisma.grn.updateMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          tenantId: BigInt(1001),
+          id: BigInt(3001),
+          status: 'validating',
+          deletedAt: null,
+        },
+        data: {
+          status: 'posted',
+          updatedBy: 'user-001',
+        },
+      });
+      expect(mockPrisma.grn.updateMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          tenantId: BigInt(1001),
+          id: BigInt(3001),
+          status: 'posted',
+          deletedAt: null,
+        },
+        data: {
+          status: 'validating',
+          updatedBy: 'user-001',
+        },
+      });
+      expect(mockPrisma.stateTransitionLog.create).not.toHaveBeenCalled();
+    });
+
+    it('should aggregate duplicated SKU quantities from PO lines before GRN validation', async () => {
+      mockPrisma.purchaseOrderLine.findMany.mockResolvedValueOnce([
+        { skuId: BigInt(9001), qty: decimalLike('1') },
+        { skuId: BigInt(9001), qty: decimalLike('2') },
+      ]);
+
+      const result = await persistentService.executeAction(
+        'GRN',
+        '3001',
+        'post',
+        'idem-key-grn-persistent-po-aggregate',
+        '1001',
+        'user-001',
+        'req-001',
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockInventoryPostingService.post).toHaveBeenCalled();
+      expect(mockPrisma.stateTransitionLog.create).toHaveBeenCalled();
     });
   });
 });
