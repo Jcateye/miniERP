@@ -5,6 +5,7 @@ export const CORE_DOCUMENT_MODULES = [
   'inbound',
   'sales',
   'outbound',
+  'stocktake',
 ] as const;
 
 export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT', 'ADJ'] as const;
@@ -170,6 +171,19 @@ const MODULE_BOUNDARIES: Readonly<
       'cancelOutboundOrder',
     ],
     queries: ['getOutboundOrder', 'listOutboundOrders'],
+  },
+  stocktake: {
+    module: 'stocktake',
+    entityType: 'ADJ',
+    initialStatus: 'draft',
+    statuses: ['draft', 'validating', 'posted', 'cancelled'],
+    commands: [
+      'createStocktakeAdjustment',
+      'startStocktakeValidation',
+      'postStocktakeAdjustment',
+      'cancelStocktakeAdjustment',
+    ],
+    queries: ['getStocktakeAdjustment', 'listStocktakeAdjustments'],
   },
 };
 

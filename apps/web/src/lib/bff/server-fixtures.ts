@@ -199,18 +199,45 @@ export function toFixtureFallbackDisabledResponse(message: string) {
 
 export async function toUpstreamErrorResponse(response: Response) {
   const contentType = response.headers.get('content-type') ?? '';
-  const body = contentType.includes('application/json')
-    ? await response.json()
-    : {
+  const isClientError = response.status >= 400 && response.status < 500;
+
+  if (contentType.includes('application/json')) {
+    const upstreamBody = await response.json();
+
+    if (isClientError) {
+      return Response.json(upstreamBody, {
+        status: response.status,
+      });
+    }
+
+    return Response.json(
+      {
         error: {
           code: 'BFF_UPSTREAM_ERROR',
-          message: await response.text(),
+          message: 'Upstream service temporarily unavailable',
         },
-      };
+      },
+      {
+        status: response.status,
+      },
+    );
+  }
 
-  return Response.json(body, {
-    status: response.status,
-  });
+  const fallbackMessage = isClientError
+    ? 'Upstream request rejected'
+    : 'Upstream service temporarily unavailable';
+
+  return Response.json(
+    {
+      error: {
+        code: 'BFF_UPSTREAM_ERROR',
+        message: fallbackMessage,
+      },
+    },
+    {
+      status: response.status,
+    },
+  );
 }
 
 export function toUpstreamUnavailableResponse(message: string) {

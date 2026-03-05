@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { label: '采购概览', href: '/purchasing/overview' },
   { label: 'GRN 工作台', href: '/purchasing/grn' },
   { label: '销售概览', href: '/sales/overview' },
+  { label: '报价工作台', href: '/sales/quotations' },
   { label: 'OUT 工作台', href: '/sales/out' },
   { label: '库存查询', href: '/inventory' },
   { label: '盘点工作台', href: '/stocktake' },

@@ -23,6 +23,22 @@ describe('status-transition', () => {
     });
   });
 
+  it('returns stocktake boundary with adjustment contracts', () => {
+    expect(getDocumentModuleBoundary('stocktake')).toEqual({
+      module: 'stocktake',
+      entityType: 'ADJ',
+      initialStatus: 'draft',
+      statuses: ['draft', 'validating', 'posted', 'cancelled'],
+      commands: [
+        'createStocktakeAdjustment',
+        'startStocktakeValidation',
+        'postStocktakeAdjustment',
+        'cancelStocktakeAdjustment',
+      ],
+      queries: ['getStocktakeAdjustment', 'listStocktakeAdjustments'],
+    });
+  });
+
   it('accepts valid purchase, outbound and adjustment transitions', () => {
     expect(
       canTransitionStatus({
