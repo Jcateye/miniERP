@@ -1,12 +1,11 @@
 import { createHmac } from 'node:crypto';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as net from 'node:net';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { createAuthContextMiddleware } from '../src/common/iam/auth-context.middleware';
-import { createTenantContextMiddleware } from '../src/common/tenant/tenant-context.middleware';
+import type { App } from 'supertest/types';
 import { loadAppConfig, type AppConfig } from '../src/config/app.config';
+import { applyAppRuntimeConfig } from '../src/config/runtime-config';
 import { AppModule } from '../src/app.module';
 
 interface ProbeServer {
@@ -188,28 +187,6 @@ async function startProbePair(): Promise<{
   );
 
   return { databaseProbe, redisProbe };
-}
-
-function applyAppRuntimeConfig(app: INestApplication<App>, config: AppConfig): void {
-  app.use(
-    createAuthContextMiddleware({
-      secret: config.authContextSecret,
-      nodeEnv: config.nodeEnv,
-    }),
-  );
-  app.use(createTenantContextMiddleware(config.tenantHeader, config.nodeEnv));
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
-
-  if (config.globalPrefix.length > 0) {
-    app.setGlobalPrefix(config.globalPrefix);
-  }
 }
 
 async function createTestingApp(): Promise<{
