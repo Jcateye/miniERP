@@ -6,6 +6,16 @@
 3. `Stream C(purchase+inbound)` 与 `Stream D(sales+outbound)` 在 B+E 完成后并行。
 4. 最后统一 FE 切真接口并联调验收。
 
+## 当前门禁状态（2026-03-05）
+- `DB-BASELINE-READY` ✅
+- `PLATFORM-READY` ✅
+- `MASTERDATA-READY` ✅
+- `INV-READY` ✅
+- `EVIDENCE-READY` ✅
+- `PUR-IN-READY` ✅
+- `SAL-OUT-READY` ✅
+- `READY-FOR-PARALLEL-DEV` ✅
+
 ## 分工表
 
 | 执行者 | Stream | 开工条件 | 依赖 | 交付标记 |

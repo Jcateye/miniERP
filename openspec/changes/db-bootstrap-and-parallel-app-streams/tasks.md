@@ -1,25 +1,25 @@
 ## 0. 归档与基线治理
 
-- [ ] 0.1 归档历史 active changes，建立单一执行入口。
-- [ ] 0.2 创建本 change 全套 artifacts（proposal/design/specs/tasks）。
-- [ ] 0.3 发布执行门禁标记：`DB-BASELINE-READY`、`PLATFORM-READY`、`MASTERDATA-READY`、`INV-READY`、`EVIDENCE-READY`、`PUR-IN-READY`、`SAL-OUT-READY`、`READY-FOR-PARALLEL-DEV`。
+- [x] 0.1 归档历史 active changes，建立单一执行入口。
+- [x] 0.2 创建本 change 全套 artifacts（proposal/design/specs/tasks）。
+- [x] 0.3 发布执行门禁标记：`DB-BASELINE-READY`、`PLATFORM-READY`、`MASTERDATA-READY`、`INV-READY`、`EVIDENCE-READY`、`PUR-IN-READY`、`SAL-OUT-READY`、`READY-FOR-PARALLEL-DEV`。
 
 ## 1. DB 初始化（先完成）
 
-- [ ] 1.1 新建 `apps/server/prisma/schema.prisma`，覆盖首批全核心表。
-- [ ] 1.2 新建首批 migration（DDL + constraints + indexes）。
-- [ ] 1.3 新建 `apps/server/prisma/seed.ts`（tenant/user/masterdata/PO/GRN/SO/OUT/ledger/evidence）。
-- [ ] 1.4 新建 `apps/server/src/database/prisma.service.ts`。
-- [ ] 1.5 更新 `apps/server/src/database/database.module.ts` 注入 PrismaService。
-- [ ] 1.6 更新 `apps/server/package.json`：`db:generate`、`db:migrate`、`db:seed` 为真实脚本。
-- [ ] 1.7 执行并记录验证：`db:generate`、`db:migrate`、`db:seed`。
-- [ ] 1.8 发布门禁：`DB-BASELINE-READY`。
+- [x] 1.1 新建 `apps/server/prisma/schema.prisma`，覆盖首批全核心表。
+- [x] 1.2 新建首批 migration（DDL + constraints + indexes）。
+- [x] 1.3 新建 `apps/server/prisma/seed.ts`（tenant/user/masterdata/PO/GRN/SO/OUT/ledger/evidence）。
+- [x] 1.4 新建 `apps/server/src/database/prisma.service.ts`。
+- [x] 1.5 更新 `apps/server/src/database/database.module.ts` 注入 PrismaService。
+- [x] 1.6 更新 `apps/server/package.json`：`db:generate`、`db:migrate`、`db:seed` 为真实脚本。
+- [x] 1.7 执行并记录验证：`db:generate`、`db:migrate`、`db:seed`。
+- [x] 1.8 发布门禁：`DB-BASELINE-READY`。
 
 ## 2. Stream A - platform
 
-- [ ] 2.1 对齐 tenant context、auth context、中间件入口。
-- [ ] 2.2 对齐 IAM 权限校验与 audit 记录最小字段。
-- [ ] 2.3 输出交付：`PLATFORM-READY`。
+- [x] 2.1 对齐 tenant context、auth context、中间件入口。
+- [x] 2.2 对齐 IAM 权限校验与 audit 记录最小字段。
+- [x] 2.3 输出交付：`PLATFORM-READY`。
 
 ## 3. Stream B - masterdata
 
@@ -61,6 +61,6 @@
 
 ## 9. 并行开发启动门禁
 
-- [ ] 9.1 验证并行依赖图满足：A+DB 先行，B/E/F 并行，C/D 后置。
-- [ ] 9.2 输出分工表与执行顺序，标记 `READY-FOR-PARALLEL-DEV`。
-- [ ] 9.3 提交 OpenSpec 任务变更并进入并行开发阶段。
+- [x] 9.1 验证并行依赖图满足：A+DB 先行，B/E/F 并行，C/D 后置。
+- [x] 9.2 输出分工表与执行顺序，标记 `READY-FOR-PARALLEL-DEV`。
+- [x] 9.3 提交 OpenSpec 任务变更并进入并行开发阶段。
