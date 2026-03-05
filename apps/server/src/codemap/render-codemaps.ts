@@ -19,7 +19,10 @@ function freshnessLine(timestampIso: string): string {
   return `- Freshness: ${timestampIso}`;
 }
 
-function takeLimited(values: readonly string[], limit: number): readonly string[] {
+function takeLimited(
+  values: readonly string[],
+  limit: number,
+): readonly string[] {
   if (values.length <= limit) {
     return values;
   }
@@ -33,7 +36,9 @@ function createLines(values: readonly string[]): string {
   return values.map((value) => `- ${value}`).join('\n');
 }
 
-function buildModuleSummary(nodes: readonly SourceGraphNode[]): readonly string[] {
+function buildModuleSummary(
+  nodes: readonly SourceGraphNode[],
+): readonly string[] {
   const grouped = nodes.reduce<Record<string, number>>((acc, node) => {
     const directory = node.filePath.split('/').slice(0, 3).join('/');
     const current = acc[directory] ?? 0;
@@ -55,15 +60,21 @@ function buildModuleSummary(nodes: readonly SourceGraphNode[]): readonly string[
     });
 }
 
-function buildImportEdges(nodes: readonly SourceGraphNode[]): readonly string[] {
+function buildImportEdges(
+  nodes: readonly SourceGraphNode[],
+): readonly string[] {
   const edges = nodes.flatMap((node) =>
-    node.internalImports.map((importPath) => `${node.filePath} -> ${importPath}`),
+    node.internalImports.map(
+      (importPath) => `${node.filePath} -> ${importPath}`,
+    ),
   );
 
   return [...new Set(edges)].sort((left, right) => left.localeCompare(right));
 }
 
-function buildExternalDeps(nodes: readonly SourceGraphNode[]): readonly string[] {
+function buildExternalDeps(
+  nodes: readonly SourceGraphNode[],
+): readonly string[] {
   const deps = nodes.flatMap((node) => node.externalImports);
   return [...new Set(deps)].sort((left, right) => left.localeCompare(right));
 }
@@ -125,17 +136,23 @@ function isDataRelatedNode(node: SourceGraphNode): boolean {
   }
 
   if (node.scope === 'shared') {
-    return node.filePath.includes('/contracts/') || node.filePath.includes('/types/');
+    return (
+      node.filePath.includes('/contracts/') || node.filePath.includes('/types/')
+    );
   }
 
   return false;
 }
 
 function buildDataMap(graph: SourceGraph): string {
-  const dataRelatedNodes = graph.nodes.filter((node) => isDataRelatedNode(node));
+  const dataRelatedNodes = graph.nodes.filter((node) =>
+    isDataRelatedNode(node),
+  );
 
   const exportedSymbols = dataRelatedNodes
-    .flatMap((node) => node.exportNames.map((symbol) => `${node.filePath}#${symbol}`))
+    .flatMap((node) =>
+      node.exportNames.map((symbol) => `${node.filePath}#${symbol}`),
+    )
     .sort((left, right) => left.localeCompare(right));
 
   const packageDeps = buildPackageDeps(graph);
@@ -147,7 +164,12 @@ function buildDataMap(graph: SourceGraph): string {
     `- Data-related files: ${dataRelatedNodes.length}`,
     '',
     '## Data modules',
-    createLines(takeLimited(dataRelatedNodes.map((node) => node.filePath), MAX_MODULE_ITEMS)),
+    createLines(
+      takeLimited(
+        dataRelatedNodes.map((node) => node.filePath),
+        MAX_MODULE_ITEMS,
+      ),
+    ),
     dataRelatedNodes.length > MAX_MODULE_ITEMS
       ? `- ...truncated (${dataRelatedNodes.length - MAX_MODULE_ITEMS} more)`
       : '',
@@ -170,9 +192,17 @@ export function renderCodemaps(graph: SourceGraph): RenderedCodemaps {
   const frontendNodes = graph.nodes.filter((node) => node.scope === 'frontend');
 
   return {
-    architecture: buildScopedMap('Architecture codemap', graph.generatedAt, graph.nodes),
+    architecture: buildScopedMap(
+      'Architecture codemap',
+      graph.generatedAt,
+      graph.nodes,
+    ),
     backend: buildScopedMap('Backend codemap', graph.generatedAt, backendNodes),
-    frontend: buildScopedMap('Frontend codemap', graph.generatedAt, frontendNodes),
+    frontend: buildScopedMap(
+      'Frontend codemap',
+      graph.generatedAt,
+      frontendNodes,
+    ),
     data: buildDataMap(graph),
   };
 }

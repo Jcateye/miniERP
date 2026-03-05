@@ -92,7 +92,10 @@ describe('tenantContextMiddleware', () => {
   });
 
   it('bypasses tenant requirement for swagger docs endpoint in development', () => {
-    const middleware = createTenantContextMiddleware('x-tenant-id', 'development');
+    const middleware = createTenantContextMiddleware(
+      'x-tenant-id',
+      'development',
+    );
     const request = createRequest({}, '/api/docs');
     const { response, status } = createResponse();
     const next = jest.fn() as NextFunction;
@@ -104,7 +107,10 @@ describe('tenantContextMiddleware', () => {
   });
 
   it('does not bypass tenant requirement for swagger docs endpoint in production', () => {
-    const middleware = createTenantContextMiddleware('x-tenant-id', 'production');
+    const middleware = createTenantContextMiddleware(
+      'x-tenant-id',
+      'production',
+    );
     const request = createRequest({}, '/api/docs');
     const { response, status, json } = createResponse();
     const next = jest.fn() as NextFunction;
@@ -119,6 +125,63 @@ describe('tenantContextMiddleware', () => {
       },
     });
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it('returns TENANT_MISMATCH when header tenant differs from authenticated context', () => {
+    const middleware = createTenantContextMiddleware('x-tenant-id');
+    const request = createRequest({
+      'x-tenant-id': '2002',
+      'x-request-id': 'req-tenant-mismatch',
+    });
+    request.authContext = {
+      tenantId: '1001',
+      actorId: '2002',
+      permissions: ['evidence:link:create'],
+      role: 'tenant_admin',
+    };
+    const { response, status, json } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'TENANT_MISMATCH',
+        message:
+          'Tenant in authenticated context does not match tenant header',
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('allows tenant mismatch for platform admin role', () => {
+    const middleware = createTenantContextMiddleware('x-tenant-id');
+    const request = createRequest({
+      'x-tenant-id': '2002',
+      'x-request-id': 'req-platform-admin-mismatch',
+    });
+    request.authContext = {
+      tenantId: '1001',
+      actorId: '2002',
+      permissions: ['platform.audit.read'],
+      role: 'platform_admin',
+    };
+    const { response, status } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, () => {
+      const context = tenantContextStorage.getStore();
+      expect(context).toEqual({
+        tenantId: '1001',
+        actorId: '2002',
+        requestId: 'req-platform-admin-mismatch',
+      });
+      next();
+    });
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
   });
 
   it('generates request id when x-request-id is not provided', () => {

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import {
   InventoryAlreadyReversedError,
@@ -74,7 +74,10 @@ const ALLOWED_REFERENCE_TYPES: ReadonlySet<InventoryReferenceType> =
 
 @Injectable()
 export class InventoryPostingService {
-  constructor(private readonly store: InventoryConsistencyStore) {}
+  constructor(
+    @Inject('InventoryConsistencyStore')
+    private readonly store: InventoryConsistencyStore,
+  ) {}
 
   async post(
     tenantId: string,

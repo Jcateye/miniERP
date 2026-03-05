@@ -1,5 +1,14 @@
 import { createServerHeaders, isFixtureFallbackEnabled } from './server-fixtures';
 
+function decodeAuthContext(encoded: string) {
+  return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as {
+    readonly tenantId: string;
+    readonly actorId: string;
+    readonly permissions: readonly string[];
+    readonly role: string;
+  };
+}
+
 describe('server-fixtures environment guards', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalSecret = process.env.AUTH_CONTEXT_SECRET;
@@ -40,5 +49,23 @@ describe('server-fixtures environment guards', () => {
     delete process.env.AUTH_CONTEXT_SECRET;
 
     expect(() => createServerHeaders()).toThrow('AUTH_CONTEXT_SECRET is required outside development/test');
+  });
+
+  it('includes masterdata permissions in auth context', () => {
+    process.env.NODE_ENV = 'test';
+    const headers = createServerHeaders();
+    const encodedContext = headers['x-auth-context'];
+    const authContext = decodeAuthContext(encodedContext);
+
+    expect(authContext.permissions).toEqual(
+      expect.arrayContaining([
+        'masterdata.warehouse.read',
+        'masterdata.warehouse.write',
+        'masterdata.supplier.read',
+        'masterdata.supplier.write',
+        'masterdata.customer.read',
+        'masterdata.customer.write',
+      ]),
+    );
   });
 });

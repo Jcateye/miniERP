@@ -1,12 +1,26 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts']);
-const EXCLUDED_SEGMENTS = new Set(['node_modules', 'dist', '.next', 'coverage']);
+const SOURCE_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mts',
+  '.cts',
+]);
+const EXCLUDED_SEGMENTS = new Set([
+  'node_modules',
+  'dist',
+  '.next',
+  'coverage',
+]);
 const TEST_FILE_PATTERN = /\.(spec|test)\.[cm]?[jt]sx?$/;
 
-const IMPORT_PATTERN = /(?:import\s+(?:type\s+)?(?:[^'";]+\s+from\s+)?|export\s+[^'";]+\s+from\s+|import\s*\()(['"])([^'"\n]+)\1/g;
-const EXPORT_DECL_PATTERN = /export\s+(?:const|let|var|function|class|interface|type|enum)\s+([A-Za-z0-9_]+)/g;
+const IMPORT_PATTERN =
+  /(?:import\s+(?:type\s+)?(?:[^'";]+\s+from\s+)?|export\s+[^'";]+\s+from\s+|import\s*\()(['"])([^'"\n]+)\1/g;
+const EXPORT_DECL_PATTERN =
+  /export\s+(?:const|let|var|function|class|interface|type|enum)\s+([A-Za-z0-9_]+)/g;
 
 export interface SourceGraphNode {
   readonly filePath: string;
@@ -78,7 +92,10 @@ function detectScope(relativePath: string): SourceGraphNode['scope'] | null {
   return null;
 }
 
-function gatherSourceFiles(rootDir: string, includeTestFiles: boolean): readonly string[] {
+function gatherSourceFiles(
+  rootDir: string,
+  includeTestFiles: boolean,
+): readonly string[] {
   const stack = [rootDir];
   const files: string[] = [];
 
@@ -144,7 +161,11 @@ function extractImports(source: string): readonly string[] {
   const imports: string[] = [];
   const matcher = new RegExp(IMPORT_PATTERN);
 
-  for (let match = matcher.exec(source); match !== null; match = matcher.exec(source)) {
+  for (
+    let match = matcher.exec(source);
+    match !== null;
+    match = matcher.exec(source)
+  ) {
     const specifier = match[2]?.trim();
     if (specifier) {
       imports.push(specifier);
@@ -158,7 +179,11 @@ function extractExports(source: string): readonly string[] {
   const exports: string[] = [];
   const matcher = new RegExp(EXPORT_DECL_PATTERN);
 
-  for (let match = matcher.exec(source); match !== null; match = matcher.exec(source)) {
+  for (
+    let match = matcher.exec(source);
+    match !== null;
+    match = matcher.exec(source)
+  ) {
     const exportedName = match[1]?.trim();
     if (exportedName) {
       exports.push(exportedName);
@@ -185,7 +210,9 @@ function normalizeExternalImportSpecifier(importSpecifier: string): string {
   return packageName ?? importSpecifier;
 }
 
-function collectPackageDependencies(rootDir: string): readonly PackageDependencySummary[] {
+function collectPackageDependencies(
+  rootDir: string,
+): readonly PackageDependencySummary[] {
   const packageFiles = [
     path.join(rootDir, 'package.json'),
     path.join(rootDir, 'apps/server/package.json'),
@@ -213,12 +240,13 @@ function collectPackageDependencies(rootDir: string): readonly PackageDependency
       );
     }
 
-    const packageName = parsed.name ?? toPosix(path.relative(rootDir, packageFilePath));
-    const dependencies = Object.keys(parsed.dependencies ?? {}).sort((left, right) =>
-      left.localeCompare(right),
+    const packageName =
+      parsed.name ?? toPosix(path.relative(rootDir, packageFilePath));
+    const dependencies = Object.keys(parsed.dependencies ?? {}).sort(
+      (left, right) => left.localeCompare(right),
     );
-    const devDependencies = Object.keys(parsed.devDependencies ?? {}).sort((left, right) =>
-      left.localeCompare(right),
+    const devDependencies = Object.keys(parsed.devDependencies ?? {}).sort(
+      (left, right) => left.localeCompare(right),
     );
 
     return {
@@ -228,7 +256,9 @@ function collectPackageDependencies(rootDir: string): readonly PackageDependency
     } satisfies PackageDependencySummary;
   });
 
-  return [...summaries].sort((left, right) => left.packageName.localeCompare(right.packageName));
+  return [...summaries].sort((left, right) =>
+    left.packageName.localeCompare(right.packageName),
+  );
 }
 
 export function buildSourceGraph(
@@ -238,12 +268,16 @@ export function buildSourceGraph(
   const includeTestFiles = options.includeTestFiles ?? false;
   const resolvedRoot = normalizeResolvedPath(path.resolve(rootDir));
   const sourceFiles = gatherSourceFiles(resolvedRoot, includeTestFiles);
-  const normalizedFileSet = new Set(sourceFiles.map((filePath) => normalizeResolvedPath(filePath)));
+  const normalizedFileSet = new Set(
+    sourceFiles.map((filePath) => normalizeResolvedPath(filePath)),
+  );
 
   const nodes = sourceFiles
     .map((absoluteFilePath) => {
       const normalizedAbsolutePath = normalizeResolvedPath(absoluteFilePath);
-      const relativePath = toPosix(path.relative(resolvedRoot, normalizedAbsolutePath));
+      const relativePath = toPosix(
+        path.relative(resolvedRoot, normalizedAbsolutePath),
+      );
       const scope = detectScope(relativePath);
       if (!scope) {
         return null;
@@ -255,15 +289,21 @@ export function buildSourceGraph(
 
       const internalImports = imports
         .filter((importSpecifier) => importSpecifier.startsWith('.'))
-        .map((importSpecifier) => tryResolveRelativeImport(normalizedAbsolutePath, importSpecifier))
+        .map((importSpecifier) =>
+          tryResolveRelativeImport(normalizedAbsolutePath, importSpecifier),
+        )
         .filter((resolvedImport): resolvedImport is string =>
           Boolean(resolvedImport && normalizedFileSet.has(resolvedImport)),
         )
-        .map((resolvedImportPath) => toPosix(path.relative(resolvedRoot, resolvedImportPath)));
+        .map((resolvedImportPath) =>
+          toPosix(path.relative(resolvedRoot, resolvedImportPath)),
+        );
 
       const externalImports = imports
         .filter((importSpecifier) => !importSpecifier.startsWith('.'))
-        .map((importSpecifier) => normalizeExternalImportSpecifier(importSpecifier))
+        .map((importSpecifier) =>
+          normalizeExternalImportSpecifier(importSpecifier),
+        )
         .filter((importSpecifier) => importSpecifier.length > 0);
 
       return {
@@ -271,14 +311,14 @@ export function buildSourceGraph(
         scope,
         internalImports: [...new Set(internalImports)].sort((left, right) =>
           left.localeCompare(right),
-        ),
+        ) as readonly string[],
         externalImports: [...new Set(externalImports)].sort((left, right) =>
           left.localeCompare(right),
-        ),
+        ) as readonly string[],
         exportNames,
-      } satisfies SourceGraphNode;
+      };
     })
-    .filter((node): node is SourceGraphNode => Boolean(node))
+    .filter((node): node is NonNullable<typeof node> => node !== null)
     .sort((left, right) => left.filePath.localeCompare(right.filePath));
 
   return {

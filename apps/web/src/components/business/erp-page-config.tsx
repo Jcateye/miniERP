@@ -336,6 +336,12 @@ const outRows: AssemblyRow[] = [
   { id: '5003', href: '/sales/out/5003', docNo: 'DOC-OUT-20260302-006', sourceNo: 'DOC-SO-20260302-011', warehouse: 'SZ-DC-02', qty: '86', amount: '88,740', status: 'draft' },
 ];
 
+const quotationRows: AssemblyRow[] = [
+  { id: '7001', href: '/sales/quotations/7001', docNo: 'DOC-SO-20260303-101', customer: 'Metro Retail', warehouse: 'SZ-DC-01', qty: '100', amount: '49,900', status: 'draft' },
+  { id: '7002', href: '/sales/quotations/7002', docNo: 'DOC-SO-20260303-102', customer: 'Northwind', warehouse: 'HK-TRANSIT', qty: '42', amount: '28,560', status: 'confirmed' },
+  { id: '7003', href: '/sales/quotations/7003', docNo: 'DOC-SO-20260303-103', customer: 'Harbor Tech', warehouse: 'SZ-DC-02', qty: '88', amount: '91,250', status: 'cancelled' },
+];
+
 const stocktakeRows: AssemblyRow[] = [
   { id: '6001', href: '/stocktake/6001', docNo: 'DOC-ADJ-20260303-001', warehouse: 'SZ-DC-01', counted: '62', variance: '-4', owner: 'Cycle Count Team', status: 'reviewed' },
   { id: '6002', href: '/stocktake/6002', docNo: 'DOC-ADJ-20260303-002', warehouse: 'HK-TRANSIT', counted: '31', variance: '+2', owner: 'Transit Team', status: 'counting' },
@@ -501,6 +507,7 @@ export const salesOverviewConfig: OverviewAssemblyConfig = {
     '关注 SO -> OUT 主链路、库存占用与交接凭证。',
     [
       { key: 'so', label: '待确认 SO', value: '2', hint: '高优客户订单', tone: 'info' },
+      { key: 'quo', label: '待确认报价', value: '2', hint: '可一键转 SO', tone: 'warning' },
       { key: 'out', label: '待拣货 OUT', value: '1', hint: '需补交接签收', tone: 'warning' },
       { key: 'fillRate', label: '满足率', value: '98%', hint: '最近 7 天', tone: 'success' },
     ],
@@ -514,6 +521,7 @@ export const salesOverviewConfig: OverviewAssemblyConfig = {
     { title: 'SO-005 待销售确认', description: '客户请求提前发货，需检查库存占用。', tag: 'SO', tone: 'info', href: '/sales/so/4001' },
   ],
   quickActions: [
+    { key: 'quote', label: '报价工作台', href: '/sales/quotations', tone: 'secondary' },
     { key: 'so', label: 'SO 工作台', href: '/sales/so', tone: 'secondary' },
     { key: 'out', label: 'OUT 工作台', href: '/sales/out', tone: 'secondary' },
   ],
@@ -631,6 +639,26 @@ export const soWorkbenchConfig: WorkbenchAssemblyConfig = {
   bulkHint: '支持批量确认、批量释放库存和生成出库单。'
 };
 
+export const quotationWorkbenchConfig: WorkbenchAssemblyConfig = {
+  contract: createWorkbenchContract('/sales/quotations', '报价工作台', '报价确认、客户沟通与转 SO 入口。', createTag('Quotation Queue', 'warning'), { key: 'new-quotation', label: '新建报价', href: '/sales/quotations/new', tone: 'primary' }, [{ key: 'overview', label: '销售概览', href: '/sales/overview', tone: 'secondary' }]),
+  docType: 'SO',
+  rows: quotationRows,
+  columns: [
+    { key: 'docNo', label: '报价单号', type: 'link' },
+    { key: 'customer', label: '客户' },
+    { key: 'warehouse', label: '仓库' },
+    { key: 'qty', label: '数量' },
+    { key: 'amount', label: '金额' },
+    { key: 'status', label: '状态', type: 'badge', toneMap: { draft: 'warning', confirmed: 'success', cancelled: 'danger' } },
+  ],
+  drawerFields: [
+    { label: '客户', key: 'customer' },
+    { label: '发货仓', key: 'warehouse' },
+    { label: '报价金额', key: 'amount' },
+  ],
+  bulkHint: '支持批量确认报价、导出 PDF 和一键转 SO。'
+};
+
 export const outWorkbenchConfig: WorkbenchAssemblyConfig = {
   contract: createWorkbenchContract('/sales/out', 'OUT 工作台', '出库拣货、交接签收与发运证据追溯入口。', createTag('Handover Required', 'warning'), { key: 'new-out', label: '新建 OUT', href: '/sales/out/new', tone: 'primary' }, [{ key: 'overview', label: '销售概览', href: '/sales/overview', tone: 'secondary' }]),
   docType: 'OUT',
@@ -721,6 +749,7 @@ export const inventoryReorderConfig: WorkbenchAssemblyConfig = {
 
 export const stocktakeWorkbenchConfig: WorkbenchAssemblyConfig = {
   contract: createWorkbenchContract('/stocktake', '盘点工作台', '盘点任务、差异复核与调整发布入口。', createTag('Stocktake', 'warning'), { key: 'new-stocktake', label: '新建盘点', href: '/stocktake/new', tone: 'primary' }),
+  docType: 'ADJ',
   rows: stocktakeRows,
   columns: [
     { key: 'docNo', label: '盘点单号', type: 'link' },
@@ -807,6 +836,13 @@ export const soDetailConfig: DetailAssemblyConfig = {
   record: createDetailRecord('4001', 'SO 详情', 'DOC-SO-20260303-005', '销售负责人', 'so'),
 };
 
+export const quotationDetailConfig: DetailAssemblyConfig = {
+  contract: createDetailContract('/sales/quotations/[id]', '报价详情', '报价条款、客户确认与转 SO 准备。', createTag('待确认', 'warning'), { key: 'convert', label: '转 SO 草稿', href: '/sales/so/new', tone: 'primary' }),
+  docType: 'SO',
+  entityType: 'so',
+  record: createDetailRecord('7001', '报价详情', 'DOC-SO-20260303-101', '销售负责人', 'so'),
+};
+
 export const outDetailConfig: DetailAssemblyConfig = {
   contract: createDetailContract('/sales/out/[id]', 'OUT 详情', '出库拣货、交接签收与物流追溯。', createTag('拣货中', 'warning'), { key: 'handover', label: '补交接凭证', tone: 'primary' }),
   docType: 'OUT',
@@ -816,6 +852,7 @@ export const outDetailConfig: DetailAssemblyConfig = {
 
 export const stocktakeDetailConfig: DetailAssemblyConfig = {
   contract: createDetailContract('/stocktake/[id]', '盘点详情', '盘点差异、复核与调整凭证。', createTag('待复核', 'warning'), { key: 'review', label: '复核并调整', tone: 'primary' }),
+  docType: 'ADJ',
   entityType: 'stocktake',
   record: createDetailRecord('6001', '盘点详情', 'DOC-ADJ-20260303-001', '盘点负责人', 'stocktake'),
 };
@@ -933,6 +970,35 @@ export const soWizardConfig: WizardAssemblyConfig = {
   lineEvidence: {
     '1': evidenceCollection('so', '4001', 'line', '样品确认', '1'),
     '2': evidenceCollection('so', '4001', 'line', '规格确认', '2'),
+  },
+};
+
+export const quotationWizardConfig: WizardAssemblyConfig = {
+  contract: createWizardContract('/sales/quotations/new', '新建报价', '创建报价单、录入条款并准备转 SO。', createTag('报价创建', 'warning'), { key: 'submit', label: '提交报价', tone: 'primary' }),
+  entityType: 'so',
+  headerGroups: [
+    {
+      key: 'base',
+      title: '基础信息',
+      fields: [
+        { key: 'customer', label: '客户', value: 'Metro Retail' },
+        { key: 'warehouse', label: '发货仓', value: 'SZ-DC-01' },
+        { key: 'currency', label: '币种', value: 'CNY' },
+        { key: 'owner', label: '销售负责人', value: '赵宁' },
+      ],
+    },
+  ],
+  rows: [
+    { id: '1', sku: 'CAB-HDMI-2M', expected: '100', price: '499', amount: '49,900', status: 'draft' },
+    { id: '2', sku: 'ADP-USB-C-DP', expected: '24', price: '1,299', amount: '31,176', status: 'draft' },
+  ],
+  alerts: ['报价提交前需确认税率、交期与有效期。'],
+  summaryNotes: ['确认后可一键转 SO 草稿。'],
+  documentEvidence: evidenceCollection('so', '7001', 'document', '报价附件'),
+  lineEvidenceContexts,
+  lineEvidence: {
+    '1': evidenceCollection('so', '7001', 'line', '报价条款附件', '1'),
+    '2': evidenceCollection('so', '7001', 'line', '规格确认', '2'),
   },
 };
 

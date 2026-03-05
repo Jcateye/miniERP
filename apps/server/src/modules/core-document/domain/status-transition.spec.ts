@@ -23,7 +23,23 @@ describe('status-transition', () => {
     });
   });
 
-  it('accepts valid purchase and outbound transitions', () => {
+  it('returns stocktake boundary with adjustment contracts', () => {
+    expect(getDocumentModuleBoundary('stocktake')).toEqual({
+      module: 'stocktake',
+      entityType: 'ADJ',
+      initialStatus: 'draft',
+      statuses: ['draft', 'validating', 'posted', 'cancelled'],
+      commands: [
+        'createStocktakeAdjustment',
+        'startStocktakeValidation',
+        'postStocktakeAdjustment',
+        'cancelStocktakeAdjustment',
+      ],
+      queries: ['getStocktakeAdjustment', 'listStocktakeAdjustments'],
+    });
+  });
+
+  it('accepts valid purchase, outbound and adjustment transitions', () => {
     expect(
       canTransitionStatus({
         entityType: 'PO',
@@ -39,6 +55,15 @@ describe('status-transition', () => {
         entityId: 'OUT-001',
         fromStatus: 'picking',
         toStatus: 'posted',
+      }),
+    ).toBe(true);
+
+    expect(
+      canTransitionStatus({
+        entityType: 'ADJ',
+        entityId: 'ADJ-001',
+        fromStatus: 'draft',
+        toStatus: 'validating',
       }),
     ).toBe(true);
   });
@@ -101,5 +126,16 @@ describe('status-transition', () => {
         toStatus: 'draft',
       }),
     ).toThrow('Illegal status transition for GRN(GRN-001): posted -> draft');
+  });
+
+  it('rejects posted adjustment rollback to draft', () => {
+    expect(() =>
+      assertStatusTransition({
+        entityType: 'ADJ',
+        entityId: 'ADJ-001',
+        fromStatus: 'posted',
+        toStatus: 'draft',
+      }),
+    ).toThrow('Illegal status transition for ADJ(ADJ-001): posted -> draft');
   });
 });
