@@ -17,8 +17,8 @@ import type { EvidenceBindingRecord } from '../../../evidence/infrastructure/evi
 
 // HIGH-3 Fix: 定义 Repository 接口而非依赖具体实现
 export interface EvidenceBindingRepository {
-  findByTenant(tenantId: string): EvidenceBinding[];
-  save(binding: EvidenceBinding): void;
+  findByTenant(tenantId: string): EvidenceBindingRecord[];
+  save(binding: EvidenceBindingRecord): void;
 }
 
 export const EVIDENCE_BINDING_REPOSITORY_TOKEN = 'EVIDENCE_BINDING_REPOSITORY';
