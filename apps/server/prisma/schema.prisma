@@ -115,6 +115,7 @@ model Sku {
   tenantId    BigInt    @map("tenant_id")
   skuCode     String    @map("sku_code")
   name        String
+  specification String?
   categoryId  String?   @map("category_id")
   unit        String?
   isActive    Boolean   @default(true) @map("is_active")
@@ -185,6 +186,7 @@ model Supplier {
   contactName String?   @map("contact_name")
   phone       String?
   email       String?
+  address     String?
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at")
   createdBy   String    @default("system") @map("created_by")
@@ -206,6 +208,7 @@ model Customer {
   contactName String?   @map("contact_name")
   phone       String?
   email       String?
+  address     String?
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at")
   createdBy   String    @default("system") @map("created_by")

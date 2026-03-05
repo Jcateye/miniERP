@@ -1,33 +1,82 @@
 import { z } from 'zod';
 
+export const evidenceScopeSchema = z.enum(['document', 'line']);
+
+const nonEmptyStringSchema = z
+  .string()
+  .transform((value) => value.trim())
+  .refine((value) => value.length > 0, 'must not be empty');
+
 const bigIntStringSchema = z.string().regex(/^\d+$/u, 'Expected bigint string');
 
-export const evidenceBindingSchema = z
+function ensureScopeLineRefConsistency(
+  value: {
+    readonly scope: 'document' | 'line';
+    readonly lineRef?: string;
+  },
+  context: z.RefinementCtx,
+): void {
+  if (value.scope === 'line' && !value.lineRef) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'lineRef is required when scope is line',
+      path: ['lineRef'],
+    });
+  }
+
+  if (value.scope === 'document' && value.lineRef) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'lineRef must be empty when scope is document',
+      path: ['lineRef'],
+    });
+  }
+}
+
+export const evidenceCollectionQuerySchema = z
   .object({
-    tenantId: bigIntStringSchema.optional(),
-    evidenceId: bigIntStringSchema,
-    entityType: z.string().min(1).max(64),
-    entityId: bigIntStringSchema,
-    bindingLevel: z.enum(['document', 'line']),
-    lineId: bigIntStringSchema.optional(),
-    tag: z.string().min(1).max(64),
+    entityType: nonEmptyStringSchema,
+    entityId: nonEmptyStringSchema,
+    scope: evidenceScopeSchema.default('document'),
+    lineRef: nonEmptyStringSchema.optional(),
+    tag: nonEmptyStringSchema.optional(),
   })
-  .superRefine((value, context) => {
-    if (value.bindingLevel === 'line' && !value.lineId) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'lineId is required when bindingLevel is line',
-        path: ['lineId'],
-      });
-    }
+  .superRefine((value, context) =>
+    ensureScopeLineRefConsistency(value, context),
+  );
 
-    if (value.bindingLevel === 'document' && value.lineId) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'lineId must be empty when bindingLevel is document',
-        path: ['lineId'],
-      });
-    }
-  });
+export const createEvidenceLinkSchema = z
+  .object({
+    assetId: bigIntStringSchema,
+    entityType: nonEmptyStringSchema,
+    entityId: nonEmptyStringSchema,
+    scope: evidenceScopeSchema.default('document'),
+    lineRef: nonEmptyStringSchema.optional(),
+    tag: nonEmptyStringSchema.default('other'),
+  })
+  .superRefine((value, context) =>
+    ensureScopeLineRefConsistency(value, context),
+  );
 
-export type EvidenceBindingInput = z.infer<typeof evidenceBindingSchema>;
+export const createEvidenceUploadIntentSchema = z
+  .object({
+    entityType: nonEmptyStringSchema.default('unknown'),
+    entityId: nonEmptyStringSchema.default('0'),
+    scope: evidenceScopeSchema.default('document'),
+    lineRef: nonEmptyStringSchema.optional(),
+    tag: nonEmptyStringSchema.default('other'),
+    fileName: nonEmptyStringSchema,
+    contentType: nonEmptyStringSchema.default('application/octet-stream'),
+    sizeBytes: bigIntStringSchema.default('0'),
+  })
+  .superRefine((value, context) =>
+    ensureScopeLineRefConsistency(value, context),
+  );
+
+export type EvidenceCollectionQueryInput = z.output<
+  typeof evidenceCollectionQuerySchema
+>;
+export type CreateEvidenceLinkInput = z.output<typeof createEvidenceLinkSchema>;
+export type CreateEvidenceUploadIntentInput = z.output<
+  typeof createEvidenceUploadIntentSchema
+>;

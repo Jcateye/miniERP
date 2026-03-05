@@ -66,35 +66,35 @@ describe('DocumentsController', () => {
         totalPages: 1,
       };
 
-      mockDocumentsService.list.mockReturnValue(mockResult);
+      mockDocumentsService.list.mockResolvedValue(mockResult);
 
-      const result = controller.list('PO');
+      const result = await controller.list('PO');
 
       expect(service.list).toHaveBeenCalledWith(
-        { docType: 'PO' },
+        { docType: 'PO', page: undefined, pageSize: undefined },
         '1001',
       );
       expect(result).toEqual(mockResult);
     });
 
     it('should filter by docType', async () => {
-      mockDocumentsService.list.mockReturnValue({ data: [], total: 0 });
+      mockDocumentsService.list.mockResolvedValue({ data: [], total: 0 });
 
-      controller.list('GRN');
+      await controller.list('GRN');
 
       expect(service.list).toHaveBeenCalledWith(
-        { docType: 'GRN' },
+        { docType: 'GRN', page: undefined, pageSize: undefined },
         '1001',
       );
     });
 
     it('should support ADJ docType list', async () => {
-      mockDocumentsService.list.mockReturnValue({ data: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
+      mockDocumentsService.list.mockResolvedValue({ data: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
 
-      controller.list('ADJ');
+      await controller.list('ADJ');
 
       expect(service.list).toHaveBeenCalledWith(
-        { docType: 'ADJ' },
+        { docType: 'ADJ', page: undefined, pageSize: undefined },
         '1001',
       );
     });
@@ -109,18 +109,18 @@ describe('DocumentsController', () => {
         lines: [{ id: '2001-L1', skuId: 'SKU-001', qty: '100' }],
       };
 
-      mockDocumentsService.getDetail.mockReturnValue(mockDoc);
+      mockDocumentsService.getDetail.mockResolvedValue(mockDoc);
 
-      const result = controller.getDetail('PO', '2001');
+      const result = await controller.getDetail('PO', '2001');
 
       expect(service.getDetail).toHaveBeenCalledWith('PO', '2001', '1001');
       expect(result).toEqual(mockDoc);
     });
 
     it('should return error when document not found', async () => {
-      mockDocumentsService.getDetail.mockReturnValue(null);
+      mockDocumentsService.getDetail.mockResolvedValue(null);
 
-      const result = controller.getDetail('PO', '9999');
+      const result = await controller.getDetail('PO', '9999');
 
       expect(result).toEqual({
         error: {

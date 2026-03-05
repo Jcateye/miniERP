@@ -1,29 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EvidenceController, EVIDENCE_BINDING_REPOSITORY_TOKEN } from './evidence.controller';
-import { EvidenceBindingService } from '../../../evidence/application/evidence-binding.service';
+import { Reflector } from '@nestjs/core';
+import { AuditService } from '../../../audit/application/audit.service';
+import { PlatformAccessService } from '../../../platform/application/platform-access.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
+import { EvidenceBindingService } from '../../../evidence/application/evidence-binding.service';
+import { EvidenceController } from './evidence.controller';
 
 describe('EvidenceController', () => {
   let controller: EvidenceController;
-  let evidenceBindingService: EvidenceBindingService;
-
-  const mockTenantContext = {
-    tenantId: '1001',
-    actorId: 'user-001',
-    requestId: 'req-001',
-  };
-
-  const mockTenantContextService = {
-    getRequiredContext: jest.fn().mockReturnValue(mockTenantContext),
-  };
-
-  const mockRepository = {
-    findByTenant: jest.fn().mockReturnValue([]),
-    save: jest.fn(),
-  };
 
   const mockEvidenceBindingService = {
+    getCollection: jest.fn(),
     bindEvidence: jest.fn(),
+    createUploadIntent: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -36,170 +25,135 @@ describe('EvidenceController', () => {
         },
         {
           provide: TenantContextService,
-          useValue: mockTenantContextService,
+          useValue: {
+            getRequiredContext: jest.fn().mockReturnValue({
+              tenantId: '1001',
+              actorId: '9001',
+              requestId: 'req-001',
+            }),
+          },
         },
         {
-          provide: EVIDENCE_BINDING_REPOSITORY_TOKEN,
-          useValue: mockRepository,
+          provide: Reflector,
+          useValue: { getAllAndOverride: jest.fn().mockReturnValue([]) },
+        },
+        {
+          provide: AuditService,
+          useValue: { recordAuthorization: jest.fn() },
+        },
+        {
+          provide: PlatformAccessService,
+          useValue: { assertCrossTenantAllowed: jest.fn() },
         },
       ],
     }).compile();
 
     controller = module.get<EvidenceController>(EvidenceController);
-    evidenceBindingService = module.get<EvidenceBindingService>(EvidenceBindingService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('getLinks', () => {
-    it('should return evidence collection for document scope', () => {
-      mockRepository.findByTenant.mockReturnValue([
-        {
-          id: '1',
-          tenantId: '1001',
-          evidenceId: 'ev-001',
-          entityType: 'grn',
-          entityId: '3001',
-          bindingLevel: 'document',
-          lineId: undefined,
-          tag: 'label',
-          createdAt: new Date().toISOString(),
-        },
-      ]);
-
-      const result = controller.getLinks('grn', '3001', 'document');
-
-      expect(result.entityType).toBe('grn');
-      expect(result.entityId).toBe('3001');
-      expect(result.scope).toBe('document');
-      expect(result.items).toBeDefined();
-      expect(result.stats).toBeDefined();
-      expect(result.tags).toBeDefined();
+  it('should normalize lineId to lineRef for GET query', async () => {
+    mockEvidenceBindingService.getCollection.mockResolvedValue({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      stats: [],
+      tags: [],
+      items: [],
     });
 
-    it('should return evidence collection for line scope', () => {
-      mockRepository.findByTenant.mockReturnValue([
-        {
-          id: '2',
-          tenantId: '1001',
-          evidenceId: 'ev-002',
-          entityType: 'grn',
-          entityId: '3001',
-          bindingLevel: 'line',
-          lineId: '3001-L1',
-          tag: 'damage',
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+    await controller.getLinks('grn', '3001', 'line', undefined, '3001-L1');
 
-      const result = controller.getLinks('grn', '3001', 'line', '3001-L1');
-
-      expect(result.scope).toBe('line');
-      expect(result.lineRef).toBe('3001-L1');
-    });
-
-    it('should return placeholder when no bindings exist', () => {
-      mockRepository.findByTenant.mockReturnValue([]);
-
-      const result = controller.getLinks('grn', '9999', 'document');
-
-      expect(result.items.length).toBe(1);
-      expect(result.items[0].tag).toBe('placeholder');
-      expect(result.items[0].status).toBe('pending');
-    });
-
-    it('should use default values when params missing', () => {
-      mockRepository.findByTenant.mockReturnValue([]);
-
-      const result = controller.getLinks();
-
-      expect(result.entityType).toBe('grn');
-      expect(result.entityId).toBe('3001');
-      expect(result.scope).toBe('document');
+    expect(mockEvidenceBindingService.getCollection).toHaveBeenCalledWith({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      tag: undefined,
     });
   });
 
-  describe('bindEvidence', () => {
-    it('should create evidence binding', () => {
-      mockEvidenceBindingService.bindEvidence.mockReturnValue({
-        id: '3',
-        tenantId: '1001',
-        evidenceId: 'ev-003',
-        entityType: 'po',
-        entityId: '2001',
-        bindingLevel: 'document',
-        lineId: undefined,
-        tag: 'contract',
-        createdAt: new Date().toISOString(),
-      });
+  it('should throw when GET query is invalid', async () => {
+    await expect(controller.getLinks(undefined, '3001')).rejects.toThrow(
+      'entityType is required',
+    );
+  });
 
-      const result = controller.bindEvidence({
-        evidenceId: 'ev-003',
-        entityType: 'po',
-        entityId: '2001',
-        scope: 'document',
-        tag: 'contract',
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.binding.evidenceId).toBe('ev-003');
-      expect(result.binding.entityType).toBe('po');
+  it('should parse scope/lineRef payload for bindEvidence', async () => {
+    mockEvidenceBindingService.bindEvidence.mockResolvedValue({
+      linkId: '9001',
+      assetId: '5001',
     });
 
-    it('should include tenant from context', () => {
-      mockEvidenceBindingService.bindEvidence.mockImplementation((params) => ({
-        id: '4',
-        ...params,
-        createdAt: new Date().toISOString(),
-      }));
+    const result = await controller.bindEvidence({
+      evidenceId: '5001',
+      entityType: 'stocktake',
+      entityId: '6001',
+      bindingLevel: 'line',
+      lineId: '3001-L1',
+      tag: 'damage',
+    });
 
-      controller.bindEvidence({
-        evidenceId: 'ev-004',
-        entityType: 'so',
-        entityId: '4001',
-        scope: 'document',
-        tag: 'order',
-      });
+    expect(mockEvidenceBindingService.bindEvidence).toHaveBeenCalledWith({
+      assetId: '5001',
+      entityType: 'stocktake',
+      entityId: '6001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      tag: 'damage',
+    });
 
-      expect(mockEvidenceBindingService.bindEvidence).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: '1001',
-        }),
-      );
+    expect(result).toEqual({
+      linkId: '9001',
+      assetId: '5001',
     });
   });
 
-  describe('createUploadIntent', () => {
-    it('should return upload intent with required fields', () => {
-      const result = controller.createUploadIntent({
-        fileName: 'test.jpg',
-        contentType: 'image/jpeg',
-      });
+  it('should throw when bindEvidence payload is invalid', async () => {
+    await expect(
+      controller.bindEvidence({ entityType: 'stocktake', entityId: '6001' }),
+    ).rejects.toThrow('assetId (or evidenceId) is required');
+  });
 
-      expect(result.uploadIntentId).toBeDefined();
-      expect(result.uploadUrl).toBeDefined();
-      expect(result.expiresAt).toBeDefined();
-      expect(result.fields).toBeDefined();
+  it('should parse upload intent payload', async () => {
+    mockEvidenceBindingService.createUploadIntent.mockResolvedValue({
+      assetId: '6001',
+      uploadUrl: 'http://localhost:9000/evidence/grn/3001/6001-doc.jpg',
+      objectKey: 'evidence/grn/3001/6001-doc.jpg',
+      expiresAt: '2026-03-05T12:00:00.000Z',
     });
 
-    it('should include tenant in fields', () => {
-      const result = controller.createUploadIntent({
-        fileName: 'test.jpg',
-        contentType: 'image/jpeg',
-      });
-
-      expect(result.fields['X-Tenant-Id']).toBe('1001');
-      expect(result.fields['Content-Type']).toBe('image/jpeg');
+    const result = await controller.createUploadIntent({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'document',
+      tag: 'label',
+      fileName: 'doc.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: '123',
     });
 
-    it('should use default content type if not provided', () => {
-      const result = controller.createUploadIntent({
-        fileName: 'test.bin',
-      });
-
-      expect(result.fields['Content-Type']).toBe('application/octet-stream');
+    expect(mockEvidenceBindingService.createUploadIntent).toHaveBeenCalledWith({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'document',
+      lineRef: undefined,
+      tag: 'label',
+      fileName: 'doc.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: '123',
     });
+
+    expect(result.assetId).toBe('6001');
+  });
+
+  it('should throw when upload intent payload is invalid', async () => {
+    await expect(controller.createUploadIntent({})).rejects.toThrow(
+      'fileName is required',
+    );
   });
 });

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../../audit/application/audit.service';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
 import { InMemoryEvidenceBindingRepository } from '../infrastructure/evidence-binding.repository';
@@ -31,126 +31,185 @@ describe('EvidenceBindingService', () => {
     };
   }
 
-  it('creates document-level binding', () => {
+  it('creates upload intent and persists evidence asset', async () => {
     const { service, repository } = createService({
       tenantId: '1001',
       requestId: 'req-1',
       actorId: '2001',
     });
 
-    const result = service.bindEvidence({
-      evidenceId: '5001',
+    const result = await service.createUploadIntent({
       entityType: 'grn',
       entityId: '3001',
-      bindingLevel: 'document',
-      tag: 'invoice',
+      scope: 'document',
+      tag: 'label',
+      fileName: 'grn-label.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: '1024',
     });
 
-    expect(result.bindingLevel).toBe('document');
-    expect(result.lineId).toBeUndefined();
-    expect(repository.findByTenant('1001')).toHaveLength(1);
+    expect(result.assetId).toMatch(/^\d+$/u);
+    expect(result.objectKey).toContain('grn/3001');
+
+    const asset = await repository.findAssetById('1001', result.assetId);
+    expect(asset).not.toBeNull();
+    expect(asset?.status).toBe('pending_upload');
   });
 
-  it('creates line-level binding when lineId is provided', () => {
-    const { service } = createService({
+  it('attaches evidence link and is idempotent by unique key', async () => {
+    const { service, repository } = createService({
       tenantId: '1001',
       requestId: 'req-1',
       actorId: '2001',
     });
 
-    const result = service.bindEvidence({
-      evidenceId: '5001',
+    const uploadIntent = await service.createUploadIntent({
       entityType: 'stocktake',
-      entityId: '3001',
-      bindingLevel: 'line',
-      lineId: '901',
-      tag: 'discrepancy-photo',
+      entityId: '6001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      tag: 'damage',
+      fileName: 'damage.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: '512',
     });
 
-    expect(result.bindingLevel).toBe('line');
-    expect(result.lineId).toBe('901');
+    const first = await service.bindEvidence({
+      assetId: uploadIntent.assetId,
+      entityType: 'stocktake',
+      entityId: '6001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      tag: 'damage',
+    });
+
+    const second = await service.bindEvidence({
+      assetId: uploadIntent.assetId,
+      entityType: 'stocktake',
+      entityId: '6001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      tag: 'damage',
+    });
+
+    expect(second.linkId).toBe(first.linkId);
+
+    const items = await repository.listLinks({
+      tenantId: '1001',
+      entityType: 'stocktake',
+      entityId: '6001',
+      scope: 'line',
+      lineRef: '3001-L1',
+    });
+    expect(items).toHaveLength(1);
   });
 
-  it('throws when trying to bind to another tenant', () => {
+  it('returns scoped collection for document and line', async () => {
     const { service } = createService({
       tenantId: '1001',
       requestId: 'req-1',
       actorId: '2001',
     });
 
-    expect(() =>
-      service.bindEvidence({
-        evidenceId: '5001',
-        entityType: 'outbound',
-        entityId: '3001',
-        bindingLevel: 'document',
-        tag: 'proof',
-        tenantId: '1002',
-      }),
-    ).toThrow(ForbiddenException);
+    const docAsset = await service.createUploadIntent({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'document',
+      tag: 'label',
+      fileName: 'doc.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: '100',
+    });
+
+    const lineAsset = await service.createUploadIntent({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      tag: 'damage',
+      fileName: 'line.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: '100',
+    });
+
+    await service.bindEvidence({
+      assetId: docAsset.assetId,
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'document',
+      tag: 'label',
+    });
+
+    await service.bindEvidence({
+      assetId: lineAsset.assetId,
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'line',
+      lineRef: '3001-L1',
+      tag: 'damage',
+    });
+
+    const documentCollection = await service.getCollection({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'document',
+    });
+
+    const lineCollection = await service.getCollection({
+      entityType: 'grn',
+      entityId: '3001',
+      scope: 'line',
+      lineRef: '3001-L1',
+    });
+
+    expect(documentCollection.items).toHaveLength(1);
+    expect(documentCollection.items[0]?.scope).toBe('document');
+    expect(lineCollection.items).toHaveLength(1);
+    expect(lineCollection.items[0]?.lineRef).toBe('3001-L1');
   });
 
-  it('throws bad request when binding input is invalid', () => {
+  it('throws not found when binding missing asset', async () => {
     const { service } = createService({
       tenantId: '1001',
       requestId: 'req-1',
       actorId: '2001',
     });
 
-    expect(() =>
+    await expect(
       service.bindEvidence({
-        evidenceId: '5001',
+        assetId: '999999',
         entityType: 'grn',
         entityId: '3001',
-        bindingLevel: 'line',
-        tag: 'invoice',
+        scope: 'document',
+        tag: 'label',
       }),
-    ).toThrow(BadRequestException);
-
-    try {
-      service.bindEvidence({
-        evidenceId: '5001',
-        entityType: 'grn',
-        entityId: '3001',
-        bindingLevel: 'line',
-        tag: 'invoice',
-      });
-    } catch (error) {
-      const response = (error as BadRequestException).getResponse() as {
-        code: string;
-        message: string;
-      };
-      expect(response.code).toBe('VALIDATION_EVIDENCE_BINDING_INVALID');
-      expect(response.message).toContain('validation failed');
-    }
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('is idempotent for same tenant/evidence/entity/scope/line', () => {
-    const { service, repository } = createService({
+  it('throws bad request when scope/lineRef is invalid', async () => {
+    const { service } = createService({
       tenantId: '1001',
       requestId: 'req-1',
       actorId: '2001',
     });
 
-    const first = service.bindEvidence({
-      evidenceId: '5001',
-      entityType: 'grn',
-      entityId: '3001',
-      bindingLevel: 'line',
-      lineId: '901',
-      tag: 'discrepancy-photo',
-    });
+    await expect(
+      service.getCollection({
+        entityType: 'grn',
+        entityId: '3001',
+        scope: 'line',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
 
-    const second = service.bindEvidence({
-      evidenceId: '5001',
-      entityType: 'grn',
-      entityId: '3001',
-      bindingLevel: 'line',
-      lineId: '901',
-      tag: 'discrepancy-photo',
-    });
-
-    expect(second.id).toBe(first.id);
-    expect(repository.findByTenant('1001')).toHaveLength(1);
+    await expect(
+      service.bindEvidence({
+        assetId: '1001',
+        entityType: 'grn',
+        entityId: '3001',
+        scope: 'document',
+        lineRef: '3001-L1',
+        tag: 'label',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

@@ -1,11 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 import { InventoryPostingService } from '../application/inventory-posting.service';
-import { InMemoryInventoryConsistencyStore } from '../infrastructure/in-memory-inventory-consistency.store';
 import type {
   InventoryBalanceSnapshot,
+  InventoryConsistencyStore,
   InventoryLedgerEntry,
-  InventoryKey,
 } from '../domain/inventory.types';
 import { InventoryValidationError } from '../domain/inventory.errors';
 
@@ -43,7 +42,8 @@ export class InventoryController {
   constructor(
     private readonly inventoryPostingService: InventoryPostingService,
     private readonly tenantContextService: TenantContextService,
-    private readonly inventoryStore: InMemoryInventoryConsistencyStore,
+    @Inject('InventoryConsistencyStore')
+    private readonly inventoryStore: InventoryConsistencyStore,
   ) {}
 
   @Get('balances')
@@ -72,7 +72,9 @@ export class InventoryController {
       };
     }
 
-    const snapshots = this.inventoryStore.getAllBalanceSnapshots(ctx.tenantId);
+    const snapshots = await this.inventoryStore.getAllBalanceSnapshots(
+      ctx.tenantId,
+    );
     return {
       data: snapshots,
       total: snapshots.length,
@@ -95,7 +97,7 @@ export class InventoryController {
       throw new InventoryValidationError('pageSize must be <= 200');
     }
 
-    const source = this.inventoryStore.getAllLedgerEntries(ctx.tenantId);
+    const source = await this.inventoryStore.getAllLedgerEntries(ctx.tenantId);
     const filtered = source.filter((entry) => {
       if (skuId && entry.skuId !== skuId) {
         return false;

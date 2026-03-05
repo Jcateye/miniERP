@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryController } from './inventory.controller';
 import { InventoryPostingService } from '../application/inventory-posting.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
-import { InMemoryInventoryConsistencyStore } from '../infrastructure/in-memory-inventory-consistency.store';
 
 describe('InventoryController', () => {
   let controller: InventoryController;
@@ -37,7 +36,7 @@ describe('InventoryController', () => {
           useValue: mockTenantContextService,
         },
         {
-          provide: InMemoryInventoryConsistencyStore,
+          provide: 'InventoryConsistencyStore',
           useValue: mockInventoryStore,
         },
       ],
@@ -67,7 +66,7 @@ describe('InventoryController', () => {
   });
 
   it('should return all balances when no filters provided', async () => {
-    mockInventoryStore.getAllBalanceSnapshots.mockReturnValue([
+    mockInventoryStore.getAllBalanceSnapshots.mockResolvedValue([
       { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 },
       { skuId: 'SKU-2', warehouseId: 'WH-1', onHand: 10 },
     ]);
@@ -85,7 +84,7 @@ describe('InventoryController', () => {
   });
 
   it('should return paginated ledger entries', async () => {
-    mockInventoryStore.getAllLedgerEntries.mockReturnValue([
+    mockInventoryStore.getAllLedgerEntries.mockResolvedValue([
       {
         id: '2',
         tenantId: '1001',
@@ -120,7 +119,7 @@ describe('InventoryController', () => {
   });
 
   it('should filter ledger by docType', async () => {
-    mockInventoryStore.getAllLedgerEntries.mockReturnValue([
+    mockInventoryStore.getAllLedgerEntries.mockResolvedValue([
       {
         id: '1',
         tenantId: '1001',
