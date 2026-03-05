@@ -1,6 +1,7 @@
 import type { BigIntString, DocumentType } from '@minierp/shared';
 
 import type {
+  DocumentCreateInput,
   EvidenceAttachInput,
   EvidenceQuery,
   EvidenceUploadIntentInput,
@@ -75,6 +76,14 @@ export const sdkEndpoints = {
         path: `/documents/${docType}/${id}/${action}`,
         method: 'POST',
         mockKey: `documents:command:${docType}:${action}:${id}`,
+      };
+    },
+    create(body: DocumentCreateInput): SdkRequestDescriptor {
+      return {
+        path: '/documents',
+        method: 'POST',
+        body,
+        mockKey: `documents:create:${body.docType}`,
       };
     },
   },

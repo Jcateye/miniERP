@@ -81,6 +81,7 @@ export interface DetailAssemblyConfig {
 
 export interface WizardAssemblyConfig {
   contract: WizardTemplateContract;
+  docType?: DocumentType;
   entityType: EvidenceEntityType;
   headerGroups: TemplateFieldGroup[];
   rows: AssemblyRow[];
@@ -888,6 +889,7 @@ export const skuWizardConfig: WizardAssemblyConfig = {
 
 export const poWizardConfig: WizardAssemblyConfig = {
   contract: createWizardContract('/purchasing/po/new', '新建 PO', '以 T4 模板录入采购单并准备后续到货。', createTag('采购创建', 'info'), { key: 'submit', label: '提交 PO', tone: 'primary' }),
+  docType: 'PO',
   entityType: 'po',
   headerGroups: [
     {
@@ -917,6 +919,7 @@ export const poWizardConfig: WizardAssemblyConfig = {
 
 export const grnWizardConfig: WizardAssemblyConfig = {
   contract: createWizardContract('/purchasing/grn/new', '新建 GRN', '录入实收、对比 PO 差异并补充双层凭证。', createTag('差异校验', 'warning'), { key: 'post', label: '校验并过账', tone: 'primary' }),
+  docType: 'GRN',
   entityType: 'grn',
   headerGroups: [
     {
@@ -946,6 +949,7 @@ export const grnWizardConfig: WizardAssemblyConfig = {
 
 export const soWizardConfig: WizardAssemblyConfig = {
   contract: createWizardContract('/sales/so/new', '新建 SO', '创建销售订单并准备后续出库。', createTag('销售创建', 'info'), { key: 'submit', label: '提交 SO', tone: 'primary' }),
+  docType: 'SO',
   entityType: 'so',
   headerGroups: [
     {
@@ -1004,6 +1008,7 @@ export const quotationWizardConfig: WizardAssemblyConfig = {
 
 export const outWizardConfig: WizardAssemblyConfig = {
   contract: createWizardContract('/sales/out/new', '新建 OUT', '执行拣货、校验与交接签收凭证收集。', createTag('交接必填', 'warning'), { key: 'submit', label: '确认出库', tone: 'primary' }),
+  docType: 'OUT',
   entityType: 'out',
   headerGroups: [
     {
@@ -1033,6 +1038,7 @@ export const outWizardConfig: WizardAssemblyConfig = {
 
 export const stocktakeWizardConfig: WizardAssemblyConfig = {
   contract: createWizardContract('/stocktake/new', '新建盘点', '执行盘点、差异复核与调整建议生成。', createTag('差异复核', 'warning'), { key: 'submit', label: '提交盘点', tone: 'primary' }),
+  docType: 'ADJ',
   entityType: 'stocktake',
   headerGroups: [
     {

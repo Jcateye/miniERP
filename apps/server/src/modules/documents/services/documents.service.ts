@@ -66,6 +66,22 @@ export interface ListDocumentsQuery {
   pageSize?: number;
 }
 
+export interface DocumentCreateLineInput {
+  skuId: string;
+  qty: string;
+  unitPrice?: string;
+}
+
+export interface DocumentCreateInput {
+  docDate?: string;
+  remarks?: string | null;
+  supplierId?: string;
+  customerId?: string;
+  warehouseId?: string;
+  sourceDocId?: string;
+  lines: DocumentCreateLineInput[];
+}
+
 export interface DocumentActionResult {
   success: true;
   documentId: string;
@@ -75,6 +91,15 @@ export interface DocumentActionResult {
   action: string;
   inventoryPosted?: boolean;
   ledgerEntryIds?: string[];
+}
+
+export interface DocumentCreateResult {
+  id: string;
+  docNo: string;
+  docType: CoreDocumentType;
+  status: CoreDocumentStatus;
+  docDate: string;
+  lineCount: number;
 }
 
 export class DocumentNotFoundError extends Error {
@@ -133,6 +158,7 @@ export class DocumentsService {
   private readonly documents = new Map<string, DocumentDetail>();
   private readonly docNoCounter = new Map<string, number>();
   private readonly idempotencyCache = new Map<string, DocumentActionResult>();
+  private readonly createIdempotencyCache = new Map<string, DocumentCreateResult>();
 
   constructor(
     private readonly auditService: AuditService,
@@ -323,6 +349,33 @@ export class DocumentsService {
     return this.documents.get(`${tenantId}:${docType}:${id}`) ?? null;
   }
 
+  async create(
+    docType: CoreDocumentType,
+    input: DocumentCreateInput,
+    tenantId: string,
+    actorId: string,
+    requestId: string,
+    idempotencyKey: string,
+  ): Promise<DocumentCreateResult> {
+    const cacheKey = `${tenantId}:${docType}:${idempotencyKey}`;
+    const cached = this.createIdempotencyCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    this.validateCreateInput(input);
+    const created = await this.createByStore(
+      docType,
+      input,
+      tenantId,
+      actorId,
+      requestId,
+    );
+
+    this.createIdempotencyCache.set(cacheKey, created);
+    return created;
+  }
+
   async executeAction(
     docType: CoreDocumentType,
     id: string,
@@ -371,12 +424,22 @@ export class DocumentsService {
           orderBy: { createdAt: 'desc' },
           skip,
           take: pageSize,
-          include: {
-            _count: { select: { SalesOrderLine: true } },
-          },
         }),
         this.prisma!.salesOrder.count({ where: { tenantId: tenantBigInt } }),
       ]);
+
+      const soIds = rows.map((row) => row.id);
+      const lineCounts =
+        soIds.length === 0
+          ? []
+          : await this.prisma!.salesOrderLine.groupBy({
+              by: ['soId'],
+              where: { tenantId: tenantBigInt, soId: { in: soIds } },
+              _count: { _all: true },
+            });
+      const lineCountById = new Map(
+        lineCounts.map((item) => [item.soId.toString(), item._count._all]),
+      );
 
       const data: DocumentListItem[] = rows.map((row) => ({
         id: row.id.toString(),
@@ -392,7 +455,7 @@ export class DocumentsService {
         updatedBy: row.updatedBy,
         deletedAt: row.deletedAt?.toISOString() ?? null,
         deletedBy: row.deletedBy,
-        lineCount: row._count.SalesOrderLine,
+        lineCount: lineCountById.get(row.id.toString()) ?? 0,
         totalQty: row.totalQty.toString(),
         totalAmount: row.totalAmount.toString(),
       }));
@@ -412,12 +475,22 @@ export class DocumentsService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize,
-        include: {
-          _count: { select: { OutboundLine: true } },
-        },
       }),
       this.prisma!.outbound.count({ where: { tenantId: tenantBigInt } }),
     ]);
+
+    const outboundIds = rows.map((row) => row.id);
+    const lineCounts =
+      outboundIds.length === 0
+        ? []
+        : await this.prisma!.outboundLine.groupBy({
+            by: ['outboundId'],
+            where: { tenantId: tenantBigInt, outboundId: { in: outboundIds } },
+            _count: { _all: true },
+          });
+    const lineCountById = new Map(
+      lineCounts.map((item) => [item.outboundId.toString(), item._count._all]),
+    );
 
     const data: DocumentListItem[] = rows.map((row) => ({
       id: row.id.toString(),
@@ -433,7 +506,7 @@ export class DocumentsService {
       updatedBy: row.updatedBy,
       deletedAt: row.deletedAt?.toISOString() ?? null,
       deletedBy: row.deletedBy,
-      lineCount: row._count.OutboundLine,
+      lineCount: lineCountById.get(row.id.toString()) ?? 0,
       totalQty: row.totalQty.toString(),
       totalAmount: '0',
     }));
@@ -458,12 +531,16 @@ export class DocumentsService {
     if (docType === 'SO') {
       const row = await this.prisma!.salesOrder.findFirst({
         where: { id: docBigInt, tenantId: tenantBigInt },
-        include: { SalesOrderLine: { orderBy: { lineNo: 'asc' } } },
       });
 
       if (!row) {
         return null;
       }
+
+      const lines = await this.prisma!.salesOrderLine.findMany({
+        where: { tenantId: tenantBigInt, soId: row.id },
+        orderBy: { lineNo: 'asc' },
+      });
 
       return {
         id: row.id.toString(),
@@ -479,10 +556,10 @@ export class DocumentsService {
         updatedBy: row.updatedBy,
         deletedAt: row.deletedAt?.toISOString() ?? null,
         deletedBy: row.deletedBy,
-        lineCount: row.SalesOrderLine.length,
+        lineCount: lines.length,
         totalQty: row.totalQty.toString(),
         totalAmount: row.totalAmount.toString(),
-        lines: row.SalesOrderLine.map((line) => ({
+        lines: lines.map((line) => ({
           id: line.id.toString(),
           docId: row.id.toString(),
           lineNo: line.lineNo,
@@ -497,12 +574,16 @@ export class DocumentsService {
 
     const row = await this.prisma!.outbound.findFirst({
       where: { id: docBigInt, tenantId: tenantBigInt },
-      include: { OutboundLine: { orderBy: { lineNo: 'asc' } } },
     });
 
     if (!row) {
       return null;
     }
+
+    const lines = await this.prisma!.outboundLine.findMany({
+      where: { tenantId: tenantBigInt, outboundId: row.id },
+      orderBy: { lineNo: 'asc' },
+    });
 
     return {
       id: row.id.toString(),
@@ -518,10 +599,10 @@ export class DocumentsService {
       updatedBy: row.updatedBy,
       deletedAt: row.deletedAt?.toISOString() ?? null,
       deletedBy: row.deletedBy,
-      lineCount: row.OutboundLine.length,
+      lineCount: lines.length,
       totalQty: row.totalQty.toString(),
       totalAmount: '0',
-      lines: row.OutboundLine.map((line) => ({
+      lines: lines.map((line) => ({
         id: line.id.toString(),
         docId: row.id.toString(),
         lineNo: line.lineNo,
@@ -813,6 +894,679 @@ export class DocumentsService {
     this.idempotencyCache.set(cacheKey, result);
 
     return result;
+  }
+
+  private validateCreateInput(input: DocumentCreateInput): void {
+    if (!Array.isArray(input.lines) || input.lines.length === 0) {
+      throw new HttpException(
+        {
+          code: 'VALIDATION_DOCUMENT_LINES_REQUIRED',
+          category: 'validation',
+          message: 'lines must not be empty',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    input.lines.forEach((line, index) => {
+      if (!line || typeof line !== 'object') {
+        throw new HttpException(
+          {
+            code: 'VALIDATION_DOCUMENT_LINE_INVALID',
+            category: 'validation',
+            message: `line[${index}] must be an object`,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (!line.skuId || line.skuId.trim().length === 0) {
+        throw new HttpException(
+          {
+            code: 'VALIDATION_DOCUMENT_LINE_SKU_REQUIRED',
+            category: 'validation',
+            message: `line[${index}].skuId is required`,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      let qty: Decimal;
+      try {
+        qty = new Decimal(line.qty);
+      } catch {
+        throw new HttpException(
+          {
+            code: 'VALIDATION_DOCUMENT_LINE_QTY_INVALID',
+            category: 'validation',
+            message: `line[${index}].qty must be numeric`,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (!qty.isFinite() || qty.eq(0)) {
+        throw new HttpException(
+          {
+            code: 'VALIDATION_DOCUMENT_LINE_QTY_INVALID',
+            category: 'validation',
+            message: `line[${index}].qty must be non-zero`,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    });
+  }
+
+  private normalizeDocDate(value?: string): Date {
+    if (!value || value.trim().length === 0) {
+      return new Date();
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return new Date();
+    }
+    return parsed;
+  }
+
+  private formatDateYmd(value: Date): string {
+    return value.toISOString().slice(0, 10).replace(/-/g, '');
+  }
+
+  private nextInMemoryDocNo(docType: CoreDocumentType, docDate: Date): string {
+    const key = `${docType}:${this.formatDateYmd(docDate)}`;
+    const seq = (this.docNoCounter.get(key) ?? 0) + 1;
+    this.docNoCounter.set(key, seq);
+    return `DOC-${docType}-${this.formatDateYmd(docDate)}-${seq.toString().padStart(3, '0')}`;
+  }
+
+  private parseSeqFromDocNo(docNo: string): number {
+    const matched = docNo.match(/-(\d+)$/);
+    if (!matched) {
+      return 0;
+    }
+    return Number(matched[1] ?? 0);
+  }
+
+  private async nextPersistedDocNo(
+    docType: Extract<CoreDocumentType, 'PO' | 'GRN' | 'SO' | 'OUT'>,
+    tenantDbId: bigint,
+    docDate: Date,
+  ): Promise<string> {
+    const ymd = this.formatDateYmd(docDate);
+    const prefix = `DOC-${docType}-${ymd}-`;
+    const cacheKey = `${docType}:${ymd}`;
+
+    let maxSeq = this.docNoCounter.get(cacheKey) ?? 0;
+
+    if (!this.prisma) {
+      const seq = maxSeq + 1;
+      this.docNoCounter.set(cacheKey, seq);
+      return `${prefix}${seq.toString().padStart(3, '0')}`;
+    }
+
+    if (docType === 'PO') {
+      const latest = await this.prisma.purchaseOrder.findFirst({
+        where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
+        orderBy: { docNo: 'desc' },
+        select: { docNo: true },
+      });
+      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+    } else if (docType === 'GRN') {
+      const latest = await this.prisma.grn.findFirst({
+        where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
+        orderBy: { docNo: 'desc' },
+        select: { docNo: true },
+      });
+      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+    } else if (docType === 'SO') {
+      const latest = await this.prisma.salesOrder.findFirst({
+        where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
+        orderBy: { docNo: 'desc' },
+        select: { docNo: true },
+      });
+      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+    } else {
+      const latest = await this.prisma.outbound.findFirst({
+        where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
+        orderBy: { docNo: 'desc' },
+        select: { docNo: true },
+      });
+      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+    }
+
+    const next = maxSeq + 1;
+    this.docNoCounter.set(cacheKey, next);
+    return `${prefix}${next.toString().padStart(3, '0')}`;
+  }
+
+  private async resolveWarehouseId(
+    tenantDbId: bigint,
+    raw?: string,
+  ): Promise<bigint | null> {
+    if (!this.prisma || !raw || raw.trim().length === 0) {
+      return null;
+    }
+
+    const value = raw.trim();
+    const parsed = this.toBigintOrNull(value);
+    if (parsed !== null) {
+      return parsed;
+    }
+
+    const row = await this.prisma.warehouse.findFirst({
+      where: { tenantId: tenantDbId, code: value, deletedAt: null },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  private async resolveSupplierId(
+    tenantDbId: bigint,
+    raw?: string,
+  ): Promise<bigint | null> {
+    if (!this.prisma || !raw || raw.trim().length === 0) {
+      return null;
+    }
+
+    const value = raw.trim();
+    const parsed = this.toBigintOrNull(value);
+    if (parsed !== null) {
+      return parsed;
+    }
+
+    const row = await this.prisma.supplier.findFirst({
+      where: { tenantId: tenantDbId, code: value, deletedAt: null },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  private async resolveCustomerId(
+    tenantDbId: bigint,
+    raw?: string,
+  ): Promise<bigint | null> {
+    if (!this.prisma || !raw || raw.trim().length === 0) {
+      return null;
+    }
+
+    const value = raw.trim();
+    const parsed = this.toBigintOrNull(value);
+    if (parsed !== null) {
+      return parsed;
+    }
+
+    const row = await this.prisma.customer.findFirst({
+      where: { tenantId: tenantDbId, code: value, deletedAt: null },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  private async resolvePurchaseOrderId(
+    tenantDbId: bigint,
+    raw?: string,
+  ): Promise<bigint | null> {
+    if (!this.prisma || !raw || raw.trim().length === 0) {
+      return null;
+    }
+
+    const value = raw.trim();
+    const parsed = this.toBigintOrNull(value);
+    if (parsed !== null) {
+      return parsed;
+    }
+
+    const row = await this.prisma.purchaseOrder.findFirst({
+      where: { tenantId: tenantDbId, docNo: value, deletedAt: null },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  private async resolveSalesOrderId(
+    tenantDbId: bigint,
+    raw?: string,
+  ): Promise<bigint | null> {
+    if (!this.prisma || !raw || raw.trim().length === 0) {
+      return null;
+    }
+
+    const value = raw.trim();
+    const parsed = this.toBigintOrNull(value);
+    if (parsed !== null) {
+      return parsed;
+    }
+
+    const row = await this.prisma.salesOrder.findFirst({
+      where: { tenantId: tenantDbId, docNo: value, deletedAt: null },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  private async resolveSkuId(
+    tenantDbId: bigint,
+    raw: string,
+  ): Promise<bigint> {
+    if (!this.prisma) {
+      throw new HttpException(
+        {
+          code: 'VALIDATION_SKU_NOT_FOUND',
+          category: 'validation',
+          message: `SKU not found: ${raw}`,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const value = raw.trim();
+    const parsed = this.toBigintOrNull(value);
+    if (parsed !== null) {
+      return parsed;
+    }
+
+    const row = await this.prisma.sku.findFirst({
+      where: { tenantId: tenantDbId, skuCode: value, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!row) {
+      throw new HttpException(
+        {
+          code: 'VALIDATION_SKU_NOT_FOUND',
+          category: 'validation',
+          message: `SKU not found: ${raw}`,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return row.id;
+  }
+
+  private toBigintOrNull(raw: string): bigint | null {
+    try {
+      return BigInt(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private async createByStore(
+    docType: CoreDocumentType,
+    input: DocumentCreateInput,
+    tenantId: string,
+    actorId: string,
+    requestId: string,
+  ): Promise<DocumentCreateResult> {
+    if (this.usePersistentStore(docType)) {
+      return this.createPersistentDocument(
+        docType as Extract<CoreDocumentType, 'PO' | 'GRN'>,
+        input,
+        tenantId,
+        actorId,
+        requestId,
+      );
+    }
+
+    if (this.prisma && (docType === 'SO' || docType === 'OUT')) {
+      return this.createSalesOutboundDocument(
+        docType,
+        input,
+        tenantId,
+        actorId,
+        requestId,
+      );
+    }
+
+    return this.createInMemoryDocument(docType, input, tenantId, actorId, requestId);
+  }
+
+  private async createPersistentDocument(
+    docType: Extract<CoreDocumentType, 'PO' | 'GRN'>,
+    input: DocumentCreateInput,
+    tenantId: string,
+    actorId: string,
+    requestId: string,
+  ): Promise<DocumentCreateResult> {
+    if (!this.prisma) {
+      throw new Error('Prisma service is unavailable');
+    }
+
+    const tenantDbId = await this.resolveTenantDbId(tenantId);
+    const docDate = this.normalizeDocDate(input.docDate);
+    const docNo = await this.nextPersistedDocNo(docType, tenantDbId, docDate);
+    const remarks = input.remarks ?? null;
+
+    const lines = await Promise.all(
+      input.lines.map(async (line, index) => {
+        const qty = new Decimal(line.qty);
+        const unitPrice = new Decimal(line.unitPrice ?? '0');
+        return {
+          lineNo: index + 1,
+          skuId: await this.resolveSkuId(tenantDbId, line.skuId),
+          qty,
+          unitPrice,
+          amount: qty.mul(unitPrice),
+        };
+      }),
+    );
+
+    const totalQty = lines.reduce((sum, line) => sum.add(line.qty), new Decimal(0));
+    const totalAmount = lines.reduce((sum, line) => sum.add(line.amount), new Decimal(0));
+
+    if (docType === 'PO') {
+      const supplierId = await this.resolveSupplierId(tenantDbId, input.supplierId);
+      const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+
+      const header = await this.prisma.purchaseOrder.create({
+        data: {
+          tenantId: tenantDbId,
+          docNo,
+          docDate,
+          status: 'draft',
+          supplierId,
+          warehouseId,
+          remarks,
+          totalQty: totalQty.toString(),
+          totalAmount: totalAmount.toString(),
+          createdBy: actorId,
+          updatedBy: actorId,
+        },
+      });
+
+      await this.prisma.purchaseOrderLine.createMany({
+        data: lines.map((line) => ({
+          tenantId: tenantDbId,
+          poId: header.id,
+          lineNo: line.lineNo,
+          skuId: line.skuId,
+          qty: line.qty.toString(),
+          unitPrice: line.unitPrice.toString(),
+          amount: line.amount.toString(),
+        })),
+      });
+
+      this.auditService.recordAuthorization({
+        requestId,
+        tenantId,
+        actorId,
+        action: 'document.create',
+        entityType: 'document',
+        entityId: header.id.toString(),
+        result: 'success',
+        metadata: { docType, docNo, lineCount: lines.length },
+      });
+
+      return {
+        id: header.id.toString(),
+        docNo,
+        docType,
+        status: 'draft',
+        docDate: header.docDate.toISOString().slice(0, 10),
+        lineCount: lines.length,
+      };
+    }
+
+    const poId = await this.resolvePurchaseOrderId(tenantDbId, input.sourceDocId);
+    const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+
+    const header = await this.prisma.grn.create({
+      data: {
+        tenantId: tenantDbId,
+        docNo,
+        docDate,
+        status: 'draft',
+        poId,
+        warehouseId,
+        remarks,
+        totalQty: totalQty.toString(),
+        totalAmount: totalAmount.toString(),
+        createdBy: actorId,
+        updatedBy: actorId,
+      },
+    });
+
+    await this.prisma.grnLine.createMany({
+      data: lines.map((line) => ({
+        tenantId: tenantDbId,
+        grnId: header.id,
+        lineNo: line.lineNo,
+        skuId: line.skuId,
+        qty: line.qty.toString(),
+        unitPrice: line.unitPrice.toString(),
+        amount: line.amount.toString(),
+      })),
+    });
+
+    this.auditService.recordAuthorization({
+      requestId,
+      tenantId,
+      actorId,
+      action: 'document.create',
+      entityType: 'document',
+      entityId: header.id.toString(),
+      result: 'success',
+      metadata: { docType, docNo, lineCount: lines.length },
+    });
+
+    return {
+      id: header.id.toString(),
+      docNo,
+      docType,
+      status: 'draft',
+      docDate: header.docDate.toISOString().slice(0, 10),
+      lineCount: lines.length,
+    };
+  }
+
+  private async createSalesOutboundDocument(
+    docType: Extract<CoreDocumentType, 'SO' | 'OUT'>,
+    input: DocumentCreateInput,
+    tenantId: string,
+    actorId: string,
+    requestId: string,
+  ): Promise<DocumentCreateResult> {
+    if (!this.prisma) {
+      throw new Error('Prisma service is unavailable');
+    }
+
+    const tenantDbId = await this.resolveTenantDbId(tenantId);
+    const docDate = this.normalizeDocDate(input.docDate);
+    const docNo = await this.nextPersistedDocNo(docType, tenantDbId, docDate);
+    const remarks = input.remarks ?? null;
+
+    const lines = await Promise.all(
+      input.lines.map(async (line, index) => {
+        const qty = new Decimal(line.qty);
+        const unitPrice = new Decimal(line.unitPrice ?? '0');
+        return {
+          lineNo: index + 1,
+          skuId: await this.resolveSkuId(tenantDbId, line.skuId),
+          qty,
+          unitPrice,
+          amount: qty.mul(unitPrice),
+        };
+      }),
+    );
+
+    const totalQty = lines.reduce((sum, line) => sum.add(line.qty), new Decimal(0));
+    const totalAmount = lines.reduce((sum, line) => sum.add(line.amount), new Decimal(0));
+
+    if (docType === 'SO') {
+      const customerId = await this.resolveCustomerId(tenantDbId, input.customerId);
+      const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+
+      const header = await this.prisma.salesOrder.create({
+        data: {
+          tenantId: tenantDbId,
+          docNo,
+          docDate,
+          status: 'draft',
+          customerId,
+          warehouseId,
+          remarks,
+          totalQty: totalQty.toString(),
+          totalAmount: totalAmount.toString(),
+          createdBy: actorId,
+          updatedBy: actorId,
+        },
+      });
+
+      await this.prisma.salesOrderLine.createMany({
+        data: lines.map((line) => ({
+          tenantId: tenantDbId,
+          soId: header.id,
+          lineNo: line.lineNo,
+          skuId: line.skuId,
+          qty: line.qty.toString(),
+          unitPrice: line.unitPrice.toString(),
+          amount: line.amount.toString(),
+        })),
+      });
+
+      this.auditService.recordAuthorization({
+        requestId,
+        tenantId,
+        actorId,
+        action: 'document.create',
+        entityType: 'document',
+        entityId: header.id.toString(),
+        result: 'success',
+        metadata: { docType, docNo, lineCount: lines.length },
+      });
+
+      return {
+        id: header.id.toString(),
+        docNo,
+        docType,
+        status: 'draft',
+        docDate: header.docDate.toISOString().slice(0, 10),
+        lineCount: lines.length,
+      };
+    }
+
+    const soId = await this.resolveSalesOrderId(tenantDbId, input.sourceDocId);
+    const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+
+    const header = await this.prisma.outbound.create({
+      data: {
+        tenantId: tenantDbId,
+        docNo,
+        docDate,
+        status: 'draft',
+        soId,
+        warehouseId,
+        remarks,
+        totalQty: totalQty.toString(),
+        createdBy: actorId,
+        updatedBy: actorId,
+      },
+    });
+
+    await this.prisma.outboundLine.createMany({
+      data: lines.map((line) => ({
+        tenantId: tenantDbId,
+        outboundId: header.id,
+        lineNo: line.lineNo,
+        skuId: line.skuId,
+        qty: line.qty.toString(),
+      })),
+    });
+
+    this.auditService.recordAuthorization({
+      requestId,
+      tenantId,
+      actorId,
+      action: 'document.create',
+      entityType: 'document',
+      entityId: header.id.toString(),
+      result: 'success',
+      metadata: { docType, docNo, lineCount: lines.length },
+    });
+
+    return {
+      id: header.id.toString(),
+      docNo,
+      docType,
+      status: 'draft',
+      docDate: header.docDate.toISOString().slice(0, 10),
+      lineCount: lines.length,
+    };
+  }
+
+  private async createInMemoryDocument(
+    docType: CoreDocumentType,
+    input: DocumentCreateInput,
+    tenantId: string,
+    actorId: string,
+    requestId: string,
+  ): Promise<DocumentCreateResult> {
+    const docDate = this.normalizeDocDate(input.docDate);
+    const docNo = this.nextInMemoryDocNo(docType, docDate);
+    const now = new Date().toISOString();
+    const id = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+    const lines = input.lines.map((line, index) => {
+      const qty = new Decimal(line.qty);
+      const unitPrice = new Decimal(line.unitPrice ?? '0');
+      return {
+        id: `${id}-L${index + 1}`,
+        docId: id,
+        lineNo: index + 1,
+        skuId: line.skuId.trim(),
+        qty: qty.toString(),
+        unitPrice: unitPrice.toString(),
+        amount: qty.mul(unitPrice).toString(),
+        taxAmount: '0',
+      };
+    });
+
+    const totalQty = lines.reduce((sum, line) => sum.add(new Decimal(line.qty)), new Decimal(0));
+    const totalAmount = lines.reduce((sum, line) => sum.add(new Decimal(line.amount)), new Decimal(0));
+
+    const detail: DocumentDetail = {
+      id,
+      tenantId,
+      docNo,
+      docType,
+      docDate: docDate.toISOString().slice(0, 10),
+      status: 'draft',
+      remarks: input.remarks ?? null,
+      createdAt: now,
+      createdBy: actorId,
+      updatedAt: now,
+      updatedBy: actorId,
+      deletedAt: null,
+      deletedBy: null,
+      lineCount: lines.length,
+      totalQty: totalQty.toString(),
+      totalAmount: totalAmount.toString(),
+      lines,
+    };
+
+    this.documents.set(`${tenantId}:${docType}:${id}`, detail);
+    this.auditService.recordAuthorization({
+      requestId,
+      tenantId,
+      actorId,
+      action: 'document.create',
+      entityType: 'document',
+      entityId: id,
+      result: 'success',
+      metadata: { docType, docNo, lineCount: lines.length },
+    });
+
+    return {
+      id,
+      docNo,
+      docType,
+      status: 'draft',
+      docDate: detail.docDate,
+      lineCount: lines.length,
+    };
   }
 
   private usePersistentStore(docType: CoreDocumentType): boolean {

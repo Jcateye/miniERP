@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { label: '库存查询', href: '/inventory' },
   { label: '盘点工作台', href: '/stocktake' },
   { label: '设置中心', href: '/settings' },
+  { label: '帮助说明', href: '/help' },
 ];
 
 export default function Sidebar() {

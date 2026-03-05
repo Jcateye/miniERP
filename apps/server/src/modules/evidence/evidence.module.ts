@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../../audit/audit.module';
 import { TenantModule } from '../../common/tenant/tenant.module';
+import { PlatformModule } from '../../platform/platform.module';
 import { EvidenceBindingService } from '../../evidence/application/evidence-binding.service';
 import {
   EVIDENCE_BINDING_REPOSITORY_TOKEN,
@@ -10,7 +11,7 @@ import {
 import { EvidenceController } from './controllers/evidence.controller';
 
 @Module({
-  imports: [AuditModule, TenantModule],
+  imports: [AuditModule, TenantModule, PlatformModule],
   controllers: [EvidenceController],
   providers: [
     InMemoryEvidenceBindingRepository,

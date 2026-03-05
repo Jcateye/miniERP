@@ -81,3 +81,56 @@ export async function GET(request: NextRequest) {
     return toUpstreamUnavailableResponse('Backend documents list is unavailable');
   }
 }
+
+export async function POST(request: NextRequest) {
+  const idempotencyKey = request.headers.get('Idempotency-Key');
+
+  if (!idempotencyKey || idempotencyKey.trim() === '') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'BFF_IDEMPOTENCY_KEY_REQUIRED',
+          category: 'validation',
+          message: 'Idempotency-Key header is required for document create',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_JSON',
+          category: 'validation',
+          message: 'Request body must be valid JSON',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const response = await fetch(buildBackendUrl('/documents'), {
+      method: 'POST',
+      headers: {
+        ...createServerHeaders(),
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+    });
+
+    if (response.ok) {
+      return NextResponse.json(await response.json());
+    }
+
+    return toUpstreamErrorResponse(response);
+  } catch {
+    return toUpstreamUnavailableResponse('Backend document create is unavailable');
+  }
+}

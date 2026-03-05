@@ -2,6 +2,8 @@ import type { BigIntString, DocumentType } from '@minierp/shared';
 
 import type {
   DocumentCommandAck,
+  DocumentCreateAck,
+  DocumentCreateInput,
   DocumentDetailDto,
   DocumentListItemDto,
   EvidenceAttachInput,
@@ -51,6 +53,20 @@ export async function submitDocumentCommand(
   const response = await sdkClient.request<DocumentCommandAck>(sdkEndpoints.documents.command(docType, id, action), {
     idempotencyKey,
   });
+
+  return response.data;
+}
+
+export async function createDocument(
+  payload: DocumentCreateInput,
+  idempotencyKey: string,
+): Promise<DocumentCreateAck> {
+  const response = await sdkClient.request<DocumentCreateAck>(
+    sdkEndpoints.documents.create(payload),
+    {
+      idempotencyKey,
+    },
+  );
 
   return response.data;
 }

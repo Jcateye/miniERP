@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { useDocumentDetail, useDocumentEvidence, useWorkbenchList } from '@/hooks';
+import { useBffGet, useDocumentDetail, useDocumentEvidence, useLineEvidence, useWorkbenchList } from '@/hooks';
 import { DetailLayout, EmptyState, HeaderActions, OverviewLayout, SurfaceCard, TemplateBadge, WorkbenchLayout, WizardLayout, styles } from '@/components/layouts';
 import { EvidencePanel } from '@/components/evidence/evidence-panel';
 import { LineEvidenceDrawer } from '@/components/evidence/line-evidence-drawer';
+import { attachEvidence, createDocument, createEvidenceUploadIntent, submitDocumentCommand } from '@/lib/bff';
 
 import type {
   AssemblyRow,
@@ -48,6 +49,54 @@ function renderCell(row: AssemblyRow, column: WorkbenchAssemblyConfig['columns']
   }
 
   return <span>{value}</span>;
+}
+
+type InventoryBalanceResponse = {
+  data: Array<{
+    skuId: string;
+    warehouseId: string;
+    onHand: number;
+  }>;
+  total: number;
+};
+
+type InventoryLedgerResponse = {
+  data: Array<{
+    id: string;
+    skuId: string;
+    warehouseId: string;
+    quantityDelta: number;
+    referenceType: string;
+    referenceId: string;
+    postedAt: string;
+    reversalOfLedgerId: string | null;
+  }>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+function idempotencyKey(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function formatPostedAt(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString('zh-CN', { hour12: false });
+}
+
+function getRowValue(row: AssemblyRow, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = row[key];
+    if (value && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return undefined;
 }
 
 function ToolbarCard({ config }: { config: WorkbenchAssemblyConfig }) {
@@ -172,7 +221,48 @@ export function OverviewAssembly({ config }: { config: OverviewAssemblyConfig })
 
 export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig }) {
   const hook = useWorkbenchList(config.docType);
+  const inventoryBalanceHook = useBffGet<InventoryBalanceResponse>(
+    '/inventory/balances',
+    config.contract.route === '/inventory',
+  );
+  const inventoryLedgerHook = useBffGet<InventoryLedgerResponse>(
+    '/inventory/ledger?page=1&pageSize=100',
+    config.contract.route === '/inventory/ledger',
+  );
+
   const rows = useMemo<AssemblyRow[]>(() => {
+    if (config.contract.route === '/inventory') {
+      const liveRows = inventoryBalanceHook.data?.data ?? [];
+      if (liveRows.length > 0) {
+        return liveRows.map((item) => ({
+          id: `${item.skuId}-${item.warehouseId}`,
+          sku: item.skuId,
+          warehouse: item.warehouseId,
+          onHand: String(item.onHand),
+          available: String(item.onHand),
+          reserved: '0',
+          status: item.onHand > 0 ? 'healthy' : 'risk',
+        }));
+      }
+      return config.rows;
+    }
+
+    if (config.contract.route === '/inventory/ledger') {
+      const liveRows = inventoryLedgerHook.data?.data ?? [];
+      if (liveRows.length > 0) {
+        return liveRows.map((item) => ({
+          id: item.id,
+          docNo: `${item.referenceType}-${item.referenceId}`,
+          sku: item.skuId,
+          delta: item.quantityDelta >= 0 ? `+${item.quantityDelta}` : String(item.quantityDelta),
+          balance: '-',
+          postedAt: formatPostedAt(item.postedAt),
+          status: item.reversalOfLedgerId ? 'reversed' : 'posted',
+        }));
+      }
+      return config.rows;
+    }
+
     if (!hook?.data?.data?.length) {
       return config.rows;
     }
@@ -186,9 +276,51 @@ export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig 
       status: item.status,
       warehouse: 'API',
     }));
-  }, [config, hook?.data]);
+  }, [config, hook?.data, inventoryBalanceHook.data, inventoryLedgerHook.data]);
+
   const [selectedId, setSelectedId] = useState(rows[0]?.id ?? '');
+
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSelectedId('');
+      return;
+    }
+
+    setSelectedId((previous) => {
+      if (!previous) {
+        return rows[0]!.id;
+      }
+
+      const exists = rows.some((row) => row.id === previous);
+      return exists ? previous : rows[0]!.id;
+    });
+  }, [rows]);
+
   const selectedRow = rows.find((row) => row.id === selectedId) ?? rows[0];
+  const description = useMemo(() => {
+    if (config.contract.route === '/inventory') {
+      return inventoryBalanceHook.error
+        ? `库存接口不可用，展示装配数据：${inventoryBalanceHook.error}`
+        : '已接入 /api/bff/inventory/balances，优先展示真实库存余额。';
+    }
+
+    if (config.contract.route === '/inventory/ledger') {
+      return inventoryLedgerHook.error
+        ? `库存流水接口不可用，展示装配数据：${inventoryLedgerHook.error}`
+        : '已接入 /api/bff/inventory/ledger，优先展示真实库存流水。';
+    }
+
+    return hook?.error
+      ? `接口不可用，当前展示装配种子数据：${hook.error}`
+      : '已接入 hooks 层；如接口有数据将优先展示真实返回。';
+  }, [
+    config.contract.route,
+    hook?.error,
+    inventoryBalanceHook.error,
+    inventoryLedgerHook.error,
+  ]);
+
+  const loading = hook?.loading || inventoryBalanceHook.loading || inventoryLedgerHook.loading;
 
   return (
     <WorkbenchLayout
@@ -197,8 +329,8 @@ export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig 
       resultsSlot={
         <SurfaceCard
           title="列表结果"
-          description={hook?.error ? `接口不可用，当前展示装配种子数据：${hook.error}` : '已接入 hooks 层；如接口有数据将优先展示真实返回。'}
-          actions={hook?.loading ? <TemplateBadge label="加载中" tone="info" /> : undefined}
+          description={description}
+          actions={loading ? <TemplateBadge label="加载中" tone="info" /> : undefined}
         >
           <div style={styles.tableWrap}>
             <table style={styles.table}>
@@ -262,9 +394,6 @@ export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig 
 export function DetailAssembly({ config, entityId }: { config: DetailAssemblyConfig; entityId: string }) {
   const detailHook = useDocumentDetail(config.docType, entityId);
   const evidenceHook = useDocumentEvidence(config.entityType, entityId);
-  const [activeLineId, setActiveLineId] = useState(config.record.lineEvidenceContexts[0]?.lineId ?? '');
-  const lineContext = config.record.lineEvidenceContexts.find((item) => item.lineId === activeLineId) ?? config.record.lineEvidenceContexts[0];
-  const documentEvidence = evidenceHook.data ?? config.record.documentEvidence;
   const liveRecord = detailHook?.data;
   const rows = liveRecord?.lines?.length
     ? liveRecord.lines.map((line) => ({
@@ -276,6 +405,112 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
         status: 'ok',
       }))
     : config.record.rows;
+  const lineContexts = liveRecord?.lines?.length
+    ? liveRecord.lines.map((line) => ({
+        lineId: line.id,
+        lineNo: line.lineNo,
+        skuCode: line.skuId,
+        skuName: line.skuId,
+        expectedQty: line.qty,
+        actualQty: line.qty,
+        diffQty: '0',
+      }))
+    : config.record.lineEvidenceContexts;
+  const [activeLineId, setActiveLineId] = useState(lineContexts[0]?.lineId ?? '');
+  const lineContext = lineContexts.find((item) => item.lineId === activeLineId) ?? lineContexts[0];
+  const lineEvidenceHook = useLineEvidence(config.entityType, entityId, lineContext?.lineId);
+  const [actionNotice, setActionNotice] = useState<string>('');
+  const [actionLoading, setActionLoading] = useState<'confirm' | 'post' | 'cancel' | null>(null);
+  const [uploadingScope, setUploadingScope] = useState<'document' | 'line' | null>(null);
+  const documentEvidence = evidenceHook.data ?? config.record.documentEvidence;
+  const lineEvidence =
+    (lineContext ? lineEvidenceHook.data : null) ??
+    (lineContext ? config.record.lineEvidence[lineContext.lineId] : null);
+
+  useEffect(() => {
+    if (lineContexts.length === 0) {
+      setActiveLineId('');
+      return;
+    }
+
+    setActiveLineId((previous) => {
+      if (!previous) {
+        return lineContexts[0]!.lineId;
+      }
+      return lineContexts.some((item) => item.lineId === previous)
+        ? previous
+        : lineContexts[0]!.lineId;
+    });
+  }, [lineContexts]);
+
+  const handleAction = async (action: 'confirm' | 'post' | 'cancel') => {
+    if (!config.docType) {
+      setActionNotice('当前详情页未绑定 docType，无法执行动作联调。');
+      return;
+    }
+
+    try {
+      setActionNotice('');
+      setActionLoading(action);
+      const result = await submitDocumentCommand(
+        config.docType,
+        entityId,
+        action,
+        idempotencyKey(`doc-${config.docType}-${entityId}-${action}`),
+      );
+      setActionNotice(`动作成功：${action} -> ${result.status}`);
+      detailHook?.reload();
+    } catch (error) {
+      setActionNotice(error instanceof Error ? error.message : `${action} 失败`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUploadEvidence = async (scope: 'document' | 'line') => {
+    if (scope === 'line' && !lineContext) {
+      setActionNotice('请先选中一行再上传行级凭证。');
+      return;
+    }
+
+    try {
+      setActionNotice('');
+      setUploadingScope(scope);
+      const tag = scope === 'document' ? 'packing_list' : 'damage';
+      const intent = await createEvidenceUploadIntent({
+        entityType: config.entityType,
+        entityId,
+        scope,
+        lineRef: scope === 'line' ? lineContext?.lineId : undefined,
+        tag,
+        fileName: `${config.entityType}-${entityId}-${scope}-${Date.now()}.txt`,
+        contentType: 'text/plain',
+        sizeBytes: '1',
+      });
+
+      await attachEvidence({
+        assetId: intent.assetId,
+        entityType: config.entityType,
+        entityId,
+        scope,
+        lineRef: scope === 'line' ? lineContext?.lineId : undefined,
+        tag,
+        note: 'frontend linked evidence',
+      });
+
+      if (scope === 'document') {
+        evidenceHook.reload();
+      } else {
+        lineEvidenceHook.reload();
+      }
+
+      setActionNotice(scope === 'document' ? '单据级凭证上传成功。' : '行级凭证上传成功。');
+    } catch (error) {
+      setActionNotice(error instanceof Error ? error.message : '凭证上传失败');
+    } finally {
+      setUploadingScope(null);
+    }
+  };
 
   return (
     <DetailLayout
@@ -375,17 +610,51 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
               tags={documentEvidence.tags}
               items={documentEvidence.items}
               activeTag="packing_list"
-              uploadSlot={<TemplateBadge label="BFF /evidence/links" tone="info" />}
+              uploadSlot={(
+                <button
+                  type="button"
+                  disabled={uploadingScope === 'document'}
+                  onClick={() => void handleUploadEvidence('document')}
+                  style={{
+                    border: '1px solid rgba(224,221,214,0.92)',
+                    background: 'rgba(255,255,255,0.72)',
+                    borderRadius: 10,
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 650,
+                  }}
+                >
+                  {uploadingScope === 'document' ? '上传中...' : '上传单据凭证'}
+                </button>
+              )}
             />
             {lineContext ? (
               <LineEvidenceDrawer
                 open
                 title="差异行凭证抽屉"
                 line={lineContext}
-                tags={config.record.lineEvidence[lineContext.lineId]?.tags ?? []}
+                tags={lineEvidence?.tags ?? []}
                 activeTag="damage"
-                items={config.record.lineEvidence[lineContext.lineId]?.items ?? []}
-                uploadSlot={<TemplateBadge label="Line Evidence" tone="warning" />}
+                items={lineEvidence?.items ?? []}
+                uploadSlot={(
+                  <button
+                    type="button"
+                    disabled={uploadingScope === 'line'}
+                    onClick={() => void handleUploadEvidence('line')}
+                    style={{
+                      border: '1px solid rgba(224,221,214,0.92)',
+                      background: 'rgba(255,255,255,0.72)',
+                      borderRadius: 10,
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    {uploadingScope === 'line' ? '上传中...' : '上传行级凭证'}
+                  </button>
+                )}
               />
             ) : (
               <EmptyState title="暂无行级凭证" description="当前明细没有可展示的差异行。" />
@@ -404,8 +673,37 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
         </div>
       }
       quickActionsSlot={
-        <SurfaceCard title="快捷动作" description="详情页右侧动作位。">
-          <HeaderActions primaryAction={config.contract.header.primaryAction} secondaryActions={config.contract.header.secondaryActions} />
+        <SurfaceCard title="快捷动作" description="详情页右侧动作位，已接入单据动作联调。">
+          <div style={{ display: 'grid', gap: 10 }}>
+            <HeaderActions primaryAction={config.contract.header.primaryAction} secondaryActions={config.contract.header.secondaryActions} />
+            {config.docType ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {(['confirm', 'post', 'cancel'] as const).map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    disabled={Boolean(actionLoading)}
+                    onClick={() => void handleAction(action)}
+                    style={{
+                      border: '1px solid rgba(224,221,214,0.92)',
+                      background: action === 'post' ? 'rgba(192,90,60,0.10)' : 'rgba(255,255,255,0.72)',
+                      borderRadius: 10,
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      fontWeight: 650,
+                    }}
+                  >
+                    {actionLoading === action ? '处理中...' : action.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {actionNotice ? (
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                {actionNotice}
+              </div>
+            ) : null}
+          </div>
         </SurfaceCard>
       }
     />
@@ -415,6 +713,115 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
 export function WizardAssembly({ config }: { config: WizardAssemblyConfig }) {
   const [activeLineId, setActiveLineId] = useState(config.lineEvidenceContexts[0]?.lineId ?? '');
   const lineContext = config.lineEvidenceContexts.find((item) => item.lineId === activeLineId) ?? config.lineEvidenceContexts[0];
+  const [submitting, setSubmitting] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState<string>('');
+
+  const headerFieldMap = useMemo(() => {
+    const map = new Map<string, string>();
+    config.headerGroups.forEach((group) => {
+      group.fields.forEach((field) => {
+        if (field.value.trim().length > 0) {
+          map.set(field.key, field.value.trim());
+        }
+      });
+    });
+    return map;
+  }, [config.headerGroups]);
+
+  const handleCreate = async () => {
+    if (!config.docType) {
+      setSubmitNotice('当前向导未绑定 docType，仅作为模板预览。');
+      return;
+    }
+
+    const normalizeDecimal = (value?: string): string | undefined => {
+      if (!value) {
+        return undefined;
+      }
+      const normalized = value.replace(/,/g, '').trim();
+      return normalized.length > 0 ? normalized : undefined;
+    };
+
+    const pickQty = (row: AssemblyRow): string | undefined => {
+      if (config.docType === 'ADJ') {
+        return normalizeDecimal(getRowValue(row, ['diff', 'actual', 'expected', 'quantity', 'qty']));
+      }
+
+      if (config.docType === 'GRN' || config.docType === 'OUT') {
+        return normalizeDecimal(getRowValue(row, ['actual', 'expected', 'quantity', 'qty', 'diff']));
+      }
+
+      return normalizeDecimal(getRowValue(row, ['expected', 'quantity', 'qty', 'actual', 'diff']));
+    };
+
+    const lines = config.rows
+      .map((row) => ({
+        skuId: getRowValue(row, ['skuId', 'sku', 'code']),
+        qty: pickQty(row),
+        unitPrice: normalizeDecimal(getRowValue(row, ['unitPrice', 'price'])),
+      }))
+      .filter((line): line is { skuId: string; qty: string; unitPrice: string | undefined } => Boolean(line.skuId && line.qty));
+
+    if (lines.length === 0) {
+      setSubmitNotice('没有可提交的有效明细行。');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setSubmitNotice('');
+
+      const payload: {
+        docType: typeof config.docType;
+        docDate: string;
+        remarks: string;
+        warehouseId?: string;
+        supplierId?: string;
+        customerId?: string;
+        sourceDocId?: string;
+        lines: Array<{ skuId: string; qty: string; unitPrice?: string }>;
+      } = {
+        docType: config.docType,
+        docDate: new Date().toISOString().slice(0, 10),
+        remarks: `created from wizard ${config.contract.route}`,
+        lines,
+      };
+
+      const warehouse = headerFieldMap.get('warehouse');
+      if (warehouse) {
+        payload.warehouseId = warehouse;
+      }
+
+      if (config.docType === 'PO') {
+        payload.supplierId = headerFieldMap.get('supplier') ?? headerFieldMap.get('vendor');
+      }
+
+      if (config.docType === 'SO') {
+        payload.customerId = headerFieldMap.get('customer');
+      }
+
+      if (config.docType === 'GRN') {
+        payload.sourceDocId = headerFieldMap.get('po') ?? headerFieldMap.get('sourceNo');
+      }
+
+      if (config.docType === 'OUT') {
+        payload.sourceDocId = headerFieldMap.get('so') ?? headerFieldMap.get('sourceNo');
+      }
+
+      const result = await createDocument(
+        payload,
+        idempotencyKey(`doc-create-${config.docType}`),
+      );
+
+      setSubmitNotice(`创建成功：${result.docNo}，即将跳转详情。`);
+      const detailBase = config.contract.route.replace(/\/new$/, '');
+      window.location.href = `${detailBase}/${result.id}`;
+    } catch (error) {
+      setSubmitNotice(error instanceof Error ? error.message : '创建失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <WizardLayout
@@ -508,6 +915,27 @@ export function WizardAssembly({ config }: { config: WizardAssemblyConfig }) {
                   {note}
                 </div>
               ))}
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void handleCreate()}
+                style={{
+                  border: '1px solid var(--color-terracotta)',
+                  background: 'var(--color-terracotta)',
+                  color: '#fff',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                }}
+              >
+                {submitting ? '提交中...' : config.docType ? '创建单据并进入详情' : '模板页（未绑定 docType）'}
+              </button>
+              {submitNotice ? (
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                  {submitNotice}
+                </div>
+              ) : null}
             </div>
           </SurfaceCard>
         </div>

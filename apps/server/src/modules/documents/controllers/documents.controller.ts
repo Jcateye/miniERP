@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Header,
   Headers,
   HttpCode,
   HttpStatus,
@@ -15,12 +14,94 @@ import {
   CORE_DOCUMENT_TYPES,
 } from '../../core-document/domain/status-transition';
 import {
+  type DocumentCreateInput,
   DocumentNotFoundError,
   DocumentsService,
   OutboundStockInsufficientError,
   UnknownDocumentActionError,
 } from '../services/documents.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function toStringValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return String(value);
+  }
+
+  return '';
+}
+
+function parseCreateDocumentPayload(
+  payload: unknown,
+  normalizeDocType: (docType?: string) => CoreDocumentType,
+): { docType: CoreDocumentType; input: DocumentCreateInput } {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Request body must be an object');
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  const docType = normalizeDocType(toStringValue(candidate.docType));
+  const linesRaw = candidate.lines;
+
+  if (!Array.isArray(linesRaw) || linesRaw.length === 0) {
+    throw new Error('lines must be a non-empty array');
+  }
+
+  const lines = linesRaw.map((line, index) => {
+    if (!line || typeof line !== 'object') {
+      throw new Error(`lines[${index}] must be an object`);
+    }
+
+    const row = line as Record<string, unknown>;
+    const skuId = toStringValue(row.skuId ?? row.sku ?? row.code).trim();
+    const qty = toStringValue(row.qty ?? row.quantity ?? row.expected ?? row.actual ?? row.diff).trim();
+    const unitPrice = toStringValue(row.unitPrice ?? row.price).trim();
+
+    if (!isNonEmptyString(skuId)) {
+      throw new Error(`lines[${index}].skuId is required`);
+    }
+
+    if (!isNonEmptyString(qty)) {
+      throw new Error(`lines[${index}].qty is required`);
+    }
+
+    return {
+      skuId,
+      qty,
+      unitPrice: unitPrice.length > 0 ? unitPrice : undefined,
+    };
+  });
+
+  return {
+    docType,
+    input: {
+      docDate: isNonEmptyString(candidate.docDate) ? candidate.docDate.trim() : undefined,
+      remarks: isNonEmptyString(candidate.remarks)
+        ? candidate.remarks.trim()
+        : undefined,
+      supplierId: isNonEmptyString(candidate.supplierId)
+        ? candidate.supplierId.trim()
+        : undefined,
+      customerId: isNonEmptyString(candidate.customerId)
+        ? candidate.customerId.trim()
+        : undefined,
+      warehouseId: isNonEmptyString(candidate.warehouseId)
+        ? candidate.warehouseId.trim()
+        : undefined,
+      sourceDocId: isNonEmptyString(candidate.sourceDocId)
+        ? candidate.sourceDocId.trim()
+        : undefined,
+      lines,
+    },
+  };
+}
 
 @Controller('documents')
 export class DocumentsController {
@@ -71,6 +152,51 @@ export class DocumentsController {
     }
 
     return doc;
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async createDocument(
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Body() body?: unknown,
+  ) {
+    const ctx = this.tenantContextService.getRequiredContext();
+
+    if (!idempotencyKey || idempotencyKey.trim() === '') {
+      return {
+        error: {
+          code: 'IDEMPOTENCY_KEY_REQUIRED',
+          message: 'Idempotency-Key header is required for document create',
+          category: 'validation',
+        },
+      };
+    }
+
+    let parsed: { docType: CoreDocumentType; input: DocumentCreateInput };
+    try {
+      parsed = parseCreateDocumentPayload(body, (value) =>
+        this.normalizeDocType(value),
+      );
+    } catch (error) {
+      return {
+        error: {
+          code: 'VALIDATION_INVALID_PAYLOAD',
+          message: error instanceof Error ? error.message : 'Invalid payload',
+          category: 'validation',
+        },
+      };
+    }
+
+    const result = await this.documentsService.create(
+      parsed.docType,
+      parsed.input,
+      ctx.tenantId,
+      ctx.actorId ?? 'unknown',
+      ctx.requestId,
+      idempotencyKey,
+    );
+
+    return result;
   }
 
   @Post(':docType/:id/:action')

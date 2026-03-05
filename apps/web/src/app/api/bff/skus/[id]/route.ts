@@ -194,3 +194,39 @@ export async function PUT(
     return toUpstreamUnavailableResponse('Backend SKU update is unavailable');
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+
+  try {
+    const response = await fetch(buildBackendUrl(`/skus/${id}`), {
+      method: 'DELETE',
+      headers: createServerHeaders(),
+      cache: 'no-store',
+    });
+
+    if (response.ok) {
+      return NextResponse.json(await response.json());
+    }
+
+    if (response.status === 404) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'SKU_NOT_FOUND',
+            message: `SKU with id ${id} not found`,
+            category: 'not_found',
+          },
+        },
+        { status: 404 },
+      );
+    }
+
+    return toUpstreamErrorResponse(response);
+  } catch {
+    return toUpstreamUnavailableResponse('Backend SKU delete is unavailable');
+  }
+}

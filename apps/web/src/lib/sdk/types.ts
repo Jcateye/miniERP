@@ -100,6 +100,32 @@ export interface DocumentCommandAck {
   updatedAt: string;
 }
 
+export interface DocumentCreateLineInput {
+  skuId: string;
+  qty: DecimalString;
+  unitPrice?: DecimalString;
+}
+
+export interface DocumentCreateInput {
+  docType: DocumentType;
+  docDate?: string;
+  remarks?: string;
+  supplierId?: string;
+  customerId?: string;
+  warehouseId?: string;
+  sourceDocId?: string;
+  lines: DocumentCreateLineInput[];
+}
+
+export interface DocumentCreateAck {
+  id: BigIntString;
+  docNo: string;
+  docType: DocumentType;
+  status: string;
+  docDate: string;
+  lineCount: number;
+}
+
 export interface InventoryLedgerEntryDto {
   id: BigIntString;
   skuId: BigIntString;
@@ -150,6 +176,7 @@ export interface SdkShapeRegistry {
   listDocuments: PaginationEnvelope<DocumentListItemDto>;
   documentDetail: DocumentDetailDto;
   documentCommandAck: DocumentCommandAck;
+  documentCreateAck: DocumentCreateAck;
   templateSeed: TemplateSeedDto;
   evidenceCollection: EvidenceCollectionContract;
   evidenceUploadIntent: EvidenceUploadIntent;
