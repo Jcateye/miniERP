@@ -49,9 +49,9 @@
 
 ## 7. Stream D - sales+outbound（依赖 B+E）
 
-- [ ] 7.1 落地 SO/OUT 状态机持久化与错误语义。
-- [ ] 7.2 落地 OUT 库存校验与过账契约。
-- [ ] 7.3 输出交付：`SAL-OUT-READY`。
+- [x] 7.1 落地 SO/OUT 状态机持久化与错误语义。
+- [x] 7.2 落地 OUT 库存校验与过账契约。
+- [x] 7.3 输出交付：`SAL-OUT-READY`。
 
 ## 8. Shared + BFF 策略收口
 

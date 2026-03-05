@@ -3,6 +3,7 @@ import { DocumentsService } from './documents.service';
 import { AuditService } from '../../../audit/application/audit.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
 import { InvalidStatusTransitionError } from '../../core-document/domain/status-transition';
+import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
@@ -296,6 +297,106 @@ describe('DocumentsService', () => {
           reason: 'INVALID_STATUS_TRANSITION',
         }),
       );
+    });
+  });
+
+  describe('stream D persisted sales/outbound', () => {
+    const mockSalesOutboundPrisma = {
+      salesOrder: {
+        findMany: jest.fn(),
+        count: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+      },
+      outbound: {
+        findMany: jest.fn(),
+        count: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+
+    let streamDService: DocumentsService;
+
+    beforeEach(() => {
+      streamDService = new DocumentsService(
+        mockAuditService as unknown as AuditService,
+        mockInventoryPostingService as unknown as InventoryPostingService,
+        mockSalesOutboundPrisma as never,
+      );
+
+      mockSalesOutboundPrisma.salesOrder.findMany.mockResolvedValue([
+        {
+          id: BigInt(1),
+          tenantId: BigInt(1001),
+          docNo: 'DOC-SO-20260305-001',
+          docDate: new Date('2026-03-05'),
+          status: 'draft',
+          remarks: null,
+          createdAt: new Date('2026-03-05T10:00:00Z'),
+          createdBy: '9001',
+          updatedAt: new Date('2026-03-05T10:00:00Z'),
+          updatedBy: '9001',
+          deletedAt: null,
+          deletedBy: null,
+          totalQty: { toString: () => '10' },
+          totalAmount: { toString: () => '100' },
+          _count: { SalesOrderLine: 1 },
+        },
+      ]);
+      mockSalesOutboundPrisma.salesOrder.count.mockResolvedValue(1);
+    });
+
+    it('lists SO documents from prisma when prisma is available', async () => {
+      const result = await streamDService.list({ docType: 'SO' }, '1001');
+
+      expect(mockSalesOutboundPrisma.salesOrder.findMany).toHaveBeenCalled();
+      expect(result.data[0]?.docType).toBe('SO');
+      expect(result.total).toBe(1);
+    });
+
+    it('returns semantic stock error when OUT post is insufficient', async () => {
+      mockSalesOutboundPrisma.outbound.findFirst.mockResolvedValue({
+        id: BigInt(5001),
+        tenantId: BigInt(1001),
+        docNo: 'DOC-OUT-20260305-001',
+        docDate: new Date('2026-03-05'),
+        status: 'picking',
+        soId: null,
+        warehouseId: null,
+        remarks: null,
+        totalQty: { toString: () => '5' },
+        createdAt: new Date('2026-03-05T10:00:00Z'),
+        createdBy: '9001',
+        updatedAt: new Date('2026-03-05T10:00:00Z'),
+        updatedBy: '9001',
+        deletedAt: null,
+        deletedBy: null,
+        OutboundLine: [
+          {
+            id: BigInt(1),
+            lineNo: 1,
+            skuId: BigInt(11),
+            qty: { toString: () => '5' },
+          },
+        ],
+      });
+
+      mockInventoryPostingService.post.mockRejectedValue(
+        new InventoryInsufficientStockError('11', 'WH-001', 0, 5),
+      );
+
+      await expect(
+        streamDService.executeAction(
+          'OUT',
+          '5001',
+          'post',
+          'idem-out-1',
+          '1001',
+          'user-001',
+          'req-001',
+        ),
+      ).rejects.toThrow('Insufficient stock');
     });
   });
 
