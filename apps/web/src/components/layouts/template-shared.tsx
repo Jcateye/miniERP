@@ -265,7 +265,7 @@ export function ActionButton({ action }: { action: TemplateAction }) {
 
   if (action.href && !disabled) {
     return (
-      <Link href={action.href} style={buttonStyle}>
+      <Link href={action.href} style={buttonStyle} title={action.hint}>
         {action.label}
       </Link>
     );
