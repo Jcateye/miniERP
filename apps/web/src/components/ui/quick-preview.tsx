@@ -14,6 +14,8 @@ interface QuickPreviewProps {
     heading: string;
     /** 副标题（如产品名称） */
     subheading?: string;
+    /** 补充说明 */
+    description?: string;
     /** 键值对字段 */
     fields: PreviewField[];
     /** 底部操作按钮区域 */
@@ -28,6 +30,7 @@ export function QuickPreview({
     title = '快速预览',
     heading,
     subheading,
+    description,
     fields,
     actions,
     onClose,
@@ -46,7 +49,6 @@ export function QuickPreview({
                 overflowY: 'auto',
             }}
         >
-            {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h3
                     style={{
@@ -74,25 +76,31 @@ export function QuickPreview({
                 </button>
             </div>
 
-            {/* Heading */}
-            <div
-                style={{
-                    fontFamily: 'var(--font-display-family), sans-serif',
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: '#1a1a1a',
-                }}
-            >
-                {heading}
+            <div style={{ display: 'grid', gap: 8 }}>
+                <div
+                    style={{
+                        fontFamily: 'var(--font-display-family), sans-serif',
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: '#1a1a1a',
+                    }}
+                >
+                    {heading}
+                </div>
+
+                {subheading && (
+                    <div style={{ fontSize: 13, color: '#666666' }}>
+                        {subheading}
+                    </div>
+                )}
+
+                {description && (
+                    <div style={{ fontSize: 12, color: '#888888', lineHeight: 1.6 }}>
+                        {description}
+                    </div>
+                )}
             </div>
 
-            {subheading && (
-                <div style={{ fontSize: 13, color: '#666666', marginTop: -8 }}>
-                    {subheading}
-                </div>
-            )}
-
-            {/* Fields */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {fields.map((field) => (
                     <div
@@ -100,18 +108,30 @@ export function QuickPreview({
                         style={{
                             display: 'flex',
                             justifyContent: 'space-between',
+                            gap: 12,
                             fontSize: 13,
+                            alignItems: 'flex-start',
                         }}
                     >
-                        <span style={{ color: '#888888' }}>{field.label}</span>
-                        <span style={{ fontWeight: 600, color: '#1a1a1a' }}>{field.value || '—'}</span>
+                        <span style={{ color: '#888888', flex: '0 0 72px' }}>{field.label}</span>
+                        <span
+                            style={{
+                                fontWeight: 600,
+                                color: '#1a1a1a',
+                                textAlign: 'right',
+                                whiteSpace: 'normal',
+                                wordBreak: 'break-word',
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            {field.value || '—'}
+                        </span>
                     </div>
                 ))}
             </div>
 
-            {/* Actions */}
             {actions && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                     {actions}
                 </div>
             )}

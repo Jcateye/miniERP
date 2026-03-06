@@ -166,6 +166,8 @@ export function createServerHeaders() {
       'masterdata.supplier.write',
       'masterdata.customer.read',
       'masterdata.customer.write',
+      'masterdata.sku.read',
+      'masterdata.sku.write',
     ],
     role: 'tenant_admin',
   };

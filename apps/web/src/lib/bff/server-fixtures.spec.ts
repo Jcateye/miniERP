@@ -65,6 +65,8 @@ describe('server-fixtures environment guards', () => {
         'masterdata.supplier.write',
         'masterdata.customer.read',
         'masterdata.customer.write',
+        'masterdata.sku.read',
+        'masterdata.sku.write',
       ]),
     );
   });

@@ -61,22 +61,24 @@ const SKU_FIXTURES: SkuListItemDto[] = [
   },
 ];
 
-function getSkuFixtures(filter?: {
+type SkuListFilter = {
   code?: string;
   name?: string;
   categoryId?: string;
   isActive?: boolean;
-}): SkuListItemDto[] {
+};
+
+function getSkuFixtures(filter?: SkuListFilter): SkuListItemDto[] {
   let result = SKU_FIXTURES;
 
   if (filter?.code) {
     result = result.filter((sku) =>
-      sku.code.toLowerCase().includes(filter.code!.toLowerCase()),
+      sku.code.toLowerCase().includes(filter.code.toLowerCase()),
     );
   }
   if (filter?.name) {
     result = result.filter((sku) =>
-      sku.name.toLowerCase().includes(filter.name!.toLowerCase()),
+      sku.name.toLowerCase().includes(filter.name.toLowerCase()),
     );
   }
   if (filter?.categoryId) {
@@ -89,17 +91,82 @@ function getSkuFixtures(filter?: {
   return result;
 }
 
-export async function GET(request: NextRequest) {
-  const code = request.nextUrl.searchParams.get('code') ?? undefined;
-  const name = request.nextUrl.searchParams.get('name') ?? undefined;
-  const categoryId = request.nextUrl.searchParams.get('categoryId') ?? undefined;
-  const isActiveParam = request.nextUrl.searchParams.get('isActive');
-  const isActive = isActiveParam ? isActiveParam === 'true' : undefined;
+function parseOptionalQueryString(value: string | null): string | undefined {
+  if (value === null || value === '') {
+    return undefined;
+  }
 
-  const queryParams = request.nextUrl.searchParams.toString();
+  return value;
+}
+
+function parseSkuListQuery(searchParams: URLSearchParams):
+  | { readonly ok: true; readonly filter: SkuListFilter; readonly upstreamQuery: string }
+  | { readonly ok: false; readonly message: string } {
+  const code = parseOptionalQueryString(searchParams.get('code'));
+  const name = parseOptionalQueryString(searchParams.get('name'));
+  const categoryId = parseOptionalQueryString(searchParams.get('categoryId'));
+  const isActiveParam = searchParams.get('isActive');
+
+  let isActive: boolean | undefined;
+  if (isActiveParam === null) {
+    isActive = undefined;
+  } else if (isActiveParam === 'true') {
+    isActive = true;
+  } else if (isActiveParam === 'false') {
+    isActive = false;
+  } else {
+    return { ok: false, message: 'isActive must be true or false' };
+  }
+
+  const upstreamParams = new URLSearchParams(searchParams);
+  if (code === undefined) {
+    upstreamParams.delete('code');
+  }
+  if (name === undefined) {
+    upstreamParams.delete('name');
+  }
+  if (categoryId === undefined) {
+    upstreamParams.delete('categoryId');
+  }
+  if (isActive === undefined) {
+    upstreamParams.delete('isActive');
+  } else {
+    upstreamParams.set('isActive', String(isActive));
+  }
+
+  return {
+    ok: true,
+    filter: {
+      code,
+      name,
+      categoryId,
+      isActive,
+    },
+    upstreamQuery: upstreamParams.toString(),
+  };
+}
+
+export async function GET(request: NextRequest) {
+  const parsedQuery = parseSkuListQuery(request.nextUrl.searchParams);
+  if (!parsedQuery.ok) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_QUERY',
+          category: 'validation',
+          message: parsedQuery.message,
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const upstreamPath = parsedQuery.upstreamQuery
+    ? `/skus?${parsedQuery.upstreamQuery}`
+    : '/skus';
 
   try {
-    const response = await fetch(buildBackendUrl(`/skus?${queryParams}`), {
+    const response = await fetch(buildBackendUrl(upstreamPath), {
       headers: createServerHeaders(),
       cache: 'no-store',
     });
@@ -120,7 +187,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fixture fallback
-  const fixtures = getSkuFixtures({ code, name, categoryId, isActive });
+  const fixtures = getSkuFixtures(parsedQuery.filter);
 
   return NextResponse.json({
     data: fixtures,
