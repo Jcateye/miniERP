@@ -3,7 +3,7 @@
  * 统一 Server/Web/BFF 三端的文档类型
  */
 
-import type { DecimalString, BigIntString } from './api';
+import type { DecimalString, BigIntString, EntityAuditFields, PageResult } from './api';
 
 // 重新导出数值类型供其他模块使用
 export type { DecimalString, BigIntString } from './api';
@@ -35,15 +35,7 @@ export const DOCUMENT_ACTION_TO_STATUS: Record<string, CoreDocumentStatus> = {
 } as const;
 
 // 审计字段
-export interface DocumentAuditFields {
-  tenantId: string;
-  createdAt: string;
-  createdBy: string;
-  updatedAt: string;
-  updatedBy: string;
-  deletedAt?: string | null;
-  deletedBy?: string | null;
-}
+export type DocumentAuditFields = EntityAuditFields;
 
 // 单据行 DTO
 export interface DocumentLineDto {
@@ -95,10 +87,4 @@ export interface DocumentListQuery {
 }
 
 // 分页响应包装
-export interface PaginationEnvelope<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
+export type PaginationEnvelope<T> = PageResult<T>;

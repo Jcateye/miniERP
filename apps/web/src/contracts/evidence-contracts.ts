@@ -1,28 +1,19 @@
 import type { ReactNode } from 'react';
 
-import type { BigIntString, DecimalString, DocumentType } from '@minierp/shared';
+import type {
+  BigIntString,
+  DecimalString,
+  EvidenceAssetStatus,
+  EvidenceBindingLevel,
+  EvidenceEntityType as SharedEvidenceEntityType,
+  EvidenceTag as SharedEvidenceTag,
+} from '@minierp/shared';
 
 import type { TemplateTone } from './template-contracts';
 
-export type EvidenceScope = 'document' | 'line';
-export type EvidenceEntityType = Lowercase<DocumentType> | 'sku' | 'inventory_ledger' | 'stocktake';
-export type EvidenceAssetStatus =
-  | 'pending_upload'
-  | 'uploaded'
-  | 'validating'
-  | 'active'
-  | 'rejected'
-  | 'quarantined';
-export type EvidenceTag =
-  | 'packing_list'
-  | 'label'
-  | 'damage'
-  | 'serial'
-  | 'handover'
-  | 'shelf'
-  | 'product_photo'
-  | 'datasheet'
-  | 'other';
+export type EvidenceScope = EvidenceBindingLevel;
+export type EvidenceEntityType = SharedEvidenceEntityType;
+export type EvidenceTag = SharedEvidenceTag;
 
 export interface EvidenceTagOption {
   key: EvidenceTag | string;

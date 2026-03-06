@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Download, Plus, RefreshCw } from 'lucide-react';
@@ -227,7 +227,7 @@ async function requestJson<T>(path: string): Promise<T> {
   return payload as T;
 }
 
-export default function SKUWorkbenchPage() {
+function SKUWorkbenchPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -598,5 +598,13 @@ export default function SKUWorkbenchPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function SKUWorkbenchPage() {
+  return (
+    <Suspense fallback={null}>
+      <SKUWorkbenchPageContent />
+    </Suspense>
   );
 }

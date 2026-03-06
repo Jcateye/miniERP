@@ -1,8 +1,15 @@
-// 单据状态
-export type DocumentStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+export const DOCUMENT_STATUSES = [
+  'draft',
+  'pending',
+  'approved',
+  'rejected',
+  'completed',
+  'cancelled',
+] as const;
+export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
-// 单据类型
-export type DocumentType = 'PO' | 'SO' | 'GRN' | 'OUT' | 'ADJ' | 'PAY' | 'REC';
+export const DOCUMENT_TYPES = ['PO', 'SO', 'GRN', 'OUT', 'ADJ', 'PAY', 'REC'] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 // 基础单据
 export interface BaseDocument {

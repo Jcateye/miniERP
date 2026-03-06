@@ -12,6 +12,7 @@ function decodeAuthContext(encoded: string) {
 describe('server-fixtures environment guards', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalSecret = process.env.AUTH_CONTEXT_SECRET;
+  const originalFallbackFlag = process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK;
 
   afterEach(() => {
     if (typeof originalNodeEnv === 'undefined') {
@@ -25,6 +26,12 @@ describe('server-fixtures environment guards', () => {
     } else {
       process.env.AUTH_CONTEXT_SECRET = originalSecret;
     }
+
+    if (typeof originalFallbackFlag === 'undefined') {
+      delete process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK;
+    } else {
+      process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK = originalFallbackFlag;
+    }
   });
 
   it('disables fixture fallback when NODE_ENV is missing', () => {
@@ -33,12 +40,16 @@ describe('server-fixtures environment guards', () => {
     expect(isFixtureFallbackEnabled()).toBe(false);
   });
 
-  it('enables fixture fallback only in development/test', () => {
+  it('enables fixture fallback only when development and explicit flag are both set', () => {
     process.env.NODE_ENV = 'development';
+    delete process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK;
+    expect(isFixtureFallbackEnabled()).toBe(false);
+
+    process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK = 'true';
     expect(isFixtureFallbackEnabled()).toBe(true);
 
     process.env.NODE_ENV = 'test';
-    expect(isFixtureFallbackEnabled()).toBe(true);
+    expect(isFixtureFallbackEnabled()).toBe(false);
 
     process.env.NODE_ENV = 'production';
     expect(isFixtureFallbackEnabled()).toBe(false);

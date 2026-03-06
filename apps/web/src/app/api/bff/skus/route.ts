@@ -4,6 +4,7 @@ import {
   buildBackendUrl,
   createServerHeaders,
   isFixtureFallbackEnabled,
+  toFixtureFallbackResponse,
   toFixtureFallbackDisabledResponse,
   toUpstreamErrorResponse,
   toUpstreamUnavailableResponse,
@@ -71,14 +72,16 @@ type SkuListFilter = {
 function getSkuFixtures(filter?: SkuListFilter): SkuListItemDto[] {
   let result = SKU_FIXTURES;
 
-  if (filter?.code) {
+  const code = filter?.code;
+  if (code) {
     result = result.filter((sku) =>
-      sku.code.toLowerCase().includes(filter.code.toLowerCase()),
+      sku.code.toLowerCase().includes(code.toLowerCase()),
     );
   }
-  if (filter?.name) {
+  const name = filter?.name;
+  if (name) {
     result = result.filter((sku) =>
-      sku.name.toLowerCase().includes(filter.name.toLowerCase()),
+      sku.name.toLowerCase().includes(name.toLowerCase()),
     );
   }
   if (filter?.categoryId) {
@@ -176,7 +179,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!isFixtureFallbackEnabled()) {
-      return toFixtureFallbackDisabledResponse('Backend SKU list is unavailable in current environment');
+      return toFixtureFallbackDisabledResponse('Backend SKU list is unavailable in current environment', response.status);
     }
 
     return toUpstreamErrorResponse(response);
@@ -189,7 +192,7 @@ export async function GET(request: NextRequest) {
   // Fixture fallback
   const fixtures = getSkuFixtures(parsedQuery.filter);
 
-  return NextResponse.json({
+  return toFixtureFallbackResponse({
     data: fixtures,
     total: fixtures.length,
     message: 'fixture',

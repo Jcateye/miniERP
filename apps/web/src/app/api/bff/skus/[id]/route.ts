@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 
 import {
+  applyBffTraceHeaders,
   buildBackendUrl,
   createServerHeaders,
   isFixtureFallbackEnabled,
+  toFixtureFallbackResponse,
   toFixtureFallbackDisabledResponse,
   toUpstreamErrorResponse,
   toUpstreamUnavailableResponse,
@@ -95,7 +97,7 @@ export async function GET(
     }
 
     if (!isFixtureFallbackEnabled()) {
-      return toFixtureFallbackDisabledResponse('Backend SKU detail is unavailable in current environment');
+      return toFixtureFallbackDisabledResponse('Backend SKU detail is unavailable in current environment', response.status);
     }
   } catch {
     if (!isFixtureFallbackEnabled()) {
@@ -107,19 +109,25 @@ export async function GET(
   const fixture = getSkuFixture(id);
 
   if (!fixture) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'SKU_NOT_FOUND',
-          message: `SKU with id ${id} not found`,
-          category: 'not_found',
+    return applyBffTraceHeaders(
+      NextResponse.json(
+        {
+          error: {
+            code: 'SKU_NOT_FOUND',
+            message: `SKU with id ${id} not found`,
+            category: 'not_found',
+          },
         },
+        { status: 404 },
+      ),
+      {
+        fallbackHit: '1',
+        reason: 'fixture_miss',
       },
-      { status: 404 },
     );
   }
 
-  return NextResponse.json({
+  return toFixtureFallbackResponse({
     data: fixture,
     message: 'fixture',
   });

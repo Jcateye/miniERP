@@ -1,24 +1,17 @@
 import type { Metadata } from 'next';
-import { Inter, Space_Grotesk } from 'next/font/google';
+import type { CSSProperties } from 'react';
 
 import './globals.css';
-
-const bodyFont = Inter({
-  subsets: ['latin'],
-  variable: '--font-body-family',
-  display: 'swap',
-});
-
-const displayFont = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-display-family',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'miniERP',
   description: '面向采购、销售、库存与盘点的一体化运营台。',
 };
+
+const rootFontVariables = {
+  '--font-body-family': '"Inter", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif',
+  '--font-display-family': '"Space Grotesk", "Avenir Next", "PingFang SC", sans-serif',
+} as CSSProperties;
 
 export default function RootLayout({
   children,
@@ -27,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={`${bodyFont.variable} ${displayFont.variable}`}>{children}</body>
+      <body style={rootFontVariables}>{children}</body>
     </html>
   );
 }

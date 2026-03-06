@@ -1,3 +1,4 @@
+export * from './domain';
 export * from './document';
 export * from './api';
 export * from './documents';

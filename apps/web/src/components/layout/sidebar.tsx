@@ -4,23 +4,27 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid,
-  Package,
+  Boxes,
   ShoppingCart,
   Truck,
   Warehouse,
-  Settings,
+  Landmark,
+  Factory,
+  Workflow,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 import { primaryNav, type PrimaryRouteItem } from '@/lib/navigation/route-manifest';
 
 const navIconMap: Record<PrimaryRouteItem['icon'], ComponentType<{ size?: number; color?: string }>> = {
-  dashboard: LayoutGrid,
-  sku: Package,
-  purchasing: ShoppingCart,
+  workspace: LayoutGrid,
+  mdm: Boxes,
+  procure: ShoppingCart,
   sales: Truck,
   inventory: Warehouse,
-  settings: Settings,
+  finance: Landmark,
+  manufacturing: Factory,
+  workflow: Workflow,
 };
 
 export default function Sidebar() {
@@ -43,7 +47,7 @@ export default function Sidebar() {
       }}
     >
       {/* Logo */}
-      <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <Link href="/workspace" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
           width: 10,
           height: 10,

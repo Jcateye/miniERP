@@ -40,6 +40,8 @@ export interface ApiResponse<T> {
   message: string;
 }
 
+export type ApiEnvelope<T> = ApiResponse<T>;
+
 export interface ApiError {
   error: ApiErrorPayload;
 }
@@ -51,4 +53,20 @@ export interface PaginatedResponse<T> {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export type PageResult<T> = PaginatedResponse<T>;
+
+export interface EntityAuditFields {
+  tenantId: string;
+  companyId?: string | null;
+  orgId?: string | null;
+  status?: string;
+  ext?: Record<string, unknown> | null;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { ActionButton, DataTable, PageHeader } from '@/components/ui';
@@ -23,6 +23,22 @@ import {
 import { MasterDataFormCard } from './master-data-form-card';
 import { hasActiveFilters, requestJson, validateForm } from './master-data-page-utils';
 import { MasterDataToolbar } from './master-data-toolbar';
+
+function inferTabFromPathname(pathname: string): MasterDataTab | null {
+  if (pathname.endsWith('/mdm/customers')) {
+    return 'customers';
+  }
+
+  if (pathname.endsWith('/mdm/suppliers')) {
+    return 'suppliers';
+  }
+
+  if (pathname.endsWith('/mdm/warehouses')) {
+    return 'warehouses';
+  }
+
+  return null;
+}
 
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
@@ -59,14 +75,15 @@ function NoticeBanner({ message }: { message: string }) {
   );
 }
 
-export default function MasterDataPage() {
+function MasterDataPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const inferredTab = useMemo(() => inferTabFromPathname(pathname), [pathname]);
 
   const activeTab = useMemo<MasterDataTab>(
-    () => parseTab(searchParams.get('tab')),
-    [searchParams],
+    () => inferredTab ?? parseTab(searchParams.get('tab')),
+    [inferredTab, searchParams],
   );
   const filters = useMemo<MasterDataFilters>(() => parseFilters(searchParams), [searchParams]);
   const currentConfig = tabConfigs[activeTab];
@@ -438,5 +455,13 @@ export default function MasterDataPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function MasterDataPage() {
+  return (
+    <Suspense fallback={null}>
+      <MasterDataPageContent />
+    </Suspense>
   );
 }

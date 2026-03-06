@@ -6,6 +6,7 @@ describe('bff skus route', () => {
   const originalFetch = globalThis.fetch;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalApiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const originalFallbackFlag = process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK;
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
@@ -20,6 +21,12 @@ describe('bff skus route', () => {
       delete process.env.NEXT_PUBLIC_API_BASE_URL;
     } else {
       process.env.NEXT_PUBLIC_API_BASE_URL = originalApiBase;
+    }
+
+    if (typeof originalFallbackFlag === 'undefined') {
+      delete process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK;
+    } else {
+      process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK = originalFallbackFlag;
     }
   });
 
@@ -66,7 +73,8 @@ describe('bff skus route', () => {
   });
 
   it('returns filtered fixtures when GET upstream is unavailable in test', async () => {
-    process.env.NODE_ENV = 'test';
+    process.env.NODE_ENV = 'development';
+    process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK = 'true';
     globalThis.fetch = (async () => {
       throw new Error('network down');
     }) as typeof fetch;
@@ -79,6 +87,8 @@ describe('bff skus route', () => {
 
     expect(response.status).toBe(200);
     expect(body.message).toBe('fixture');
+    expect(response.headers.get('x-bff-fallback-hit')).toBe('1');
+    expect(response.headers.get('x-bff-fallback-reason')).toBe('fixture_response');
     expect(body.total).toBe(1);
     expect(body.data).toEqual([
       expect.objectContaining({
@@ -91,7 +101,8 @@ describe('bff skus route', () => {
   });
 
   it('treats empty query values as absent during fixture fallback', async () => {
-    process.env.NODE_ENV = 'test';
+    process.env.NODE_ENV = 'development';
+    process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK = 'true';
     globalThis.fetch = (async () => {
       throw new Error('network down');
     }) as typeof fetch;
@@ -104,6 +115,7 @@ describe('bff skus route', () => {
 
     expect(response.status).toBe(200);
     expect(body.message).toBe('fixture');
+    expect(response.headers.get('x-bff-fallback-hit')).toBe('1');
     expect(body.total).toBe(3);
     expect(body.data).toHaveLength(3);
   });
@@ -124,7 +136,8 @@ describe('bff skus route', () => {
   });
 
   it('passes through upstream error for GET when fixture fallback is enabled', async () => {
-    process.env.NODE_ENV = 'test';
+    process.env.NODE_ENV = 'development';
+    process.env.MINIERP_ENABLE_BFF_FIXTURE_FALLBACK = 'true';
     globalThis.fetch = (async () =>
       Response.json(
         {
@@ -139,6 +152,8 @@ describe('bff skus route', () => {
 
     expect(response.status).toBe(403);
     expect(body.error.code).toBe('PERMISSION_UNEXPECTED');
+    expect(response.headers.get('x-bff-fallback-hit')).toBe('0');
+    expect(response.headers.get('x-bff-upstream-status')).toBe('403');
   });
 
   it('returns 503 when GET upstream is unavailable and fixture fallback is disabled', async () => {
@@ -153,6 +168,7 @@ describe('bff skus route', () => {
 
     expect(response.status).toBe(503);
     expect(body.error.code).toBe('BFF_UPSTREAM_UNAVAILABLE');
+    expect(response.headers.get('x-bff-fallback-reason')).toBe('fixture_disabled');
   });
 
   it('returns 400 when POST idempotency key is missing', async () => {

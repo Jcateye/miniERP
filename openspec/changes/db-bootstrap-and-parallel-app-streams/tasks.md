@@ -55,9 +55,9 @@
 
 ## 8. Shared + BFF 策略收口
 
-- [ ] 8.1 `packages/shared` 收敛 `ApiEnvelope<T>`、`PageResult<T>`、Document/Evidence 全域枚举。
-- [ ] 8.2 BFF fallback 策略改为默认禁用，仅 development 显式开关可启用。
-- [ ] 8.3 所有 fallback 分支返回明确错误与可追踪 header。
+- [x] 8.1 `packages/shared` 收敛 `ApiEnvelope<T>`、`PageResult<T>`、Document/Evidence 全域枚举。
+- [x] 8.2 BFF fallback 策略改为默认禁用，仅 development 显式开关可启用。
+- [x] 8.3 所有 fallback 分支返回明确错误与可追踪 header。
 
 ## 9. 并行开发启动门禁
 

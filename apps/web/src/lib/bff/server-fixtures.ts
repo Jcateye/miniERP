@@ -7,7 +7,10 @@ import type { DocumentDetailDto, DocumentListItemDto, PaginationEnvelope } from 
 
 const DEV_FALLBACK_AUTH_CONTEXT_SECRET = 'dev-only-auth-context-secret';
 const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
-const FIXTURE_FALLBACK_ALLOWED_ENVS = new Set(['development', 'test']);
+const BFF_FALLBACK_ENV = 'MINIERP_ENABLE_BFF_FIXTURE_FALLBACK';
+const BFF_FALLBACK_HIT_HEADER = 'x-bff-fallback-hit';
+const BFF_FALLBACK_REASON_HEADER = 'x-bff-fallback-reason';
+const BFF_UPSTREAM_STATUS_HEADER = 'x-bff-upstream-status';
 
 const documents: Record<DocumentType, DocumentListItemDto[]> = {
   PO: [
@@ -146,7 +149,7 @@ export function createServerHeaders() {
   const nodeEnv = process.env.NODE_ENV ?? 'production';
   const configuredSecret = process.env.AUTH_CONTEXT_SECRET?.trim();
 
-  if (!configuredSecret && !FIXTURE_FALLBACK_ALLOWED_ENVS.has(nodeEnv)) {
+  if (!configuredSecret && nodeEnv !== 'development' && nodeEnv !== 'test') {
     throw new Error('AUTH_CONTEXT_SECRET is required outside development/test');
   }
 
@@ -191,12 +194,38 @@ export function buildBackendUrl(path: string) {
 }
 
 export function isFixtureFallbackEnabled() {
-  const nodeEnv = process.env.NODE_ENV ?? 'production';
-  return FIXTURE_FALLBACK_ALLOWED_ENVS.has(nodeEnv);
+  return process.env.NODE_ENV === 'development' && process.env[BFF_FALLBACK_ENV]?.trim() === 'true';
 }
 
-export function toFixtureFallbackDisabledResponse(message: string) {
-  return toUpstreamUnavailableResponse(message);
+type BffTraceHeadersInput = {
+  fallbackHit: '0' | '1';
+  reason: string;
+  upstreamStatus?: number | string;
+};
+
+export function applyBffTraceHeaders<T extends Response>(response: T, trace: BffTraceHeadersInput): T {
+  response.headers.set(BFF_FALLBACK_HIT_HEADER, trace.fallbackHit);
+  response.headers.set(BFF_FALLBACK_REASON_HEADER, trace.reason);
+
+  if (typeof trace.upstreamStatus !== 'undefined') {
+    response.headers.set(BFF_UPSTREAM_STATUS_HEADER, String(trace.upstreamStatus));
+  }
+
+  return response;
+}
+
+export function toFixtureFallbackResponse(body: unknown, reason = 'fixture_response') {
+  return applyBffTraceHeaders(Response.json(body, { status: 200 }), {
+    fallbackHit: '1',
+    reason,
+  });
+}
+
+export function toFixtureFallbackDisabledResponse(message: string, upstreamStatus?: number) {
+  return toUpstreamUnavailableResponse(message, {
+    reason: 'fixture_disabled',
+    upstreamStatus,
+  });
 }
 
 export async function toUpstreamErrorResponse(response: Response) {
@@ -207,20 +236,34 @@ export async function toUpstreamErrorResponse(response: Response) {
     const upstreamBody = await response.json();
 
     if (isClientError) {
-      return Response.json(upstreamBody, {
-        status: response.status,
-      });
+      return applyBffTraceHeaders(
+        Response.json(upstreamBody, {
+          status: response.status,
+        }),
+        {
+          fallbackHit: '0',
+          reason: 'upstream_error',
+          upstreamStatus: response.status,
+        },
+      );
     }
 
-    return Response.json(
-      {
-        error: {
-          code: 'BFF_UPSTREAM_ERROR',
-          message: 'Upstream service temporarily unavailable',
+    return applyBffTraceHeaders(
+      Response.json(
+        {
+          error: {
+            code: 'BFF_UPSTREAM_ERROR',
+            message: 'Upstream service temporarily unavailable',
+          },
         },
-      },
+        {
+          status: response.status,
+        },
+      ),
       {
-        status: response.status,
+        fallbackHit: '0',
+        reason: 'upstream_error',
+        upstreamStatus: response.status,
       },
     );
   }
@@ -229,29 +272,46 @@ export async function toUpstreamErrorResponse(response: Response) {
     ? 'Upstream request rejected'
     : 'Upstream service temporarily unavailable';
 
-  return Response.json(
-    {
-      error: {
-        code: 'BFF_UPSTREAM_ERROR',
-        message: fallbackMessage,
+  return applyBffTraceHeaders(
+    Response.json(
+      {
+        error: {
+          code: 'BFF_UPSTREAM_ERROR',
+          message: fallbackMessage,
+        },
       },
-    },
+      {
+        status: response.status,
+      },
+    ),
     {
-      status: response.status,
+      fallbackHit: '0',
+      reason: 'upstream_error',
+      upstreamStatus: response.status,
     },
   );
 }
 
-export function toUpstreamUnavailableResponse(message: string) {
-  return Response.json(
-    {
-      error: {
-        code: 'BFF_UPSTREAM_UNAVAILABLE',
-        message,
+export function toUpstreamUnavailableResponse(
+  message: string,
+  options?: { reason?: string; upstreamStatus?: number | string },
+) {
+  return applyBffTraceHeaders(
+    Response.json(
+      {
+        error: {
+          code: 'BFF_UPSTREAM_UNAVAILABLE',
+          message,
+        },
       },
-    },
+      {
+        status: 503,
+      },
+    ),
     {
-      status: 503,
+      fallbackHit: '0',
+      reason: options?.reason ?? 'upstream_unavailable',
+      upstreamStatus: options?.upstreamStatus,
     },
   );
 }
