@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 
 import { useBffGet, useDocumentDetail, useDocumentEvidence, useLineEvidence, useWorkbenchList } from '@/hooks';
 import { DetailLayout, EmptyState, HeaderActions, OverviewLayout, SurfaceCard, TemplateBadge, WorkbenchLayout, WizardLayout, styles } from '@/components/layouts';
@@ -13,6 +14,7 @@ import type {
   AssemblyRow,
   DetailAssemblyConfig,
   OverviewAssemblyConfig,
+  OverviewTodoItem,
   WizardAssemblyConfig,
   WorkbenchAssemblyConfig,
 } from './erp-page-config';
@@ -124,6 +126,89 @@ function ToolbarCard({ config }: { config: WorkbenchAssemblyConfig }) {
   );
 }
 
+function OverviewTodoCard({ item }: { item: OverviewTodoItem }) {
+  const body = (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 650 }}>{item.title}</div>
+        <TemplateBadge label={item.tag} tone={item.tone ?? 'neutral'} />
+      </div>
+      <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>
+        {item.description}
+      </div>
+    </>
+  );
+
+  const cardStyle = {
+    display: 'block',
+    border: '1px solid rgba(224,221,214,0.92)',
+    borderRadius: 14,
+    padding: 14,
+    textDecoration: 'none',
+    color: 'inherit',
+    background: 'rgba(255,255,255,0.72)',
+  } satisfies CSSProperties;
+
+  if (!item.href) {
+    return <div style={cardStyle}>{body}</div>;
+  }
+
+  return (
+    <Link href={item.href} style={cardStyle}>
+      {body}
+    </Link>
+  );
+}
+
+function OverviewActionCard({ action }: { action: OverviewAssemblyConfig['quickActions'][number] }) {
+  const cardStyle = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: 14,
+    border: '1px solid rgba(224,221,214,0.92)',
+    background: 'rgba(255,255,255,0.72)',
+    color: 'inherit',
+    textDecoration: 'none',
+    fontSize: 14,
+    fontWeight: 600,
+    textAlign: 'left',
+    opacity: action.disabled ? 0.56 : 1,
+    cursor: action.disabled ? 'not-allowed' : 'pointer',
+  } satisfies CSSProperties;
+
+  const body = (
+    <>
+      <span style={{ display: 'grid', gap: 6 }}>
+        <span>{action.label}</span>
+        {action.hint ? (
+          <span style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+            {action.hint}
+          </span>
+        ) : null}
+      </span>
+      <span style={{ color: 'var(--color-terracotta)', flexShrink: 0 }}>{action.disabled ? '不可用' : '→'}</span>
+    </>
+  );
+
+  if (!action.disabled && action.href) {
+    return (
+      <Link key={action.key} href={action.href} style={cardStyle} title={action.hint}>
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <button key={action.key} type="button" disabled style={cardStyle} title={action.hint}>
+      {body}
+    </button>
+  );
+}
+
 export function OverviewAssembly({ config }: { config: OverviewAssemblyConfig }) {
   return (
     <OverviewLayout
@@ -147,27 +232,7 @@ export function OverviewAssembly({ config }: { config: OverviewAssemblyConfig })
         <SurfaceCard title="待办 / 异常" description="按业务优先级排序。">
           <div style={{ display: 'grid', gap: 10 }}>
             {config.todos.map((item) => (
-              <Link
-                key={item.title}
-                href={item.href ?? '#'}
-                style={{
-                  display: 'block',
-                  border: '1px solid rgba(224,221,214,0.92)',
-                  borderRadius: 14,
-                  padding: 14,
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  background: 'rgba(255,255,255,0.72)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ fontSize: 14, fontWeight: 650 }}>{item.title}</div>
-                  <TemplateBadge label={item.tag} tone={item.tone ?? 'neutral'} />
-                </div>
-                <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>
-                  {item.description}
-                </div>
-              </Link>
+              <OverviewTodoCard key={item.title} item={item} />
             ))}
           </div>
         </SurfaceCard>
@@ -176,26 +241,7 @@ export function OverviewAssembly({ config }: { config: OverviewAssemblyConfig })
         <SurfaceCard title="快捷操作" description="面向当前阶段 1 的核心页面装配入口。">
           <div style={{ display: 'grid', gap: 10 }}>
             {config.quickActions.map((action) => (
-              <Link
-                key={action.key}
-                href={action.href ?? '#'}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 14px',
-                  borderRadius: 14,
-                  border: '1px solid rgba(224,221,214,0.92)',
-                  background: 'rgba(255,255,255,0.72)',
-                  color: 'inherit',
-                  textDecoration: 'none',
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                {action.label}
-                <span style={{ color: 'var(--color-terracotta)' }}>→</span>
-              </Link>
+              <OverviewActionCard key={action.key} action={action} />
             ))}
           </div>
         </SurfaceCard>

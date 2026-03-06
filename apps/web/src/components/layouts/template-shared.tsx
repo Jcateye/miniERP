@@ -257,18 +257,22 @@ export function ActionButton({ action }: { action: TemplateAction }) {
     fontWeight: 650,
     textDecoration: 'none',
     opacity: action.disabled ? 0.5 : 1,
-    pointerEvents: action.disabled ? 'none' : 'auto',
+    cursor: action.disabled ? 'not-allowed' : 'pointer',
   };
 
-  if (action.href) {
+  if (!action.disabled && action.href) {
     return (
-      <Link href={action.href} style={buttonStyle}>
+      <Link href={action.href} style={buttonStyle} title={action.hint}>
         {action.label}
       </Link>
     );
   }
 
-  return <span style={buttonStyle}>{action.label}</span>;
+  return (
+    <button type="button" disabled style={buttonStyle} title={action.hint}>
+      {action.label}
+    </button>
+  );
 }
 
 export function MetricTile({

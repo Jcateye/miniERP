@@ -543,7 +543,10 @@ export const settingsOverviewConfig: OverviewAssemblyConfig = {
       { key: 'health', label: '接口健康', value: '正常', hint: 'BFF -> API', tone: 'success' },
     ],
     { key: 'master-data', label: '主数据配置', href: '/settings/master-data', tone: 'primary' },
-    [{ key: 'system', label: '系统配置', href: '/settings/system', tone: 'secondary' }],
+    [
+      { key: 'users', label: '用户管理', href: '/settings/users', tone: 'secondary' },
+      { key: 'system', label: '系统配置', href: '/settings/system', tone: 'secondary' },
+    ],
     createTag('FE-READY Gate', 'success'),
   ),
   searchPlaceholder: '搜索配置项、角色、租户或系统参数',
@@ -554,10 +557,51 @@ export const settingsOverviewConfig: OverviewAssemblyConfig = {
   quickActions: [
     { key: 'master', label: '主数据配置', href: '/settings/master-data', tone: 'secondary' },
     { key: 'system', label: '系统参数', href: '/settings/system', tone: 'secondary' },
+    { key: 'tenant', label: '租户设置', href: '/settings/tenant', tone: 'secondary' },
+    { key: 'roles', label: '角色权限', href: '/settings/roles', tone: 'secondary' },
+    { key: 'api-logs', label: 'API 日志', href: '/settings/api-logs', tone: 'ghost' },
   ],
   timeline: [
     { action: 'BFF 传输层切换到 HTTP 优先模式', time: '今天 10:30', tone: 'success' },
     { action: 'ESLint Next flat config 通过根目录执行', time: '今天 10:42', tone: 'info' },
+  ],
+};
+
+export const reportsOverviewConfig: OverviewAssemblyConfig = {
+  contract: createOverviewContract(
+    '/reports',
+    '报表中心',
+    '报表页回归 T1 模板；当前仅保留来源数据工作台入口，聚合报表后端尚未开通。',
+    [
+      { key: 'skuCount', label: 'SKU 总数', value: '1,284', hint: '来源于主数据快照', tone: 'info' },
+      { key: 'inventoryQty', label: '库存总量', value: '45,672', hint: '来源于库存余额视图', tone: 'success' },
+      { key: 'purchase', label: '本月采购额', value: '¥328,450', hint: '待接真实报表聚合', tone: 'warning' },
+      { key: 'sales', label: '本月销售额', value: '¥512,890', hint: '待接真实报表聚合', tone: 'warning' },
+    ],
+    { key: 'inventory-ledger', label: '查看库存流水', href: '/inventory/ledger', tone: 'primary' },
+    [
+      { key: 'purchase-source', label: '采购来源数据', href: '/purchasing/po', tone: 'secondary' },
+      { key: 'export-report', label: '导出报表（后端未开通）', tone: 'ghost', disabled: true, hint: '缺少聚合查询与导出接口，暂不开放。' },
+    ],
+    createTag('报表接口建设中', 'warning'),
+  ),
+  searchPlaceholder: '按主题检索报表说明、来源工作台与对账入口',
+  todos: [
+    { title: '库存价值需月末复核', description: '当前先通过库存余额与流水交叉核对，报表聚合接口未上线。', tag: '库存', tone: 'warning', href: '/inventory/ledger' },
+    { title: '采购履约趋势暂走工作台筛选', description: '可在 PO 工作台按状态、日期与供应商手工筛选。', tag: '采购', tone: 'info', href: '/purchasing/po' },
+    { title: '销售毛利报表尚未开放', description: '缺少财务聚合能力，先使用 SO/OUT 数据源排查。', tag: '销售', tone: 'warning', href: '/sales/out' },
+  ],
+  quickActions: [
+    { key: 'inventory-value', label: '库存价值报表（后端未接入）', tone: 'secondary', disabled: true, hint: '请先使用库存查询与库存流水工作台。' },
+    { key: 'purchase-analysis', label: '采购分析报表（后端未接入）', tone: 'secondary', disabled: true, hint: '请先使用 PO / GRN 工作台筛选与导出。' },
+    { key: 'sales-trend', label: '销售趋势报表（后端未接入）', tone: 'secondary', disabled: true, hint: '请先使用 SO / OUT 工作台查看来源数据。' },
+    { key: 'profit-analysis', label: '利润分析报表（后端未接入）', tone: 'secondary', disabled: true, hint: '缺少利润聚合与财务接口，暂不开放。' },
+    { key: 'audit-trail', label: '操作审计报表（后端未接入）', tone: 'secondary', disabled: true, hint: '缺少审计报表查询接口，暂不开放。' },
+  ],
+  timeline: [
+    { action: '报表页已切换为模板治理模式，移除静态占位详情入口', time: '今天 14:10', tone: 'success' },
+    { action: '库存/采购来源工作台保留为当前可用分析入口', time: '今天 14:06', tone: 'info' },
+    { action: '导出报表动作已显式禁用，等待后端聚合能力交付', time: '今天 14:00', tone: 'warning' },
   ],
 };
 
