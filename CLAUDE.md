@@ -80,6 +80,19 @@ From `.claude/rules/erp-rules.md`:
 - Monetary computation: must use `decimal.js`
 - Document states: explicit transitions + auditable history
 
+## Engineering redlines (must follow)
+
+1. New pages must use **T1/T2/T3/T4** only; no fifth layout pattern.
+2. List pages must URL-encode filter/sort/pagination state (shareable + replayable).
+3. Template components must not call APIs directly; pages use VM hooks + BFF only.
+4. Frontend must not define custom status enums; use `packages/shared` as the single source.
+5. Inventory truth source is `inventory_ledger`; balance table is query acceleration only.
+6. All posting endpoints must require `Idempotency-Key`.
+7. Physical deletion of posted documents is forbidden; use void/reversal only.
+8. All write operations must carry `tenant_id` and audit fields (who/when/what).
+9. BFF is the only frontend data entry layer; no bypass to backend APIs.
+10. PR gate must pass: template compliance + status contract + posting consistency tests.
+
 ## Repo etiquette
 
 Current repo-enforced/source-backed expectations:

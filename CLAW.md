@@ -127,6 +127,21 @@ openspec         变更工件
 
 ---
 
+## 工程红线（必须遵守）
+
+1. 新页面只能落在 **T1/T2/T3/T4**，禁止第 5 种布局。
+2. 列表页筛选/排序/分页必须 URL 化（可分享、可回放）。
+3. 模板组件禁止直连 API；页面只通过 VM Hook + BFF。
+4. 前端禁止自定义状态枚举；状态只来自 `packages/shared`。
+5. 库存只认 `inventory_ledger` 为事实源，余额表仅做查询加速。
+6. 所有过账接口强制 `Idempotency-Key`。
+7. 禁止物理删除已过账单据；只能作废/冲销。
+8. 所有写操作必须带 `tenant_id` 与审计字段（who/when/what）。
+9. BFF 是前端唯一数据入口，禁止页面绕过 BFF。
+10. PR 必须通过：模板合规 + 状态契约 + 过账一致性测试。
+
+---
+
 ## OpenSpec
 
 常用：`/opsx:new` `/opsx:ff` `/opsx:apply` `/opsx:verify` `/opsx:archive`
