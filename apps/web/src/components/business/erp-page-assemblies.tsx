@@ -1,14 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import type { CSSProperties } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { INVENTORY_REFERENCE_TYPES, type InventoryBalancePage, type InventoryLedgerPage } from '@minierp/shared';
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 
 import { useBffGet, useDocumentDetail, useDocumentEvidence, useLineEvidence, useWorkbenchList } from '@/hooks';
 import { DetailLayout, EmptyState, HeaderActions, OverviewLayout, SurfaceCard, TemplateBadge, WorkbenchLayout, WizardLayout, styles } from '@/components/layouts';
 import { EvidencePanel } from '@/components/evidence/evidence-panel';
 import { LineEvidenceDrawer } from '@/components/evidence/line-evidence-drawer';
-import { attachEvidence, createDocument, createEvidenceUploadIntent, submitDocumentCommand } from '@/lib/bff';
+import {
+  attachEvidence,
+  createDocument,
+  createEvidenceUploadIntent,
+  DOCUMENT_COMMANDS,
+  getDocumentCommandAvailability,
+  submitDocumentCommand,
+  type DocumentCommand,
+} from '@/lib/bff';
 
 import type {
   AssemblyRow,
@@ -53,31 +62,30 @@ function renderCell(row: AssemblyRow, column: WorkbenchAssemblyConfig['columns']
   return <span>{value}</span>;
 }
 
-type InventoryBalanceResponse = {
-  data: Array<{
-    skuId: string;
-    warehouseId: string;
-    onHand: number;
-  }>;
-  total: number;
-};
+type InventoryWorkbenchRoute = '/inventory' | '/inventory/ledger';
 
-type InventoryLedgerResponse = {
-  data: Array<{
-    id: string;
-    skuId: string;
-    warehouseId: string;
-    quantityDelta: number;
-    referenceType: string;
-    referenceId: string;
-    postedAt: string;
-    reversalOfLedgerId: string | null;
-  }>;
-  total: number;
+type InventoryUrlState = {
+  skuId: string;
+  warehouseId: string;
+  docType: string;
   page: number;
   pageSize: number;
-  totalPages: number;
 };
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) {
+    return fallback;
+  }
+
+  if (!/^[1-9]\d*$/.test(value)) {
+    return fallback;
+  }
+
+  return Number(value);
+}
 
 function idempotencyKey(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -100,6 +108,12 @@ function getRowValue(row: AssemblyRow, keys: string[]): string | undefined {
   }
   return undefined;
 }
+
+const commandLabelMap: Record<DocumentCommand, string> = {
+  confirm: '确认',
+  post: '过账',
+  cancel: '取消',
+};
 
 function ToolbarCard({ config }: { config: WorkbenchAssemblyConfig }) {
   return (
@@ -209,6 +223,134 @@ function OverviewActionCard({ action }: { action: OverviewAssemblyConfig['quickA
   );
 }
 
+function InventoryToolbar({
+  route,
+  state,
+  validationError,
+  onSubmit,
+  onReset,
+}: {
+  route: InventoryWorkbenchRoute;
+  state: InventoryUrlState;
+  validationError: string | null;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onReset: () => void;
+}) {
+  return (
+    <SurfaceCard title="筛选与视图" description="筛选项与分页状态全部 URL 化，可分享与回放。">
+      <form
+        key={`${route}-${state.skuId}-${state.warehouseId}-${state.docType}-${state.pageSize}`}
+        onSubmit={onSubmit}
+        style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+      >
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>SKU</span>
+          <input
+            name="skuId"
+            defaultValue={state.skuId}
+            placeholder="如 CAB-HDMI-2M"
+            style={{
+              border: '1px solid rgba(224,221,214,0.92)',
+              borderRadius: 10,
+              padding: '8px 10px',
+              background: 'rgba(255,255,255,0.86)',
+            }}
+          />
+        </label>
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>仓库</span>
+          <input
+            name="warehouseId"
+            defaultValue={state.warehouseId}
+            placeholder="如 SZ-DC-01"
+            style={{
+              border: '1px solid rgba(224,221,214,0.92)',
+              borderRadius: 10,
+              padding: '8px 10px',
+              background: 'rgba(255,255,255,0.86)',
+            }}
+          />
+        </label>
+        {route === '/inventory/ledger' ? (
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>来源类型</span>
+            <select
+              name="docType"
+              defaultValue={state.docType}
+              style={{
+                border: '1px solid rgba(224,221,214,0.92)',
+                borderRadius: 10,
+                padding: '8px 10px',
+                background: 'rgba(255,255,255,0.86)',
+              }}
+            >
+              <option value="">全部</option>
+              {INVENTORY_REFERENCE_TYPES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>每页条数</span>
+          <select
+            name="pageSize"
+            defaultValue={String(state.pageSize)}
+            style={{
+              border: '1px solid rgba(224,221,214,0.92)',
+              borderRadius: 10,
+              padding: '8px 10px',
+              background: 'rgba(255,255,255,0.86)',
+            }}
+          >
+            {[20, 50, 100, 200].map((size) => (
+              <option key={size} value={String(size)}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+          <button
+            type="submit"
+            style={{
+              border: '1px solid var(--color-terracotta)',
+              borderRadius: 10,
+              padding: '8px 14px',
+              background: 'var(--color-terracotta)',
+              color: '#fff',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            应用筛选
+          </button>
+          <button
+            type="button"
+            onClick={onReset}
+            style={{
+              border: '1px solid rgba(224,221,214,0.92)',
+              borderRadius: 10,
+              padding: '8px 14px',
+              background: 'rgba(255,255,255,0.9)',
+              color: 'var(--color-text-secondary)',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            重置
+          </button>
+        </div>
+      </form>
+      {validationError ? (
+        <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-danger)' }}>{validationError}</div>
+      ) : null}
+    </SurfaceCard>
+  );
+}
+
 export function OverviewAssembly({ config }: { config: OverviewAssemblyConfig }) {
   return (
     <OverviewLayout
@@ -266,47 +408,181 @@ export function OverviewAssembly({ config }: { config: OverviewAssemblyConfig })
 }
 
 export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig }) {
+  const route = config.contract.route;
+  const isInventoryRoute = route === '/inventory';
+  const isInventoryLedgerRoute = route === '/inventory/ledger';
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const hook = useWorkbenchList(config.docType);
-  const inventoryBalanceHook = useBffGet<InventoryBalanceResponse>(
-    '/inventory/balances',
-    config.contract.route === '/inventory',
+  const queryState = useMemo<InventoryUrlState>(
+    () => ({
+      skuId: searchParams.get('skuId')?.trim() ?? '',
+      warehouseId: searchParams.get('warehouseId')?.trim() ?? '',
+      docType: searchParams.get('docType')?.trim().toUpperCase() ?? '',
+      page: parsePositiveInt(searchParams.get('page'), DEFAULT_PAGE),
+      pageSize: Math.min(
+        parsePositiveInt(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE),
+        200,
+      ),
+    }),
+    [searchParams],
   );
-  const inventoryLedgerHook = useBffGet<InventoryLedgerResponse>(
-    '/inventory/ledger?page=1&pageSize=100',
-    config.contract.route === '/inventory/ledger',
+  const inventoryQueryValidationError = useMemo(() => {
+    if (!isInventoryRoute) {
+      return null;
+    }
+
+    if (
+      (queryState.skuId && !queryState.warehouseId) ||
+      (!queryState.skuId && queryState.warehouseId)
+    ) {
+      return '筛选库存余额时，SKU 与仓库必须同时填写。';
+    }
+
+    return null;
+  }, [isInventoryRoute, queryState.skuId, queryState.warehouseId]);
+
+  const replaceInventoryQuery = (
+    patch: Partial<InventoryUrlState>,
+    options?: { resetPage?: boolean },
+  ) => {
+    if (!isInventoryRoute && !isInventoryLedgerRoute) {
+      return;
+    }
+
+    const nextState: InventoryUrlState = {
+      ...queryState,
+      ...patch,
+    };
+    const page = options?.resetPage
+      ? DEFAULT_PAGE
+      : Math.max(DEFAULT_PAGE, nextState.page);
+    const pageSize = Math.min(
+      Math.max(DEFAULT_PAGE, nextState.pageSize),
+      200,
+    );
+    const params = new URLSearchParams();
+
+    if (nextState.skuId) {
+      params.set('skuId', nextState.skuId);
+    }
+
+    if (nextState.warehouseId) {
+      params.set('warehouseId', nextState.warehouseId);
+    }
+
+    if (isInventoryLedgerRoute && nextState.docType) {
+      params.set('docType', nextState.docType.toUpperCase());
+    }
+
+    params.set('page', String(page));
+    params.set('pageSize', String(pageSize));
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
+
+  const handleInventoryFilterSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+
+    replaceInventoryQuery(
+      {
+        skuId: String(formData.get('skuId') ?? '').trim(),
+        warehouseId: String(formData.get('warehouseId') ?? '').trim(),
+        docType: String(formData.get('docType') ?? '').trim().toUpperCase(),
+        pageSize: parsePositiveInt(
+          String(formData.get('pageSize') ?? ''),
+          queryState.pageSize,
+        ),
+      },
+      { resetPage: true },
+    );
+  };
+
+  const inventoryBalancePath = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (queryState.skuId) {
+      params.set('skuId', queryState.skuId);
+    }
+
+    if (queryState.warehouseId) {
+      params.set('warehouseId', queryState.warehouseId);
+    }
+
+    params.set('page', String(queryState.page));
+    params.set('pageSize', String(queryState.pageSize));
+
+    return `/inventory/balances?${params.toString()}`;
+  }, [queryState.page, queryState.pageSize, queryState.skuId, queryState.warehouseId]);
+
+  const inventoryLedgerPath = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (queryState.skuId) {
+      params.set('skuId', queryState.skuId);
+    }
+
+    if (queryState.warehouseId) {
+      params.set('warehouseId', queryState.warehouseId);
+    }
+
+    if (queryState.docType) {
+      params.set('docType', queryState.docType);
+    }
+
+    params.set('page', String(queryState.page));
+    params.set('pageSize', String(queryState.pageSize));
+
+    return `/inventory/ledger?${params.toString()}`;
+  }, [
+    queryState.docType,
+    queryState.page,
+    queryState.pageSize,
+    queryState.skuId,
+    queryState.warehouseId,
+  ]);
+
+  const inventoryBalanceHook = useBffGet<InventoryBalancePage>(
+    inventoryBalancePath,
+    isInventoryRoute && !inventoryQueryValidationError,
+  );
+  const inventoryLedgerHook = useBffGet<InventoryLedgerPage>(
+    inventoryLedgerPath,
+    isInventoryLedgerRoute,
   );
 
   const rows = useMemo<AssemblyRow[]>(() => {
-    if (config.contract.route === '/inventory') {
+    if (isInventoryRoute) {
       const liveRows = inventoryBalanceHook.data?.data ?? [];
-      if (liveRows.length > 0) {
-        return liveRows.map((item) => ({
-          id: `${item.skuId}-${item.warehouseId}`,
-          sku: item.skuId,
-          warehouse: item.warehouseId,
-          onHand: String(item.onHand),
-          available: String(item.onHand),
-          reserved: '0',
-          status: item.onHand > 0 ? 'healthy' : 'risk',
-        }));
-      }
-      return config.rows;
+      return liveRows.map((item) => ({
+        id: `${item.skuId}-${item.warehouseId}`,
+        sku: item.skuId,
+        warehouse: item.warehouseId,
+        onHand: String(item.onHand),
+        available: String(item.onHand),
+        reserved: '0',
+        status: item.onHand > 0 ? 'healthy' : 'risk',
+      }));
     }
 
-    if (config.contract.route === '/inventory/ledger') {
+    if (isInventoryLedgerRoute) {
       const liveRows = inventoryLedgerHook.data?.data ?? [];
-      if (liveRows.length > 0) {
-        return liveRows.map((item) => ({
-          id: item.id,
-          docNo: `${item.referenceType}-${item.referenceId}`,
-          sku: item.skuId,
-          delta: item.quantityDelta >= 0 ? `+${item.quantityDelta}` : String(item.quantityDelta),
-          balance: '-',
-          postedAt: formatPostedAt(item.postedAt),
-          status: item.reversalOfLedgerId ? 'reversed' : 'posted',
-        }));
-      }
-      return config.rows;
+      return liveRows.map((item) => ({
+        id: item.id,
+        docNo: `${item.referenceType}-${item.referenceId}`,
+        sku: item.skuId,
+        warehouse: item.warehouseId,
+        delta:
+          item.quantityDelta >= 0
+            ? `+${item.quantityDelta}`
+            : String(item.quantityDelta),
+        balance: '-',
+        postedAt: formatPostedAt(item.postedAt),
+        status: item.reversalOfLedgerId ? 'reversed' : 'posted',
+      }));
     }
 
     if (!hook?.data?.data?.length) {
@@ -322,7 +598,14 @@ export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig 
       status: item.status,
       warehouse: 'API',
     }));
-  }, [config, hook?.data, inventoryBalanceHook.data, inventoryLedgerHook.data]);
+  }, [
+    config,
+    hook?.data,
+    inventoryBalanceHook.data,
+    inventoryLedgerHook.data,
+    isInventoryLedgerRoute,
+    isInventoryRoute,
+  ]);
 
   const [selectedId, setSelectedId] = useState(rows[0]?.id ?? '');
 
@@ -342,73 +625,255 @@ export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig 
     });
   }, [rows]);
 
-  const selectedRow = rows.find((row) => row.id === selectedId) ?? rows[0];
-  const description = useMemo(() => {
-    if (config.contract.route === '/inventory') {
-      return inventoryBalanceHook.error
-        ? `库存接口不可用，展示装配数据：${inventoryBalanceHook.error}`
-        : '已接入 /api/bff/inventory/balances，优先展示真实库存余额。';
+  const inventoryPagination = useMemo(() => {
+    if (isInventoryRoute) {
+      return {
+        page: inventoryBalanceHook.data?.page ?? queryState.page,
+        pageSize: inventoryBalanceHook.data?.pageSize ?? queryState.pageSize,
+        total: inventoryBalanceHook.data?.total ?? 0,
+        totalPages: inventoryBalanceHook.data?.totalPages ?? 0,
+      };
     }
 
-    if (config.contract.route === '/inventory/ledger') {
-      return inventoryLedgerHook.error
-        ? `库存流水接口不可用，展示装配数据：${inventoryLedgerHook.error}`
-        : '已接入 /api/bff/inventory/ledger，优先展示真实库存流水。';
+    if (isInventoryLedgerRoute) {
+      return {
+        page: inventoryLedgerHook.data?.page ?? queryState.page,
+        pageSize: inventoryLedgerHook.data?.pageSize ?? queryState.pageSize,
+        total: inventoryLedgerHook.data?.total ?? 0,
+        totalPages: inventoryLedgerHook.data?.totalPages ?? 0,
+      };
+    }
+
+    return null;
+  }, [
+    inventoryBalanceHook.data,
+    inventoryLedgerHook.data,
+    isInventoryLedgerRoute,
+    isInventoryRoute,
+    queryState.page,
+    queryState.pageSize,
+  ]);
+
+  const inventoryQueryError = isInventoryRoute
+    ? (inventoryQueryValidationError ?? inventoryBalanceHook.error)
+    : isInventoryLedgerRoute
+      ? inventoryLedgerHook.error
+      : null;
+  const selectedRow = rows.find((row) => row.id === selectedId) ?? rows[0];
+
+  const description = useMemo(() => {
+    if (isInventoryRoute) {
+      return inventoryQueryError
+        ? `库存接口请求失败：${inventoryQueryError}`
+        : '已接入 /api/bff/inventory/balances，展示真实库存余额。';
+    }
+
+    if (isInventoryLedgerRoute) {
+      return inventoryQueryError
+        ? `库存流水接口请求失败：${inventoryQueryError}`
+        : '已接入 /api/bff/inventory/ledger，展示真实库存流水。';
     }
 
     return hook?.error
       ? `接口不可用，当前展示装配种子数据：${hook.error}`
       : '已接入 hooks 层；如接口有数据将优先展示真实返回。';
   }, [
-    config.contract.route,
     hook?.error,
-    inventoryBalanceHook.error,
-    inventoryLedgerHook.error,
+    inventoryQueryError,
+    isInventoryLedgerRoute,
+    isInventoryRoute,
   ]);
 
-  const loading = hook?.loading || inventoryBalanceHook.loading || inventoryLedgerHook.loading;
+  const loading = isInventoryRoute
+    ? inventoryBalanceHook.loading
+    : isInventoryLedgerRoute
+      ? inventoryLedgerHook.loading
+      : Boolean(hook?.loading);
+  const canPaginateInventory = isInventoryRoute || isInventoryLedgerRoute;
+  const totalPages = inventoryPagination?.totalPages ?? 0;
+  const canGoPrevious = canPaginateInventory && (inventoryPagination?.page ?? 1) > 1;
+  const canGoNext =
+    canPaginateInventory &&
+    totalPages > 0 &&
+    (inventoryPagination?.page ?? 1) < totalPages;
+  const handleReload = () => {
+    if (isInventoryRoute) {
+      inventoryBalanceHook.reload();
+      return;
+    }
+
+    if (isInventoryLedgerRoute) {
+      inventoryLedgerHook.reload();
+      return;
+    }
+
+    hook?.reload();
+  };
+  const handleResetInventoryQuery = () => {
+    replaceInventoryQuery(
+      {
+        skuId: '',
+        warehouseId: '',
+        docType: '',
+        page: DEFAULT_PAGE,
+        pageSize: DEFAULT_PAGE_SIZE,
+      },
+      { resetPage: true },
+    );
+  };
 
   return (
     <WorkbenchLayout
       contract={config.contract}
-      toolbarSlot={<ToolbarCard config={config} />}
+      toolbarSlot={
+        isInventoryRoute || isInventoryLedgerRoute ? (
+          <InventoryToolbar
+            route={route as InventoryWorkbenchRoute}
+            state={queryState}
+            validationError={inventoryQueryValidationError}
+            onSubmit={handleInventoryFilterSubmit}
+            onReset={handleResetInventoryQuery}
+          />
+        ) : (
+          <ToolbarCard config={config} />
+        )
+      }
       resultsSlot={
         <SurfaceCard
           title="列表结果"
           description={description}
           actions={loading ? <TemplateBadge label="加载中" tone="info" /> : undefined}
         >
-          <div style={styles.tableWrap}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  {config.columns.map((column) => (
-                    <th key={column.key} style={styles.th}>
-                      {column.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => setSelectedId(row.id)}
-                    style={{
-                      background: row.id === selectedId ? 'rgba(192,90,60,0.08)' : 'transparent',
-                      cursor: 'pointer',
-                    }}
-                  >
+          {inventoryQueryError ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <EmptyState title="查询失败" description={inventoryQueryError} />
+              {inventoryQueryValidationError ? null : (
+                <button
+                  type="button"
+                  onClick={handleReload}
+                  style={{
+                    justifySelf: 'start',
+                    border: '1px solid rgba(224,221,214,0.92)',
+                    borderRadius: 10,
+                    padding: '8px 14px',
+                    background: 'rgba(255,255,255,0.92)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  重试
+                </button>
+              )}
+            </div>
+          ) : !loading && rows.length === 0 ? (
+            <EmptyState
+              title="暂无数据"
+              description="当前筛选条件未命中记录，可调整筛选后重试。"
+            />
+          ) : (
+            <div style={styles.tableWrap}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
                     {config.columns.map((column) => (
-                      <td key={column.key} style={styles.td}>
-                        {renderCell(row, column)}
-                      </td>
+                      <th key={column.key} style={styles.th}>
+                        {column.label}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => setSelectedId(row.id)}
+                      style={{
+                        background:
+                          row.id === selectedId
+                            ? 'rgba(192,90,60,0.08)'
+                            : 'transparent',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {config.columns.map((column) => (
+                        <td key={column.key} style={styles.td}>
+                          {renderCell(row, column)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {canPaginateInventory && inventoryPagination ? (
+            <div
+              style={{
+                marginTop: 12,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                共 {inventoryPagination.total} 条，当前第 {inventoryPagination.page} /{' '}
+                {Math.max(inventoryPagination.totalPages, 1)} 页
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  disabled={!canGoPrevious}
+                  onClick={() =>
+                    replaceInventoryQuery({
+                      page: Math.max(
+                        DEFAULT_PAGE,
+                        (inventoryPagination.page ?? DEFAULT_PAGE) - 1,
+                      ),
+                    })
+                  }
+                  style={{
+                    border: '1px solid rgba(224,221,214,0.92)',
+                    borderRadius: 10,
+                    padding: '6px 12px',
+                    background: canGoPrevious
+                      ? 'rgba(255,255,255,0.92)'
+                      : 'rgba(245,243,239,0.8)',
+                    color: canGoPrevious
+                      ? 'var(--color-text-primary)'
+                      : 'var(--color-text-muted)',
+                    cursor: canGoPrevious ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  上一页
+                </button>
+                <button
+                  type="button"
+                  disabled={!canGoNext}
+                  onClick={() =>
+                    replaceInventoryQuery({
+                      page: (inventoryPagination.page ?? DEFAULT_PAGE) + 1,
+                    })
+                  }
+                  style={{
+                    border: '1px solid rgba(224,221,214,0.92)',
+                    borderRadius: 10,
+                    padding: '6px 12px',
+                    background: canGoNext
+                      ? 'rgba(255,255,255,0.92)'
+                      : 'rgba(245,243,239,0.8)',
+                    color: canGoNext
+                      ? 'var(--color-text-primary)'
+                      : 'var(--color-text-muted)',
+                    cursor: canGoNext ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          ) : null}
         </SurfaceCard>
       }
       detailSlot={
@@ -432,7 +897,11 @@ export function WorkbenchAssembly({ config }: { config: WorkbenchAssemblyConfig 
           <EmptyState title="暂无选中行" description="选择一条记录后可查看摘要。" />
         )
       }
-      bulkBarSlot={<SurfaceCard title="批量操作提示" description={config.bulkHint}><TemplateBadge label="T2 Workbench" tone="info" /></SurfaceCard>}
+      bulkBarSlot={
+        <SurfaceCard title="批量操作提示" description={config.bulkHint}>
+          <TemplateBadge label="T2 Workbench" tone="info" />
+        </SurfaceCard>
+      }
     />
   );
 }
@@ -466,12 +935,21 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
   const lineContext = lineContexts.find((item) => item.lineId === activeLineId) ?? lineContexts[0];
   const lineEvidenceHook = useLineEvidence(config.entityType, entityId, lineContext?.lineId);
   const [actionNotice, setActionNotice] = useState<string>('');
-  const [actionLoading, setActionLoading] = useState<'confirm' | 'post' | 'cancel' | null>(null);
+  const [actionLoading, setActionLoading] = useState<DocumentCommand | null>(null);
   const [uploadingScope, setUploadingScope] = useState<'document' | 'line' | null>(null);
   const documentEvidence = evidenceHook.data ?? config.record.documentEvidence;
   const lineEvidence =
     (lineContext ? lineEvidenceHook.data : null) ??
     (lineContext ? config.record.lineEvidence[lineContext.lineId] : null);
+  const actionAvailability = useMemo(
+    () =>
+      getDocumentCommandAvailability({
+        docType: config.docType,
+        status: liveRecord?.status,
+        backendReady: !detailHook?.error,
+      }),
+    [config.docType, detailHook?.error, liveRecord?.status],
+  );
 
   useEffect(() => {
     if (lineContexts.length === 0) {
@@ -489,9 +967,15 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
     });
   }, [lineContexts]);
 
-  const handleAction = async (action: 'confirm' | 'post' | 'cancel') => {
+  const handleAction = async (action: DocumentCommand) => {
     if (!config.docType) {
       setActionNotice('当前详情页未绑定 docType，无法执行动作联调。');
+      return;
+    }
+
+    const capability = actionAvailability.actions[action];
+    if (!capability.enabled) {
+      setActionNotice(capability.reason ?? `${commandLabelMap[action]}动作不可用。`);
       return;
     }
 
@@ -724,23 +1208,39 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
             <HeaderActions primaryAction={config.contract.header.primaryAction} secondaryActions={config.contract.header.secondaryActions} />
             {config.docType ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {(['confirm', 'post', 'cancel'] as const).map((action) => (
+                {DOCUMENT_COMMANDS.map((action) => (
                   <button
                     key={action}
                     type="button"
-                    disabled={Boolean(actionLoading)}
+                    disabled={Boolean(actionLoading) || !actionAvailability.actions[action].enabled}
+                    title={actionAvailability.actions[action].reason}
                     onClick={() => void handleAction(action)}
                     style={{
                       border: '1px solid rgba(224,221,214,0.92)',
                       background: action === 'post' ? 'rgba(192,90,60,0.10)' : 'rgba(255,255,255,0.72)',
                       borderRadius: 10,
                       padding: '8px 12px',
-                      cursor: 'pointer',
+                      cursor: Boolean(actionLoading) || !actionAvailability.actions[action].enabled ? 'not-allowed' : 'pointer',
                       fontWeight: 650,
+                      opacity: actionAvailability.actions[action].enabled ? 1 : 0.5,
                     }}
                   >
-                    {actionLoading === action ? '处理中...' : action.toUpperCase()}
+                    {actionLoading === action ? '处理中...' : commandLabelMap[action]}
                   </button>
+                ))}
+              </div>
+            ) : null}
+            {config.docType ? (
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                当前状态：{actionAvailability.normalizedStatus ?? '未识别'}
+              </div>
+            ) : null}
+            {config.docType ? (
+              <div style={{ display: 'grid', gap: 4 }}>
+                {DOCUMENT_COMMANDS.filter((action) => !actionAvailability.actions[action].enabled).map((action) => (
+                  <div key={action} style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                    {commandLabelMap[action]}已禁用：{actionAvailability.actions[action].reason}
+                  </div>
                 ))}
               </div>
             ) : null}

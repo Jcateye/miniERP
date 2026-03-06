@@ -30,7 +30,19 @@ describe('bff inventory ledger route', () => {
 
     globalThis.fetch = (async (input) => {
       calls.push({ input: input as string | URL });
-      return Response.json({ data: [{ id: 'l1' }], total: 1, page: 1, pageSize: 20, totalPages: 1 }, { status: 200 });
+      return Response.json(
+        {
+          message: 'OK',
+          data: {
+            data: [{ id: 'l1' }],
+            total: 1,
+            page: 2,
+            pageSize: 50,
+            totalPages: 1,
+          },
+        },
+        { status: 200 },
+      );
     }) as typeof fetch;
 
     const request = new NextRequest('http://localhost/api/bff/inventory/ledger?skuId=SKU-1&page=2&pageSize=50');
@@ -38,7 +50,9 @@ describe('bff inventory ledger route', () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.total).toBe(1);
+    expect(body.data.total).toBe(1);
+    expect(body.data.page).toBe(2);
+    expect(body.data.pageSize).toBe(50);
     expect(String(calls[0]?.input)).toBe('http://backend.test/api/inventory/ledger?skuId=SKU-1&page=2&pageSize=50');
   });
 
@@ -58,6 +72,19 @@ describe('bff inventory ledger route', () => {
 
     expect(response.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_INVALID_PAGE');
+  });
+
+  it('returns 400 when docType is invalid', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const request = new NextRequest(
+      'http://localhost/api/bff/inventory/ledger?docType=INVALID',
+    );
+    const response = await GET(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('VALIDATION_INVALID_DOC_TYPE');
   });
 
   it('returns 503 when upstream is unavailable', async () => {

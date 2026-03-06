@@ -4,6 +4,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import Decimal from 'decimal.js';
 import {
   type CoreDocumentStatus,
@@ -17,6 +18,7 @@ import { AuditService } from '../../../audit/application/audit.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
+import { PrismaInventoryTenantTransaction } from '../../inventory/infrastructure/prisma-inventory-consistency.store';
 
 export interface DocumentListItem {
   id: string;
@@ -159,6 +161,10 @@ export class DocumentsService {
   private readonly docNoCounter = new Map<string, number>();
   private readonly idempotencyCache = new Map<string, DocumentActionResult>();
   private readonly createIdempotencyCache = new Map<string, DocumentCreateResult>();
+  private readonly inflightActionRequests = new Map<
+    string,
+    Promise<DocumentActionResult>
+  >();
 
   constructor(
     private readonly auditService: AuditService,
@@ -357,6 +363,8 @@ export class DocumentsService {
     requestId: string,
     idempotencyKey: string,
   ): Promise<DocumentCreateResult> {
+    this.ensureRequiredIdempotencyKey(idempotencyKey);
+
     const cacheKey = `${tenantId}:${docType}:${idempotencyKey}`;
     const cached = this.createIdempotencyCache.get(cacheKey);
     if (cached) {
@@ -385,8 +393,25 @@ export class DocumentsService {
     actorId: string,
     requestId: string,
   ): Promise<DocumentActionResult> {
+    this.ensureRequiredIdempotencyKey(idempotencyKey);
+    const cacheKey = `${tenantId}:${docType}:${id}:${action}:${idempotencyKey}`;
+
     if (this.prisma && (docType === 'SO' || docType === 'OUT')) {
-      return this.executeSalesOutboundActionInDb(
+      return this.executeActionWithInFlightDedup(cacheKey, () =>
+        this.executeSalesOutboundActionInDb(
+          docType,
+          id,
+          action,
+          idempotencyKey,
+          tenantId,
+          actorId,
+          requestId,
+        ),
+      );
+    }
+
+    return this.executeActionWithInFlightDedup(cacheKey, () =>
+      this.executeActionInMemory(
         docType,
         id,
         action,
@@ -394,17 +419,7 @@ export class DocumentsService {
         tenantId,
         actorId,
         requestId,
-      );
-    }
-
-    return this.executeActionInMemory(
-      docType,
-      id,
-      action,
-      idempotencyKey,
-      tenantId,
-      actorId,
-      requestId,
+      ),
     );
   }
 
@@ -624,12 +639,6 @@ export class DocumentsService {
     actorId: string,
     requestId: string,
   ): Promise<DocumentActionResult> {
-    const cacheKey = `${tenantId}:${docType}:${id}:${action}:${idempotencyKey}`;
-    const cachedResult = this.idempotencyCache.get(cacheKey);
-    if (cachedResult) {
-      return cachedResult;
-    }
-
     const targetStatus = ACTION_TO_STATUS[action];
     if (!targetStatus) {
       throw new UnknownDocumentActionError(action);
@@ -673,19 +682,90 @@ export class DocumentsService {
 
     if (docType === 'OUT' && action === 'post') {
       try {
-        const result = await this.inventoryPostingService.post(
-          tenantId,
-          {
-            idempotencyKey,
-            referenceType: 'OUT',
-            referenceId: id,
-            lines: detail.lines.map((line) => ({
-              skuId: line.skuId,
-              warehouseId: 'WH-001',
-              quantityDelta: -Math.abs(Math.trunc(Number(line.qty) || 0)),
-            })),
+        const tenantDbId = await this.resolveTenantDbId(tenantId);
+        const documentId = parseDocumentId(id);
+        const result = await this.prisma!.$transaction(
+          async (tx) => {
+            const outbound = await tx.outbound.findFirst({
+              where: {
+                tenantId: tenantDbId,
+                id: documentId,
+                deletedAt: null,
+              },
+            });
+
+            if (!outbound) {
+              throw new DocumentNotFoundError(docType, id);
+            }
+
+            const inventoryResult =
+              await this.inventoryPostingService.postInTransaction(
+                tenantId,
+                {
+                  idempotencyKey,
+                  referenceType: 'OUT',
+                  referenceId: id,
+                  lines: detail.lines.map((line) => ({
+                    skuId: line.skuId,
+                    warehouseId:
+                      outbound.warehouseId?.toString() ?? 'WH-001',
+                    quantityDelta: -Math.abs(
+                      Math.trunc(Number(line.qty) || 0),
+                    ),
+                  })),
+                },
+                requestId,
+                new PrismaInventoryTenantTransaction(tx, tenantId, tenantDbId),
+              );
+
+            const updateResult = await tx.outbound.updateMany({
+              where: {
+                tenantId: tenantDbId,
+                id: documentId,
+                status: previousStatus,
+                deletedAt: null,
+              },
+              data: {
+                status: targetStatus,
+                updatedBy: actorId,
+              },
+            });
+
+            if (updateResult.count === 0) {
+              throw new InvalidStatusTransitionError(
+                attempt,
+                getAllowedNextStatuses(docType, previousStatus),
+              );
+            }
+
+            await tx.stateTransitionLog.create({
+              data: {
+                tenantId: tenantDbId,
+                entityType: docType,
+                entityId: id,
+                fromStatus: previousStatus,
+                toStatus: targetStatus,
+                actorId,
+                requestId,
+              },
+            });
+
+            await this.createDocumentPostedOutboxEvent(
+              tx,
+              tenantDbId,
+              docType,
+              id,
+              previousStatus,
+              targetStatus,
+              actorId,
+              requestId,
+              idempotencyKey,
+              inventoryResult.ledgerEntries.map((entry) => entry.id),
+            );
+
+            return inventoryResult;
           },
-          requestId,
+          { isolationLevel: 'Serializable' },
         );
 
         inventoryPosted = true;
@@ -707,7 +787,7 @@ export class DocumentsService {
           updatedAt: new Date(),
         },
       });
-    } else {
+    } else if (action !== 'post') {
       await this.prisma!.outbound.update({
         where: { id: BigInt(id) },
         data: {
@@ -745,8 +825,6 @@ export class DocumentsService {
       inventoryPosted,
       ledgerEntryIds,
     };
-
-    this.idempotencyCache.set(cacheKey, result);
     return result;
   }
 
@@ -2007,69 +2085,98 @@ export class DocumentsService {
     let ledgerEntryIds: string[] = [];
 
     if (action === 'post') {
-      const lines = await this.prisma.grnLine.findMany({
-        where: { tenantId: tenantDbId, grnId: doc.id },
-        orderBy: { lineNo: 'asc' },
-      });
+      const inventoryResult = await this.prisma.$transaction(
+        async (tx) => {
+          const transactionalDoc = await tx.grn.findFirst({
+            where: {
+              tenantId: tenantDbId,
+              id: doc.id,
+              deletedAt: null,
+            },
+          });
 
-      await this.validateGrnPrePost(tenantDbId, doc, lines);
+          if (!transactionalDoc) {
+            throw new Error(`Document not found: ${docType}/${id}`);
+          }
 
-      const prePostUpdateResult = await this.prisma.grn.updateMany({
-        where: {
-          tenantId: tenantDbId,
-          id: doc.id,
-          status: previousStatus,
-          deletedAt: null,
-        },
-        data: {
-          status: targetStatus,
-          updatedBy: actorId,
-        },
-      });
+          const lines = await tx.grnLine.findMany({
+            where: { tenantId: tenantDbId, grnId: doc.id },
+            orderBy: { lineNo: 'asc' },
+          });
 
-      if (prePostUpdateResult.count === 0) {
-        throw new InvalidStatusTransitionError(
-          attempt,
-          getAllowedNextStatuses(docType, previousStatus),
-        );
-      }
+          await this.validateGrnPrePost(tx, tenantDbId, transactionalDoc, lines);
 
-      try {
-        const inventoryResult = await this.inventoryPostingService.post(
-          tenantId,
-          {
+          const result = await this.inventoryPostingService.postInTransaction(
+            tenantId,
+            {
+              idempotencyKey,
+              referenceType: 'GRN',
+              referenceId: id,
+              lines: lines.map((line) => {
+                const qty = new Decimal(line.qty.toString());
+                return {
+                  skuId: line.skuId.toString(),
+                  warehouseId: transactionalDoc.warehouseId!.toString(),
+                  quantityDelta: qty.toNumber(),
+                };
+              }),
+            },
+            requestId,
+            new PrismaInventoryTenantTransaction(tx, tenantId, tenantDbId),
+          );
+
+          const updateResult = await tx.grn.updateMany({
+            where: {
+              tenantId: tenantDbId,
+              id: doc.id,
+              status: previousStatus,
+              deletedAt: null,
+            },
+            data: {
+              status: targetStatus,
+              updatedBy: actorId,
+            },
+          });
+
+          if (updateResult.count === 0) {
+            throw new InvalidStatusTransitionError(
+              attempt,
+              getAllowedNextStatuses(docType, previousStatus),
+            );
+          }
+
+          await tx.stateTransitionLog.create({
+            data: {
+              tenantId: tenantDbId,
+              entityType: 'GRN',
+              entityId: id,
+              fromStatus: previousStatus,
+              toStatus: targetStatus,
+              actorId,
+              requestId,
+            },
+          });
+
+          await this.createDocumentPostedOutboxEvent(
+            tx,
+            tenantDbId,
+            docType,
+            id,
+            previousStatus,
+            targetStatus,
+            actorId,
+            requestId,
             idempotencyKey,
-            referenceType: 'GRN',
-            referenceId: id,
-            lines: lines.map((line) => {
-              const qty = new Decimal(line.qty.toString());
-              return {
-                skuId: line.skuId.toString(),
-                warehouseId: doc.warehouseId!.toString(),
-                quantityDelta: qty.toNumber(),
-              };
-            }),
-          },
-          requestId,
-        );
+            result.ledgerEntries.map((entry) => entry.id),
+          );
 
-        inventoryPosted = true;
-        ledgerEntryIds = inventoryResult.ledgerEntries.map((entry) => entry.id);
-      } catch (error) {
-        await this.prisma.grn.updateMany({
-          where: {
-            tenantId: tenantDbId,
-            id: doc.id,
-            status: targetStatus,
-            deletedAt: null,
-          },
-          data: {
-            status: previousStatus,
-            updatedBy: actorId,
-          },
-        });
-        throw error;
-      }
+          return result;
+        },
+        { isolationLevel: 'Serializable' },
+      );
+
+      inventoryPosted = true;
+      ledgerEntryIds = inventoryResult.ledgerEntries.map((entry) => entry.id);
     } else {
       const updateResult = await this.prisma.grn.updateMany({
         where: {
@@ -2092,17 +2199,19 @@ export class DocumentsService {
       }
     }
 
-    await this.prisma.stateTransitionLog.create({
-      data: {
-        tenantId: tenantDbId,
-        entityType: 'GRN',
-        entityId: id,
-        fromStatus: previousStatus,
-        toStatus: targetStatus,
-        actorId,
-        requestId,
-      },
-    });
+    if (action !== 'post') {
+      await this.prisma.stateTransitionLog.create({
+        data: {
+          tenantId: tenantDbId,
+          entityType: 'GRN',
+          entityId: id,
+          fromStatus: previousStatus,
+          toStatus: targetStatus,
+          actorId,
+          requestId,
+        },
+      });
+    }
 
     this.auditService.recordAuthorization({
       requestId,
@@ -2134,6 +2243,10 @@ export class DocumentsService {
   }
 
   private async validateGrnPrePost(
+    client: Pick<
+      Prisma.TransactionClient,
+      'purchaseOrder' | 'purchaseOrderLine'
+    >,
     tenantDbId: bigint,
     grn: {
       id: bigint;
@@ -2212,7 +2325,7 @@ export class DocumentsService {
       return;
     }
 
-    const po = await this.prisma.purchaseOrder.findFirst({
+    const po = await client.purchaseOrder.findFirst({
       where: { tenantId: tenantDbId, id: grn.poId, deletedAt: null },
       select: { id: true, docNo: true, status: true },
     });
@@ -2247,7 +2360,7 @@ export class DocumentsService {
       );
     }
 
-    const poLines = await this.prisma.purchaseOrderLine.findMany({
+    const poLines = await client.purchaseOrderLine.findMany({
       where: { tenantId: tenantDbId, poId: po.id },
       select: { skuId: true, qty: true },
     });
@@ -2302,5 +2415,73 @@ export class DocumentsService {
         );
       }
     }
+  }
+
+  private ensureRequiredIdempotencyKey(idempotencyKey: string): void {
+    if (
+      typeof idempotencyKey !== 'string' ||
+      idempotencyKey.trim().length === 0
+    ) {
+      throw new Error('Idempotency-Key is required');
+    }
+  }
+
+  private async executeActionWithInFlightDedup(
+    cacheKey: string,
+    work: () => Promise<DocumentActionResult>,
+  ): Promise<DocumentActionResult> {
+    const cachedResult = this.idempotencyCache.get(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    const inflight = this.inflightActionRequests.get(cacheKey);
+    if (inflight) {
+      return inflight;
+    }
+
+    const task = work()
+      .then((result) => {
+        this.idempotencyCache.set(cacheKey, result);
+        return result;
+      })
+      .finally(() => {
+        this.inflightActionRequests.delete(cacheKey);
+      });
+
+    this.inflightActionRequests.set(cacheKey, task);
+    return task;
+  }
+
+  private async createDocumentPostedOutboxEvent(
+    tx: Prisma.TransactionClient,
+    tenantId: bigint,
+    docType: CoreDocumentType,
+    documentId: string,
+    previousStatus: CoreDocumentStatus,
+    newStatus: CoreDocumentStatus,
+    actorId: string,
+    requestId: string,
+    idempotencyKey: string,
+    ledgerEntryIds: readonly string[],
+  ): Promise<void> {
+    await tx.outboxEvent.create({
+      data: {
+        tenantId,
+        aggregateType: 'document',
+        aggregateId: documentId,
+        eventType: `document.${docType.toLowerCase()}.posted`,
+        payload: {
+          docType,
+          documentId,
+          previousStatus,
+          newStatus,
+          actorId,
+          requestId,
+          idempotencyKey,
+          ledgerEntryIds,
+        } as Prisma.InputJsonValue,
+      },
+    });
   }
 }
