@@ -87,6 +87,23 @@ describe('InventoryPostingService', () => {
     ).rejects.toBeInstanceOf(InventoryIdempotencyConflictError);
   });
 
+  it('requires a non-empty idempotency key', async () => {
+    const { service } = createService();
+
+    await expect(
+      service.post(
+        tenantId,
+        {
+          idempotencyKey: '  ',
+          referenceType: 'GRN',
+          referenceId: 'GRN-INVALID-IDEM',
+          lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: 1 }],
+        },
+        'request-invalid-idem',
+      ),
+    ).rejects.toBeInstanceOf(InventoryValidationError);
+  });
+
   it('prevents negative stock and keeps posting atomic', async () => {
     const { service } = createService();
 
@@ -250,6 +267,32 @@ describe('InventoryPostingService', () => {
 
     expect(snapshot).toEqual([
       { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 },
+    ]);
+  });
+
+  it('returns the first result for concurrent duplicate submissions', async () => {
+    const { service } = createService();
+
+    const command = {
+      idempotencyKey: 'idem-concurrent-dup-1',
+      referenceType: 'GRN' as const,
+      referenceId: 'GRN-CONCURRENT-DUP-1',
+      lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: 7 }],
+    };
+
+    const [first, second] = await Promise.all([
+      service.post(tenantId, command, 'request-16'),
+      service.post(tenantId, command, 'request-17'),
+    ]);
+
+    expect(second).toEqual(first);
+
+    const snapshot = await service.getBalanceSnapshot(tenantId, [
+      { skuId: 'SKU-1', warehouseId: 'WH-1' },
+    ]);
+
+    expect(snapshot).toEqual([
+      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 7 },
     ]);
   });
 });
