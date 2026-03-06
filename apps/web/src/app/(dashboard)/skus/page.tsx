@@ -2,16 +2,14 @@
 
 import { useState } from 'react';
 import { Download, Plus } from 'lucide-react';
-import {
-  PageHeader,
-  ActionButton,
-  SearchBar,
-  FilterTabs,
-  DataTable,
-  StatusBadge,
-  QuickPreview,
-} from '@/components/ui';
-import type { TableColumn, FilterTabItem } from '@/components/ui';
+import { PageHeader, ActionButton } from '@/components/ui/page-header';
+import { SearchBar } from '@/components/ui/search-bar';
+import { FilterTabs } from '@/components/ui/filter-tabs';
+import type { FilterTabItem } from '@/components/ui/filter-tabs';
+import { DataTable } from '@/components/ui/data-table';
+import type { TableColumn } from '@/components/ui/data-table';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { QuickPreview } from '@/components/ui/quick-preview';
 
 /* -------- mock data -------- */
 
