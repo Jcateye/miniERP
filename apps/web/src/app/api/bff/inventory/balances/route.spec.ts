@@ -30,16 +30,61 @@ describe('bff inventory balances route', () => {
 
     globalThis.fetch = (async (input) => {
       calls.push({ input: input as string | URL });
-      return Response.json({ data: [{ skuId: 'SKU-1', qty: '10' }] }, { status: 200 });
+      return Response.json(
+        {
+          message: 'OK',
+          data: {
+            data: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 10 }],
+            total: 1,
+          },
+        },
+        { status: 200 },
+      );
     }) as typeof fetch;
 
-    const request = new NextRequest('http://localhost/api/bff/inventory/balances?skuId=SKU-1&warehouseId=WH-1');
+    const request = new NextRequest(
+      'http://localhost/api/bff/inventory/balances?skuId=SKU-1&warehouseId=WH-1&page=1&pageSize=20',
+    );
     const response = await GET(request);
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toHaveLength(1);
-    expect(String(calls[0]?.input)).toBe('http://backend.test/api/inventory/balances?skuId=SKU-1&warehouseId=WH-1');
+    expect(body.data.data).toHaveLength(1);
+    expect(body.data.page).toBe(1);
+    expect(body.data.pageSize).toBe(20);
+    expect(body.data.totalPages).toBe(1);
+    expect(String(calls[0]?.input)).toBe(
+      'http://backend.test/api/inventory/balances?skuId=SKU-1&warehouseId=WH-1',
+    );
+  });
+
+  it('returns paginated result for balances', async () => {
+    process.env.NODE_ENV = 'test';
+
+    globalThis.fetch = (async () =>
+      Response.json(
+        {
+          data: Array.from({ length: 21 }).map((_, index) => ({
+            skuId: `SKU-${index + 1}`,
+            warehouseId: 'WH-1',
+            onHand: index + 1,
+          })),
+          total: 21,
+        },
+        { status: 200 },
+      )) as typeof fetch;
+
+    const request = new NextRequest(
+      'http://localhost/api/bff/inventory/balances?page=2&pageSize=20',
+    );
+    const response = await GET(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.data).toHaveLength(1);
+    expect(body.data.page).toBe(2);
+    expect(body.data.total).toBe(21);
+    expect(body.data.totalPages).toBe(2);
   });
 
   it('passes through upstream error for GET', async () => {
@@ -58,6 +103,19 @@ describe('bff inventory balances route', () => {
 
     expect(response.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_INVALID_FILTER');
+  });
+
+  it('returns 400 for invalid page', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const request = new NextRequest(
+      'http://localhost/api/bff/inventory/balances?page=0',
+    );
+    const response = await GET(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('VALIDATION_INVALID_PAGE');
   });
 
   it('returns 503 when upstream is unavailable', async () => {

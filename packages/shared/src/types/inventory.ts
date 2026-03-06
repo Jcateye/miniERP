@@ -2,6 +2,7 @@
  * ADR-006 P1 Contract: Inventory 类型定义
  * 统一 Server/Web/BFF 三端的库存类型
  */
+import type { PaginatedResponse } from './api';
 
 // 库存引用类型
 export const INVENTORY_REFERENCE_TYPES = [
@@ -50,7 +51,8 @@ export interface InventoryLedgerEntry {
   referenceType: InventoryReferenceType;
   referenceId: string;
   reversalOfLedgerId: string | null;
-  createdAt: string;
+  postedAt: string;
+  createdAt?: string;
 }
 
 // 库存余额快照
@@ -63,6 +65,9 @@ export interface InventoryPostingResult {
   ledgerEntries: InventoryLedgerEntry[];
   balanceSnapshots: readonly InventoryBalanceSnapshot[];
 }
+
+export type InventoryBalancePage = PaginatedResponse<InventoryBalanceSnapshot>;
+export type InventoryLedgerPage = PaginatedResponse<InventoryLedgerEntry>;
 
 // 库存错误类型
 export const INVENTORY_ERROR_CODES = {
