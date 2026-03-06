@@ -30,10 +30,35 @@ export type SkuRow = Record<string, string> & {
   searchHint: string;
 };
 
-const FALLBACK_EMPTY_STATE = {
-  title: '暂无 SKU 数据',
-  description: '当前还没有可展示的 SKU，待后端返回数据后会显示在这里。',
-} as const;
+export type MasterRecordPresentation = {
+  entityLabel: string;
+  listTitle: string;
+  listSubtitle: string;
+  apiBasePath: string;
+  detailBasePath: string;
+  newPath: string;
+  searchPlaceholder: string;
+};
+
+const SKU_PRESENTATION: MasterRecordPresentation = {
+  entityLabel: 'SKU',
+  listTitle: 'SKU 管理',
+  listSubtitle: '真实 SKU 列表 · 保持 URL 同步，并强化搜索、提示与快速预览体验',
+  apiBasePath: '/api/bff/skus',
+  detailBasePath: '/skus',
+  newPath: '/skus/new',
+  searchPlaceholder: '按 SKU 名称搜索，输入后自动同步 URL',
+};
+
+const ITEM_PRESENTATION: MasterRecordPresentation = {
+  entityLabel: '物料',
+  listTitle: '物料主数据',
+  listSubtitle: '以新 ERP 域命名访问主数据，底层兼容旧 SKU 实现并保留 URL 化筛选。',
+  apiBasePath: '/api/bff/mdm/items',
+  detailBasePath: '/mdm/items',
+  newPath: '/mdm/items/new',
+  searchPlaceholder: '按物料名称搜索，输入后自动同步 URL',
+};
 
 const STATUS_LABELS: Record<SkuFilters['isActive'], string> = {
   '': '全部',
@@ -46,6 +71,12 @@ export const STATUS_TABS: FilterTabItem[] = [
   { key: 'active', label: '启用' },
   { key: 'inactive', label: '停用' },
 ];
+
+export function resolveMasterRecordPresentation(
+  pathname: string,
+): MasterRecordPresentation {
+  return pathname.startsWith('/mdm/items') ? ITEM_PRESENTATION : SKU_PRESENTATION;
+}
 
 export function parseFilters(searchParams: URLSearchParams): SkuFilters {
   const isActive = searchParams.get('isActive');
@@ -75,9 +106,12 @@ export function buildQueryString(filters: SkuFilters): string {
   return params.toString();
 }
 
-export function buildApiPath(filters: SkuFilters): string {
+export function buildApiPath(
+  filters: SkuFilters,
+  basePath: string = SKU_PRESENTATION.apiBasePath,
+): string {
   const query = buildQueryString(filters);
-  return query ? `/api/bff/skus?${query}` : '/api/bff/skus';
+  return query ? `${basePath}?${query}` : basePath;
 }
 
 export function hasActiveFilters(filters: SkuFilters): boolean {
@@ -169,18 +203,25 @@ function buildSingleFilterSummary(label: string, value: string): string {
   return `${label}包含“${value.trim()}”`;
 }
 
-export function buildFilterSummary(filters: SkuFilters): string {
+export function buildFilterSummary(
+  filters: SkuFilters,
+  entityLabel: string = SKU_PRESENTATION.entityLabel,
+): string {
   const summaryParts = [
     filters.name.trim() ? buildSingleFilterSummary('名称', filters.name) : '',
     filters.code.trim() ? buildSingleFilterSummary('编码', filters.code) : '',
     filters.isActive ? `仅看${STATUS_LABELS[filters.isActive]}` : '',
   ].filter((value) => value.length > 0);
 
-  return summaryParts.length > 0 ? summaryParts.join(' · ') : '全部 SKU';
+  return summaryParts.length > 0 ? summaryParts.join(' · ') : `全部${entityLabel}`;
 }
 
-export function buildResultSummary(total: number, filters: SkuFilters): string {
-  return `共 ${total} 条 · ${buildFilterSummary(filters)}`;
+export function buildResultSummary(
+  total: number,
+  filters: SkuFilters,
+  entityLabel: string = SKU_PRESENTATION.entityLabel,
+): string {
+  return `共 ${total} 条 · ${buildFilterSummary(filters, entityLabel)}`;
 }
 
 export function mapRows(items: SkuListItem[], nowValue: string = new Date().toISOString()): SkuRow[] {
@@ -213,23 +254,28 @@ export function getQuickPreviewFields(item: SkuListItem, nowValue: string = new 
 export function getEmptyStateCopy({
   filters,
   total,
+  entityLabel = SKU_PRESENTATION.entityLabel,
 }: {
   filters: SkuFilters;
   total: number;
+  entityLabel?: string;
 }): {
   title: string;
   description: string;
 } {
   if (total > 0 || !hasActiveFilters(filters)) {
-    return FALLBACK_EMPTY_STATE;
+    return {
+      title: `暂无${entityLabel}数据`,
+      description: `当前还没有可展示的${entityLabel}，待后端返回数据后会显示在这里。`,
+    };
   }
 
-  const activeSummary = buildFilterSummary(filters)
+  const activeSummary = buildFilterSummary(filters, entityLabel)
     .replace(' · 仅看', '，状态为')
     .replace(' · ', '，');
 
   return {
-    title: '没有匹配的 SKU',
+    title: `没有匹配的${entityLabel}`,
     description: `请调整名称、编码或状态筛选条件后重试。当前筛选：${activeSummary}。`,
   };
 }

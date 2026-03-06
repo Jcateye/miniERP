@@ -9,6 +9,7 @@ import {
   hasActiveFilters,
   mapStatusLabel,
   parseFilters,
+  resolveMasterRecordPresentation,
 } from './sku-page-utils';
 
 describe('sku page helpers', () => {
@@ -40,6 +41,17 @@ describe('sku page helpers', () => {
         isActive: '',
       }),
     ).toBe('/api/bff/skus?code=SKU-001');
+
+    expect(
+      buildApiPath(
+        {
+          code: 'ITEM-001',
+          name: '',
+          isActive: '',
+        },
+        '/api/bff/mdm/items',
+      ),
+    ).toBe('/api/bff/mdm/items?code=ITEM-001');
   });
 
   it('detects active filters', () => {
@@ -56,7 +68,8 @@ describe('sku page helpers', () => {
       }),
     ).toBe('名称包含“HDMI” · 编码包含“SKU-001” · 仅看启用');
 
-    expect(buildFilterSummary({ code: '', name: '', isActive: '' })).toBe('全部 SKU');
+    expect(buildFilterSummary({ code: '', name: '', isActive: '' })).toBe('全部SKU');
+    expect(buildFilterSummary({ code: '', name: '', isActive: '' }, '物料')).toBe('全部物料');
   });
 
   it('builds empty state copy for filter and default states', () => {
@@ -66,7 +79,7 @@ describe('sku page helpers', () => {
         total: 0,
       }),
     ).toEqual({
-      title: '没有匹配的 SKU',
+      title: '没有匹配的SKU',
       description: '请调整名称、编码或状态筛选条件后重试。当前筛选：编码包含“SKU-001”。',
     });
 
@@ -76,8 +89,14 @@ describe('sku page helpers', () => {
         total: 0,
       }),
     ).toEqual({
-      title: '暂无 SKU 数据',
-      description: '当前还没有可展示的 SKU，待后端返回数据后会显示在这里。',
+      title: '暂无SKU数据',
+      description: '当前还没有可展示的SKU，待后端返回数据后会显示在这里。',
+    });
+
+    expect(resolveMasterRecordPresentation('/mdm/items')).toMatchObject({
+      entityLabel: '物料',
+      apiBasePath: '/api/bff/mdm/items',
+      detailBasePath: '/mdm/items',
     });
   });
 

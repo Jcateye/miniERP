@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -29,6 +30,7 @@ import {
   hasActiveFilters,
   mapRows,
   parseFilters,
+  resolveMasterRecordPresentation,
   type SkuFilters,
   type SkuListItem,
   type SkuListResponse,
@@ -53,39 +55,53 @@ type NoticeBannerProps = {
   actions?: ReactNode;
 };
 
-const columns: TableColumn[] = [
-  { key: 'code', label: '编码', width: 160 },
-  {
-    key: 'name',
-    label: '名称',
-    width: 240,
-    render: (value, row) => (
-      <div style={{ display: 'grid', gap: 4, whiteSpace: 'normal' }}>
-        <span style={{ fontWeight: 600, color: '#1A1A1A' }}>{value}</span>
-        <span style={{ fontSize: 12, color: '#666666' }}>{row.searchHint ?? '—'}</span>
-      </div>
-    ),
-  },
-  {
-    key: 'specification',
-    label: '规格',
-    width: 240,
-    render: (value) => (
-      <div style={{ whiteSpace: 'normal', lineHeight: 1.5, color: '#1A1A1A' }}>{value}</div>
-    ),
-  },
-  { key: 'baseUnit', label: '基础单位', width: 90 },
-  { key: 'categoryId', label: '分类', width: 140 },
-  {
-    key: 'status',
-    label: '状态',
-    width: 90,
-    render: (value) => (
-      <StatusBadge label={value} tone={value === '启用' ? 'success' : 'danger'} />
-    ),
-  },
-  { key: 'updatedAt', label: '更新时间', width: 180 },
-];
+function getColumns(detailBasePath: string): TableColumn[] {
+  return [
+    {
+      key: 'code',
+      label: '编码',
+      width: 160,
+      render: (value, row) => (
+        <Link
+          href={`${detailBasePath}/${row.id}`}
+          style={{ color: '#35515B', fontWeight: 700, textDecoration: 'none' }}
+        >
+          {value}
+        </Link>
+      ),
+    },
+    {
+      key: 'name',
+      label: '名称',
+      width: 240,
+      render: (value, row) => (
+        <div style={{ display: 'grid', gap: 4, whiteSpace: 'normal' }}>
+          <span style={{ fontWeight: 600, color: '#1A1A1A' }}>{value}</span>
+          <span style={{ fontSize: 12, color: '#666666' }}>{row.searchHint ?? '—'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'specification',
+      label: '规格',
+      width: 240,
+      render: (value) => (
+        <div style={{ whiteSpace: 'normal', lineHeight: 1.5, color: '#1A1A1A' }}>{value}</div>
+      ),
+    },
+    { key: 'baseUnit', label: '基础单位', width: 90 },
+    { key: 'categoryId', label: '分类', width: 140 },
+    {
+      key: 'status',
+      label: '状态',
+      width: 90,
+      render: (value) => (
+        <StatusBadge label={value} tone={value === '启用' ? 'success' : 'danger'} />
+      ),
+    },
+    { key: 'updatedAt', label: '更新时间', width: 180 },
+  ];
+}
 
 function EmptyState({ title, description, actions }: EmptyStateProps) {
   return (
@@ -231,10 +247,14 @@ function SKUWorkbenchPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const presentation = useMemo(() => resolveMasterRecordPresentation(pathname), [pathname]);
 
   const filters = useMemo<SkuFilters>(() => parseFilters(searchParams), [searchParams]);
   const filterDirty = useMemo(() => hasActiveFilters(filters), [filters]);
-  const filterSummary = useMemo(() => buildFilterSummary(filters), [filters]);
+  const filterSummary = useMemo(
+    () => buildFilterSummary(filters, presentation.entityLabel),
+    [filters, presentation.entityLabel],
+  );
   const statusTabKey = useMemo(() => getStatusTabKey(filters.isActive), [filters.isActive]);
 
   const [items, setItems] = useState<SkuListItem[]>([]);
@@ -270,7 +290,9 @@ function SKUWorkbenchPageContent() {
     setNotice(null);
 
     try {
-      const result = await requestJson<SkuListResponse>(buildApiPath(filters));
+      const result = await requestJson<SkuListResponse>(
+        buildApiPath(filters, presentation.apiBasePath),
+      );
 
       if (requestSequenceRef.current !== requestId) {
         return;
@@ -280,7 +302,7 @@ function SKUWorkbenchPageContent() {
 
       if (result.message === 'fixture') {
         setNotice({
-          message: `当前 SKU 列表来自 BFF fixture 回退数据，URL 筛选仍然有效；后端恢复后会自动切回真实数据。`,
+          message: `当前${presentation.entityLabel}列表来自 BFF fixture 回退数据，URL 筛选仍然有效；后端恢复后会自动切回真实数据。`,
           tone: 'warning',
         });
       }
@@ -290,13 +312,17 @@ function SKUWorkbenchPageContent() {
       }
 
       setItems([]);
-      setError(requestError instanceof Error ? requestError.message : 'SKU 列表加载失败');
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : `${presentation.entityLabel}列表加载失败`,
+      );
     } finally {
       if (requestSequenceRef.current === requestId) {
         setLoading(false);
       }
     }
-  }, [filters]);
+  }, [filters, presentation.apiBasePath, presentation.entityLabel]);
 
   useEffect(() => {
     void loadItems();
@@ -347,6 +373,10 @@ function SKUWorkbenchPageContent() {
 
   const statusTabs = useMemo(() => buildStatusTabs(items), [items]);
   const rows = useMemo(() => mapRows(items), [items]);
+  const columns = useMemo(
+    () => getColumns(presentation.detailBasePath),
+    [presentation.detailBasePath],
+  );
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedId) ?? null,
     [items, selectedId],
@@ -361,8 +391,13 @@ function SKUWorkbenchPageContent() {
     [drafts.code, drafts.name, filters.isActive],
   );
   const emptyState = useMemo(
-    () => getEmptyStateCopy({ filters, total: rows.length }),
-    [filters, rows.length],
+    () =>
+      getEmptyStateCopy({
+        filters,
+        total: rows.length,
+        entityLabel: presentation.entityLabel,
+      }),
+    [filters, presentation.entityLabel, rows.length],
   );
 
   const handleStatusTabChange = (key: string) => {
@@ -418,8 +453,8 @@ function SKUWorkbenchPageContent() {
       }}
     >
       <PageHeader
-        title="SKU 管理"
-        subtitle="真实 SKU 列表 · 保持 URL 同步，并强化搜索、提示与快速预览体验"
+        title={presentation.listTitle}
+        subtitle={presentation.listSubtitle}
         actions={
           <>
             <ActionButton
@@ -430,7 +465,12 @@ function SKUWorkbenchPageContent() {
               disabled={loading}
             />
             <ActionButton label="导出" icon={<Download size={14} />} tone="secondary" disabled />
-            <ActionButton label="新建 SKU" icon={<Plus size={14} />} tone="primary" disabled />
+            <ActionButton
+              label={`新建${presentation.entityLabel}`}
+              icon={<Plus size={14} />}
+              tone="primary"
+              onClick={() => router.push(presentation.newPath)}
+            />
           </>
         }
       />
@@ -446,7 +486,7 @@ function SKUWorkbenchPageContent() {
         }}
       >
         <SearchBar
-          placeholder="按 SKU 名称搜索，输入后自动同步 URL"
+          placeholder={presentation.searchPlaceholder}
           value={drafts.name}
           onSearchChange={(value) => setDrafts((previous) => ({ ...previous, name: value }))}
           showAdvancedFilter
@@ -468,10 +508,10 @@ function SKUWorkbenchPageContent() {
               ? '正在根据输入更新筛选并同步 URL…'
               : filterDirty
                 ? `当前筛选：${filterSummary}`
-                : '可按名称快速搜索，并通过编码与状态缩小结果范围；刷新后会保留当前 URL 条件。'}
+                : `可按${presentation.entityLabel}名称快速搜索，并通过编码与状态缩小结果范围；刷新后会保留当前 URL 条件。`}
           </div>
           <div style={{ fontSize: 12, color: '#888888', lineHeight: 1.6 }}>
-            {buildResultSummary(rows.length, filters)}
+            {buildResultSummary(rows.length, filters, presentation.entityLabel)}
           </div>
         </div>
 
@@ -515,7 +555,7 @@ function SKUWorkbenchPageContent() {
         tabs={statusTabs}
         activeKey={statusTabKey}
         onChange={handleStatusTabChange}
-        summary={buildResultSummary(rows.length, filters)}
+        summary={buildResultSummary(rows.length, filters, presentation.entityLabel)}
       />
 
       {notice ? (
@@ -533,10 +573,13 @@ function SKUWorkbenchPageContent() {
       <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {loading ? (
-            <EmptyState title="加载中" description="正在加载真实 SKU 列表，请稍候…" />
+            <EmptyState
+              title="加载中"
+              description={`正在加载真实${presentation.entityLabel}列表，请稍候…`}
+            />
           ) : error ? (
             <EmptyState
-              title="SKU 列表加载失败"
+              title={`${presentation.entityLabel}列表加载失败`}
               description={
                 filterDirty
                   ? `${error} 当前 URL 筛选：${filterSummary}。`
@@ -584,7 +627,7 @@ function SKUWorkbenchPageContent() {
         {!loading && !error && rows.length > 0 ? (
           selectedItem ? (
             <QuickPreview
-              title="SKU 快速预览"
+              title={`${presentation.entityLabel}快速预览`}
               heading={selectedItem.code}
               subheading={selectedItem.name}
               description={`当前选中项的状态、时间与基础信息会跟随表格选择更新。筛选条件：${filterSummary}。`}
