@@ -7,7 +7,15 @@ import { useBffGet, useDocumentDetail, useDocumentEvidence, useLineEvidence, use
 import { DetailLayout, EmptyState, HeaderActions, OverviewLayout, SurfaceCard, TemplateBadge, WorkbenchLayout, WizardLayout, styles } from '@/components/layouts';
 import { EvidencePanel } from '@/components/evidence/evidence-panel';
 import { LineEvidenceDrawer } from '@/components/evidence/line-evidence-drawer';
-import { attachEvidence, createDocument, createEvidenceUploadIntent, submitDocumentCommand } from '@/lib/bff';
+import {
+  attachEvidence,
+  createDocument,
+  createEvidenceUploadIntent,
+  DOCUMENT_COMMANDS,
+  getDocumentCommandAvailability,
+  submitDocumentCommand,
+  type DocumentCommand,
+} from '@/lib/bff';
 
 import type {
   AssemblyRow,
@@ -98,6 +106,12 @@ function getRowValue(row: AssemblyRow, keys: string[]): string | undefined {
   }
   return undefined;
 }
+
+const commandLabelMap: Record<DocumentCommand, string> = {
+  confirm: '确认',
+  post: '过账',
+  cancel: '取消',
+};
 
 function ToolbarCard({ config }: { config: WorkbenchAssemblyConfig }) {
   return (
@@ -420,12 +434,21 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
   const lineContext = lineContexts.find((item) => item.lineId === activeLineId) ?? lineContexts[0];
   const lineEvidenceHook = useLineEvidence(config.entityType, entityId, lineContext?.lineId);
   const [actionNotice, setActionNotice] = useState<string>('');
-  const [actionLoading, setActionLoading] = useState<'confirm' | 'post' | 'cancel' | null>(null);
+  const [actionLoading, setActionLoading] = useState<DocumentCommand | null>(null);
   const [uploadingScope, setUploadingScope] = useState<'document' | 'line' | null>(null);
   const documentEvidence = evidenceHook.data ?? config.record.documentEvidence;
   const lineEvidence =
     (lineContext ? lineEvidenceHook.data : null) ??
     (lineContext ? config.record.lineEvidence[lineContext.lineId] : null);
+  const actionAvailability = useMemo(
+    () =>
+      getDocumentCommandAvailability({
+        docType: config.docType,
+        status: liveRecord?.status,
+        backendReady: !detailHook?.error,
+      }),
+    [config.docType, detailHook?.error, liveRecord?.status],
+  );
 
   useEffect(() => {
     if (lineContexts.length === 0) {
@@ -443,9 +466,15 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
     });
   }, [lineContexts]);
 
-  const handleAction = async (action: 'confirm' | 'post' | 'cancel') => {
+  const handleAction = async (action: DocumentCommand) => {
     if (!config.docType) {
       setActionNotice('当前详情页未绑定 docType，无法执行动作联调。');
+      return;
+    }
+
+    const capability = actionAvailability.actions[action];
+    if (!capability.enabled) {
+      setActionNotice(capability.reason ?? `${commandLabelMap[action]}动作不可用。`);
       return;
     }
 
@@ -678,23 +707,39 @@ export function DetailAssembly({ config, entityId }: { config: DetailAssemblyCon
             <HeaderActions primaryAction={config.contract.header.primaryAction} secondaryActions={config.contract.header.secondaryActions} />
             {config.docType ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {(['confirm', 'post', 'cancel'] as const).map((action) => (
+                {DOCUMENT_COMMANDS.map((action) => (
                   <button
                     key={action}
                     type="button"
-                    disabled={Boolean(actionLoading)}
+                    disabled={Boolean(actionLoading) || !actionAvailability.actions[action].enabled}
+                    title={actionAvailability.actions[action].reason}
                     onClick={() => void handleAction(action)}
                     style={{
                       border: '1px solid rgba(224,221,214,0.92)',
                       background: action === 'post' ? 'rgba(192,90,60,0.10)' : 'rgba(255,255,255,0.72)',
                       borderRadius: 10,
                       padding: '8px 12px',
-                      cursor: 'pointer',
+                      cursor: Boolean(actionLoading) || !actionAvailability.actions[action].enabled ? 'not-allowed' : 'pointer',
                       fontWeight: 650,
+                      opacity: actionAvailability.actions[action].enabled ? 1 : 0.5,
                     }}
                   >
-                    {actionLoading === action ? '处理中...' : action.toUpperCase()}
+                    {actionLoading === action ? '处理中...' : commandLabelMap[action]}
                   </button>
+                ))}
+              </div>
+            ) : null}
+            {config.docType ? (
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                当前状态：{actionAvailability.normalizedStatus ?? '未识别'}
+              </div>
+            ) : null}
+            {config.docType ? (
+              <div style={{ display: 'grid', gap: 4 }}>
+                {DOCUMENT_COMMANDS.filter((action) => !actionAvailability.actions[action].enabled).map((action) => (
+                  <div key={action} style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                    {commandLabelMap[action]}已禁用：{actionAvailability.actions[action].reason}
+                  </div>
                 ))}
               </div>
             ) : null}
