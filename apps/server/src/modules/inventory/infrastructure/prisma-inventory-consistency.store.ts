@@ -162,7 +162,7 @@ export class PrismaInventoryConsistencyStore implements InventoryConsistencyStor
   }
 }
 
-class PrismaInventoryTenantTransaction implements InventoryTenantTransaction {
+export class PrismaInventoryTenantTransaction implements InventoryTenantTransaction {
   private readonly idempotencyCache = new Map<string, IdempotencyRecord>();
   private readonly balanceCache = new Map<string, { id: bigint; onHand: number }>();
 

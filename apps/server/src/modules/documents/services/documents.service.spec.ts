@@ -16,7 +16,9 @@ describe('DocumentsService', () => {
 
   const mockInventoryPostingService = {
     post: jest.fn(),
+    postInTransaction: jest.fn(),
     reverse: jest.fn(),
+    reverseInTransaction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -152,6 +154,20 @@ describe('DocumentsService', () => {
           'req-001',
         ),
       ).rejects.toThrow('Document not found');
+    });
+
+    it('should require idempotency key in service layer', async () => {
+      await expect(
+        service.executeAction(
+          'PO',
+          '2001',
+          'confirm',
+          ' ',
+          '1001',
+          'user-001',
+          'req-001',
+        ),
+      ).rejects.toThrow('Idempotency-Key is required');
     });
 
     it('should call inventory posting on GRN post (from validating)', async () => {
@@ -298,22 +314,87 @@ describe('DocumentsService', () => {
         }),
       );
     });
+
+    it('should deduplicate concurrent posts with the same idempotency key', async () => {
+      await service.executeAction(
+        'GRN',
+        '3001',
+        'validate',
+        'idem-key-grn-dedup-validate',
+        '1001',
+        'user-001',
+        'req-001',
+      );
+
+      mockInventoryPostingService.post.mockImplementation(
+        async () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve({
+                ledgerEntries: [{ id: 'ledger-dedup-001' }],
+                balanceSnapshots: [],
+              });
+            }, 10);
+          }),
+      );
+
+      const [first, second] = await Promise.all([
+        service.executeAction(
+          'GRN',
+          '3001',
+          'post',
+          'idem-key-grn-dedup-post',
+          '1001',
+          'user-001',
+          'req-001',
+        ),
+        service.executeAction(
+          'GRN',
+          '3001',
+          'post',
+          'idem-key-grn-dedup-post',
+          '1001',
+          'user-001',
+          'req-001',
+        ),
+      ]);
+
+      expect(first).toEqual(second);
+      expect(mockInventoryPostingService.post).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('stream D persisted sales/outbound', () => {
     const mockSalesOutboundPrisma = {
+      tenant: {
+        findFirst: jest.fn(),
+      },
       salesOrder: {
         findMany: jest.fn(),
         count: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
       },
+      salesOrderLine: {
+        groupBy: jest.fn(),
+      },
       outbound: {
         findMany: jest.fn(),
         count: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
+      outboundLine: {
+        findMany: jest.fn(),
+      },
+      stateTransitionLog: {
+        create: jest.fn(),
+      },
+      outboxEvent: {
+        create: jest.fn(),
+      },
+      $transaction: jest.fn(),
     };
 
     let streamDService: DocumentsService;
@@ -325,6 +406,9 @@ describe('DocumentsService', () => {
         mockSalesOutboundPrisma as never,
       );
 
+      mockSalesOutboundPrisma.tenant.findFirst.mockResolvedValue({
+        id: BigInt(1001),
+      });
       mockSalesOutboundPrisma.salesOrder.findMany.mockResolvedValue([
         {
           id: BigInt(1),
@@ -345,6 +429,30 @@ describe('DocumentsService', () => {
         },
       ]);
       mockSalesOutboundPrisma.salesOrder.count.mockResolvedValue(1);
+      mockSalesOutboundPrisma.salesOrderLine.groupBy.mockResolvedValue([
+        { soId: BigInt(1), _count: { _all: 1 } },
+      ]);
+      mockSalesOutboundPrisma.outboundLine.findMany.mockResolvedValue([
+        {
+          id: BigInt(1),
+          lineNo: 1,
+          skuId: BigInt(11),
+          qty: { toString: () => '5' },
+        },
+      ]);
+      mockSalesOutboundPrisma.outbound.updateMany.mockResolvedValue({
+        count: 1,
+      });
+      mockSalesOutboundPrisma.stateTransitionLog.create.mockResolvedValue({
+        id: BigInt(1),
+      });
+      mockSalesOutboundPrisma.outboxEvent.create.mockResolvedValue({
+        id: BigInt(1),
+      });
+      mockSalesOutboundPrisma.$transaction.mockImplementation(
+        async (work: (tx: typeof mockSalesOutboundPrisma) => unknown) =>
+          work(mockSalesOutboundPrisma),
+      );
     });
 
     it('lists SO documents from prisma when prisma is available', async () => {
@@ -382,7 +490,7 @@ describe('DocumentsService', () => {
         ],
       });
 
-      mockInventoryPostingService.post.mockRejectedValue(
+      mockInventoryPostingService.postInTransaction.mockRejectedValue(
         new InventoryInsufficientStockError('11', 'WH-001', 0, 5),
       );
 
@@ -425,6 +533,10 @@ describe('DocumentsService', () => {
       stateTransitionLog: {
         create: jest.fn(),
       },
+      outboxEvent: {
+        create: jest.fn(),
+      },
+      $transaction: jest.fn(),
     };
 
     let persistentService: DocumentsService;
@@ -458,7 +570,11 @@ describe('DocumentsService', () => {
       ]);
       mockPrisma.grn.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.stateTransitionLog.create.mockResolvedValue({ id: BigInt(1) });
-      mockInventoryPostingService.post.mockResolvedValue({
+      mockPrisma.outboxEvent.create.mockResolvedValue({ id: BigInt(1) });
+      mockPrisma.$transaction.mockImplementation(
+        async (work: (tx: typeof mockPrisma) => unknown) => work(mockPrisma),
+      );
+      mockInventoryPostingService.postInTransaction.mockResolvedValue({
         ledgerEntries: [{ id: 'ledger-001' }],
         balanceSnapshots: [],
       });
@@ -479,12 +595,13 @@ describe('DocumentsService', () => {
         ),
       ).rejects.toThrow(InvalidStatusTransitionError);
 
-      expect(mockInventoryPostingService.post).not.toHaveBeenCalled();
+      expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalled();
       expect(mockPrisma.stateTransitionLog.create).not.toHaveBeenCalled();
+      expect(mockPrisma.outboxEvent.create).not.toHaveBeenCalled();
     });
 
-    it('should rollback GRN status when inventory posting fails after status claim', async () => {
-      mockInventoryPostingService.post.mockRejectedValueOnce(
+    it('should keep GRN status side effects pending when inventory posting fails in transaction', async () => {
+      mockInventoryPostingService.postInTransaction.mockRejectedValueOnce(
         new Error('inventory unavailable'),
       );
 
@@ -500,31 +617,32 @@ describe('DocumentsService', () => {
         ),
       ).rejects.toThrow('inventory unavailable');
 
-      expect(mockPrisma.grn.updateMany).toHaveBeenNthCalledWith(1, {
+      expect(mockPrisma.grn.updateMany).not.toHaveBeenCalledWith({
         where: {
           tenantId: BigInt(1001),
           id: BigInt(3001),
-          status: 'validating',
+          status: 'posted',
           deletedAt: null,
         },
         data: {
-          status: 'posted',
+          status: 'validating',
           updatedBy: 'user-001',
         },
       });
-      expect(mockPrisma.grn.updateMany).toHaveBeenNthCalledWith(2, {
+      expect(mockPrisma.grn.updateMany).not.toHaveBeenCalledWith({
         where: {
           tenantId: BigInt(1001),
           id: BigInt(3001),
-          status: 'posted',
+          status: 'validating',
           deletedAt: null,
         },
         data: {
-          status: 'validating',
+          status: 'posted',
           updatedBy: 'user-001',
         },
       });
       expect(mockPrisma.stateTransitionLog.create).not.toHaveBeenCalled();
+      expect(mockPrisma.outboxEvent.create).not.toHaveBeenCalled();
     });
 
     it('should aggregate duplicated SKU quantities from PO lines before GRN validation', async () => {
@@ -544,8 +662,15 @@ describe('DocumentsService', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(mockInventoryPostingService.post).toHaveBeenCalled();
+      expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalled();
       expect(mockPrisma.stateTransitionLog.create).toHaveBeenCalled();
+      expect(mockPrisma.outboxEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          aggregateType: 'document',
+          aggregateId: '3001',
+          eventType: 'document.grn.posted',
+        }),
+      });
     });
   });
 });

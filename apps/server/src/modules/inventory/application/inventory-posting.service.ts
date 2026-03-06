@@ -86,89 +86,113 @@ export class InventoryPostingService {
   ): Promise<InventoryPostingResult> {
     this.validatePostCommand(command);
 
+    return this.store.withTenantTransaction(tenantId, (tx) =>
+      this.postInTransaction(tenantId, command, requestId, tx),
+    );
+  }
+
+  async postInTransaction(
+    tenantId: string,
+    command: InventoryPostingCommand,
+    requestId: string,
+    tx: InventoryTenantTransaction,
+  ): Promise<InventoryPostingResult> {
+    this.validatePostCommand(command);
+
     const payloadHash = hashPayload({
       referenceType: command.referenceType,
       referenceId: command.referenceId,
       lines: normalizeLines(command.lines),
     });
 
-    return this.store.withTenantTransaction(tenantId, async (tx) => {
-      const existing = await tx.findIdempotencyRecord(
-        'inventory.post',
-        command.idempotencyKey,
-      );
+    const existing = await tx.findIdempotencyRecord(
+      'inventory.post',
+      command.idempotencyKey,
+    );
 
-      if (existing) {
-        if (existing.payloadHash !== payloadHash) {
-          throw new InventoryIdempotencyConflictError();
-        }
-
-        return existing.result;
+    if (existing) {
+      if (existing.payloadHash !== payloadHash) {
+        throw new InventoryIdempotencyConflictError();
       }
 
-      const aggregatedLines = aggregateLines(command.lines);
+      return existing.result;
+    }
 
-      for (const item of aggregatedLines.values()) {
-        const current = await tx.findBalance(item.key);
-        const next = current + item.quantityDelta;
+    const aggregatedLines = aggregateLines(command.lines);
 
-        if (next < 0) {
-          throw new InventoryInsufficientStockError(
-            item.key.skuId,
-            item.key.warehouseId,
-            current,
-            Math.abs(item.quantityDelta),
-          );
-        }
+    for (const item of aggregatedLines.values()) {
+      const current = await tx.findBalance(item.key);
+      const next = current + item.quantityDelta;
+
+      if (next < 0) {
+        throw new InventoryInsufficientStockError(
+          item.key.skuId,
+          item.key.warehouseId,
+          current,
+          Math.abs(item.quantityDelta),
+        );
       }
+    }
 
-      const ledgerEntries = await Promise.all(
-        command.lines.map((line) =>
-          tx.createLedgerEntry({
-            tenantId,
-            skuId: line.skuId,
-            warehouseId: line.warehouseId,
-            quantityDelta: line.quantityDelta,
-            referenceType: command.referenceType,
-            referenceId: command.referenceId,
-            reversalOfLedgerId: null,
-          }),
-        ),
-      );
+    const ledgerEntries = await Promise.all(
+      command.lines.map((line) =>
+        tx.createLedgerEntry({
+          tenantId,
+          skuId: line.skuId,
+          warehouseId: line.warehouseId,
+          quantityDelta: line.quantityDelta,
+          referenceType: command.referenceType,
+          referenceId: command.referenceId,
+          reversalOfLedgerId: null,
+        }),
+      ),
+    );
 
-      for (const item of aggregatedLines.values()) {
-        const current = await tx.findBalance(item.key);
-        await tx.saveBalance(item.key, current + item.quantityDelta);
-      }
+    for (const item of aggregatedLines.values()) {
+      const current = await tx.findBalance(item.key);
+      await tx.saveBalance(item.key, current + item.quantityDelta);
+    }
 
-      const balanceSnapshots = await this.toBalanceSnapshots(
-        tx,
-        [...aggregatedLines.values()].map((item) => item.key),
-      );
-      const result: InventoryPostingResult = {
-        ledgerEntries,
-        balanceSnapshots,
-      };
+    const balanceSnapshots = await this.toBalanceSnapshots(
+      tx,
+      [...aggregatedLines.values()].map((item) => item.key),
+    );
+    const result: InventoryPostingResult = {
+      ledgerEntries,
+      balanceSnapshots,
+    };
 
-      const idempotencyRecord: IdempotencyRecord = {
-        tenantId,
-        actionType: 'inventory.post',
-        idempotencyKey: command.idempotencyKey,
-        payloadHash,
-        result,
-        requestId,
-      };
+    const idempotencyRecord: IdempotencyRecord = {
+      tenantId,
+      actionType: 'inventory.post',
+      idempotencyKey: command.idempotencyKey,
+      payloadHash,
+      result,
+      requestId,
+    };
 
-      await tx.saveIdempotencyRecord(idempotencyRecord);
+    await tx.saveIdempotencyRecord(idempotencyRecord);
 
-      return result;
-    });
+    return result;
   }
 
   async reverse(
     tenantId: string,
     command: InventoryReversalCommand,
     requestId: string,
+  ): Promise<InventoryPostingResult> {
+    this.validateReverseCommand(command);
+
+    return this.store.withTenantTransaction(tenantId, (tx) =>
+      this.reverseInTransaction(tenantId, command, requestId, tx),
+    );
+  }
+
+  async reverseInTransaction(
+    tenantId: string,
+    command: InventoryReversalCommand,
+    requestId: string,
+    tx: InventoryTenantTransaction,
   ): Promise<InventoryPostingResult> {
     this.validateReverseCommand(command);
 
@@ -179,105 +203,103 @@ export class InventoryPostingService {
       ),
     });
 
-    return this.store.withTenantTransaction(tenantId, async (tx) => {
-      const existing = await tx.findIdempotencyRecord(
-        'inventory.reverse',
-        command.idempotencyKey,
-      );
+    const existing = await tx.findIdempotencyRecord(
+      'inventory.reverse',
+      command.idempotencyKey,
+    );
 
-      if (existing) {
-        if (existing.payloadHash !== payloadHash) {
-          throw new InventoryIdempotencyConflictError();
-        }
-
-        return existing.result;
+    if (existing) {
+      if (existing.payloadHash !== payloadHash) {
+        throw new InventoryIdempotencyConflictError();
       }
 
-      const sourceEntries = await tx.findLedgerEntriesByIds(command.ledgerIds);
+      return existing.result;
+    }
 
-      if (sourceEntries.length !== command.ledgerIds.length) {
-        const existingIds = new Set<string>(
-          sourceEntries.map((entry) => entry.id),
+    const sourceEntries = await tx.findLedgerEntriesByIds(command.ledgerIds);
+
+    if (sourceEntries.length !== command.ledgerIds.length) {
+      const existingIds = new Set<string>(
+        sourceEntries.map((entry) => entry.id),
+      );
+      const missing = command.ledgerIds.find(
+        (ledgerId) => !existingIds.has(ledgerId),
+      );
+      throw new InventoryLedgerNotFoundError(missing ?? 'unknown');
+    }
+
+    for (const sourceEntry of sourceEntries) {
+      if (await tx.isLedgerReversed(sourceEntry.id)) {
+        throw new InventoryAlreadyReversedError(sourceEntry.id);
+      }
+    }
+
+    const aggregatedLines = aggregateLines(
+      sourceEntries.map((entry) => ({
+        skuId: entry.skuId,
+        warehouseId: entry.warehouseId,
+        quantityDelta: -entry.quantityDelta,
+      })),
+    );
+
+    for (const item of aggregatedLines.values()) {
+      const current = await tx.findBalance(item.key);
+      const next = current + item.quantityDelta;
+
+      if (next < 0) {
+        throw new InventoryInsufficientStockError(
+          item.key.skuId,
+          item.key.warehouseId,
+          current,
+          Math.abs(item.quantityDelta),
         );
-        const missing = command.ledgerIds.find(
-          (ledgerId) => !existingIds.has(ledgerId),
-        );
-        throw new InventoryLedgerNotFoundError(missing ?? 'unknown');
       }
+    }
 
-      for (const sourceEntry of sourceEntries) {
-        if (await tx.isLedgerReversed(sourceEntry.id)) {
-          throw new InventoryAlreadyReversedError(sourceEntry.id);
-        }
-      }
+    const reversalEntries = await Promise.all(
+      sourceEntries.map((sourceEntry) =>
+        tx.createLedgerEntry({
+          tenantId,
+          skuId: sourceEntry.skuId,
+          warehouseId: sourceEntry.warehouseId,
+          quantityDelta: -sourceEntry.quantityDelta,
+          referenceType: 'REVERSAL',
+          referenceId: command.referenceId,
+          reversalOfLedgerId: sourceEntry.id,
+        }),
+      ),
+    );
 
-      const aggregatedLines = aggregateLines(
-        sourceEntries.map((entry) => ({
-          skuId: entry.skuId,
-          warehouseId: entry.warehouseId,
-          quantityDelta: -entry.quantityDelta,
-        })),
-      );
+    for (const sourceEntry of sourceEntries) {
+      await tx.markLedgerReversed(sourceEntry.id);
+    }
 
-      for (const item of aggregatedLines.values()) {
-        const current = await tx.findBalance(item.key);
-        const next = current + item.quantityDelta;
+    for (const item of aggregatedLines.values()) {
+      const current = await tx.findBalance(item.key);
+      await tx.saveBalance(item.key, current + item.quantityDelta);
+    }
 
-        if (next < 0) {
-          throw new InventoryInsufficientStockError(
-            item.key.skuId,
-            item.key.warehouseId,
-            current,
-            Math.abs(item.quantityDelta),
-          );
-        }
-      }
+    const balanceSnapshots = await this.toBalanceSnapshots(
+      tx,
+      [...aggregatedLines.values()].map((item) => item.key),
+    );
+    const result: InventoryPostingResult = {
+      ledgerEntries: reversalEntries,
+      balanceSnapshots,
+    };
 
-      const reversalEntries = await Promise.all(
-        sourceEntries.map((sourceEntry) =>
-          tx.createLedgerEntry({
-            tenantId,
-            skuId: sourceEntry.skuId,
-            warehouseId: sourceEntry.warehouseId,
-            quantityDelta: -sourceEntry.quantityDelta,
-            referenceType: 'REVERSAL',
-            referenceId: command.referenceId,
-            reversalOfLedgerId: sourceEntry.id,
-          }),
-        ),
-      );
+    const idempotencyRecord: IdempotencyRecord = {
+      tenantId,
+      actionType: 'inventory.reverse',
+      idempotencyKey: command.idempotencyKey,
+      payloadHash,
+      result,
+      requestId,
+    };
 
-      for (const sourceEntry of sourceEntries) {
-        await tx.markLedgerReversed(sourceEntry.id);
-      }
+    await tx.saveIdempotencyRecord(idempotencyRecord);
 
-      for (const item of aggregatedLines.values()) {
-        const current = await tx.findBalance(item.key);
-        await tx.saveBalance(item.key, current + item.quantityDelta);
-      }
-
-      const balanceSnapshots = await this.toBalanceSnapshots(
-        tx,
-        [...aggregatedLines.values()].map((item) => item.key),
-      );
-      const result: InventoryPostingResult = {
-        ledgerEntries: reversalEntries,
-        balanceSnapshots,
-      };
-
-      const idempotencyRecord: IdempotencyRecord = {
-        tenantId,
-        actionType: 'inventory.reverse',
-        idempotencyKey: command.idempotencyKey,
-        payloadHash,
-        result,
-        requestId,
-      };
-
-      await tx.saveIdempotencyRecord(idempotencyRecord);
-
-      return result;
-    });
+    return result;
   }
 
   async getBalanceSnapshot(
@@ -309,7 +331,10 @@ export class InventoryPostingService {
   }
 
   private validatePostCommand(command: InventoryPostingCommand): void {
-    if (command.idempotencyKey.trim().length === 0) {
+    if (
+      typeof command.idempotencyKey !== 'string' ||
+      command.idempotencyKey.trim().length === 0
+    ) {
       throw new InventoryValidationError('idempotencyKey is required');
     }
 
@@ -317,7 +342,10 @@ export class InventoryPostingService {
       throw new InventoryValidationError('referenceType is invalid');
     }
 
-    if (command.referenceId.trim().length === 0) {
+    if (
+      typeof command.referenceId !== 'string' ||
+      command.referenceId.trim().length === 0
+    ) {
       throw new InventoryValidationError('referenceId is required');
     }
 
@@ -326,11 +354,17 @@ export class InventoryPostingService {
     }
 
     for (const line of command.lines) {
-      if (line.skuId.trim().length === 0) {
+      if (
+        typeof line.skuId !== 'string' ||
+        line.skuId.trim().length === 0
+      ) {
         throw new InventoryValidationError('line.skuId is required');
       }
 
-      if (line.warehouseId.trim().length === 0) {
+      if (
+        typeof line.warehouseId !== 'string' ||
+        line.warehouseId.trim().length === 0
+      ) {
         throw new InventoryValidationError('line.warehouseId is required');
       }
 
@@ -343,11 +377,17 @@ export class InventoryPostingService {
   }
 
   private validateReverseCommand(command: InventoryReversalCommand): void {
-    if (command.idempotencyKey.trim().length === 0) {
+    if (
+      typeof command.idempotencyKey !== 'string' ||
+      command.idempotencyKey.trim().length === 0
+    ) {
       throw new InventoryValidationError('idempotencyKey is required');
     }
 
-    if (command.referenceId.trim().length === 0) {
+    if (
+      typeof command.referenceId !== 'string' ||
+      command.referenceId.trim().length === 0
+    ) {
       throw new InventoryValidationError('referenceId is required');
     }
 
