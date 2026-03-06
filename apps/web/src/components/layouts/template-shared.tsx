@@ -245,6 +245,9 @@ export function HeaderActions({
 
 export function ActionButton({ action }: { action: TemplateAction }) {
   const tone = action.tone ?? 'secondary';
+  const hasHref = Boolean(action.href);
+  const disabled = action.disabled || !hasHref;
+  const disabledHint = action.hint ?? (hasHref ? '当前动作不可用' : '该动作尚未接入后端能力，已禁用');
   const buttonStyle: CSSProperties = {
     ...actionToneMap[tone],
     display: 'inline-flex',
@@ -256,11 +259,11 @@ export function ActionButton({ action }: { action: TemplateAction }) {
     fontSize: 13,
     fontWeight: 650,
     textDecoration: 'none',
-    opacity: action.disabled ? 0.5 : 1,
-    pointerEvents: action.disabled ? 'none' : 'auto',
+    opacity: disabled ? 0.5 : 1,
+    cursor: disabled ? 'not-allowed' : 'pointer',
   };
 
-  if (action.href) {
+  if (action.href && !disabled) {
     return (
       <Link href={action.href} style={buttonStyle}>
         {action.label}
@@ -268,7 +271,11 @@ export function ActionButton({ action }: { action: TemplateAction }) {
     );
   }
 
-  return <span style={buttonStyle}>{action.label}</span>;
+  return (
+    <button type="button" disabled title={disabledHint} style={buttonStyle}>
+      {action.label}
+    </button>
+  );
 }
 
 export function MetricTile({
