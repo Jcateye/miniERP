@@ -7,16 +7,18 @@
     "family": "T2",
     "designNodeId": "Iz7xv",
     "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
-    "stage": "planned",
+    "stage": "visual-done",
     "description": "`/mdm/suppliers` 需要按设计节点 `Iz7xv` 完成正式供应商列表页复刻。",
     "steps": [
       "页面 route 不再导出 settings/master-data/page.tsx。",
       "页面按 search-list 语义重建。",
-      "标题区、搜索区、表格区与设计稿一致。"
+      "页面保留标题区、搜索区与白底表格卡片，不回退到 settings 主数据工作台。",
+      "表头顺序必须为：编号、供应商名称、联系人、资质到期、合作订单、状态。"
     ],
     "passes": false,
     "category": "functional",
-    "dataSource": "BFF /api/bff/suppliers"
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立供应商管理 page-level view 与 page-local seed view model，页面收口为标题区、单搜索框、白底表格卡片；主按钮仍为禁用态占位，列表保留 detail href；搜索关键词已通过 URL `keyword` 参数编码并驱动本地过滤；已通过真实 page.tsx 渲染测试确认列头、seed 行数据、搜索区与不再回退到 settings/master-data 工作台；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
   },
   {
     "id": "route-mdm-users-list",

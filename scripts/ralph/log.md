@@ -224,3 +224,23 @@
   - `bun run --filter web build`
 - 备注：按设计节点 `SNnic` 切到独立 page-level view + page-local seed VM；页面收口为标题区、白底表格卡片；没有搜索框、filter chips 和额外 toolbar；主按钮保持禁用态占位，列表不暴露 detail href，并通过真实 page.tsx 渲染测试确认无分页 footer 与 seed 行数据已接线；同时修正了 real-page 测试中对“权限配置”文案的误伤断言，避免把设计副标题当成旧 settings 分栏残留。
 - 下一轮建议：继续实现 `/mdm/suppliers`，该页回到 `search-list`，当前仍错误复用 settings/master-data 页面，需要先对齐设计节点 `Iz7xv` 的标题、搜索区与列表列顺序。
+
+## 2026-03-07 /mdm/suppliers
+
+- 处理 story：`route-mdm-suppliers-list`
+- 改动文件：
+  - `apps/web/src/app/(dashboard)/mdm/suppliers/page.tsx`
+  - `apps/web/src/app/(dashboard)/mdm/suppliers/suppliers-page.ts`
+  - `apps/web/src/app/(dashboard)/mdm/suppliers/suppliers-page-view.tsx`
+  - `apps/web/src/app/(dashboard)/mdm/suppliers/suppliers-page.spec.tsx`
+  - `apps/web/src/app/(dashboard)/mdm/suppliers/use-suppliers-page-vm.ts`
+  - `apps/web/src/app/(dashboard)/mdm/suppliers/use-suppliers-page-vm.spec.ts`
+  - `docs/user-stories/erp-page-reconstruction/04-domain-pages.json`
+  - `docs/ui/erp-page-design-route-map.md`
+  - `scripts/ralph/log.md`
+- 是否完成：部分完成，已达到 `visual-done`
+- 最小验证：
+  - `bun test apps/web/src/app/(dashboard)/mdm/suppliers/suppliers-page.spec.tsx apps/web/src/app/(dashboard)/mdm/suppliers/use-suppliers-page-vm.spec.ts`
+  - `bun run --filter web build`
+- 备注：按设计节点 `Iz7xv` 切到独立 page-level view + page-local seed VM；页面收口为标题区、单搜索框、白底表格卡片；主按钮保持禁用态占位，列表保留 detail href，并通过真实 page.tsx 渲染测试确认不再回退到 settings/master-data 工作台；当前搜索通过 URL `keyword` 参数编码并驱动本地过滤，仍需真实 BFF 接线与最终设计核对后再评估 rebuilt。
+- 下一轮建议：继续实现下一个仍处于 placeholder / wrong 的列表页，优先回到 inventory 或 procure 域中仍未复刻的 T2 页面。
