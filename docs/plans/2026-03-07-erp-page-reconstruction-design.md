@@ -208,7 +208,7 @@
 
 - `.pen` 设计稿
 - `designs/ui/*`
-- 页面映射表
+- 页面映射表（`docs/ui/erp-page-design-route-map.md`）
 
 职责：
 
@@ -334,6 +334,8 @@
 - design node id
 - 当前状态（legacy / wrong / in-progress / rebuilt）
 - 数据来源（mock / BFF / live）
+
+首份落盘映射表见：`docs/ui/erp-page-design-route-map.md`。
 
 示例：
 

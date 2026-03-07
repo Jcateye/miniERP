@@ -90,13 +90,15 @@ openspec         变更工件
 1. **设计优先 + 可运行实现**
    - 用 `designs/` 理解目标
    - 以 `apps/*` 当前实现为落地依据
+   - ERP 页面治理以 `docs/plans/2026-03-07-erp-page-reconstruction-design.md` 为当前正式说明
 
-2. **前端采用模板驱动装配**
-   - 核心文件：
-     - `apps/web/src/components/business/erp-page-config.tsx`
-     - `apps/web/src/components/business/erp-page-assemblies.tsx`
-     - `apps/web/src/components/layouts/`
-   - 页面优先复用 T1/T2/T3/T4 模板
+2. **前端采用设计稿驱动 + family 治理**
+   - 页面级 view：`apps/web/src/components/views/erp/`
+   - family shells：`apps/web/src/components/shells/erp/`
+   - primitives：`apps/web/src/components/primitives/erp/`
+   - 语义配置与 legacy：`apps/web/src/components/business/`
+   - 页面优先复刻设计稿，不再默认走 `erp-page-assemblies.tsx` 的通用装配路径
+   - `WorkbenchAssembly` / `OverviewAssembly` 仅允许用于 legacy fallback、临时页、未重构页
 
 3. **凭证模型固定为两层**
    - document-level + line-level
@@ -116,6 +118,11 @@ openspec         变更工件
 6. **跨层契约统一**
    - 新增共享类型优先进入 `packages/shared`
 
+7. **并行协作规则**
+   - 优先按页面 route 或文档范围拆分任务，避免多人同时修改同一页面主实现
+   - 一名 agent 负责一批共享 primitives/shells 时，必须先冻结接口，再让页面 agent 消费
+   - 涉及 family 定义、legacy 范围、工程红线的修改，必须同步更新 `CLAUDE.md`、`AGENTS.md`、`README.md`、`CLAW.md`、`.claude/rules/erp-rules.md`
+
 ---
 
 ## 业务硬约束
@@ -129,16 +136,25 @@ openspec         变更工件
 
 ## 工程红线（必须遵守）
 
-1. 新页面只能落在 **T1/T2/T3/T4**，禁止第 5 种布局。
-2. 列表页筛选/排序/分页必须 URL 化（可分享、可回放）。
-3. 模板组件禁止直连 API；页面只通过 VM Hook + BFF。
-4. 前端禁止自定义状态枚举；状态只来自 `packages/shared`。
-5. 库存只认 `inventory_ledger` 为事实源，余额表仅做查询加速。
-6. 所有过账接口强制 `Idempotency-Key`。
-7. 禁止物理删除已过账单据；只能作废/冲销。
-8. 所有写操作必须带 `tenant_id` 与审计字段（who/when/what）。
-9. BFF 是前端唯一数据入口，禁止页面绕过 BFF。
-10. PR 必须通过：模板合规 + 状态契约 + 过账一致性测试。
+1. 新页面只能落在 **T1/T2/T3/T4**，禁止第 5 种 family。
+2. 当前 family 定义为：
+   - T1 = Hub / Dashboard family
+   - T2 = List / Index family
+   - T3 = Detail / Record family
+   - T4 = Flow / Wizard family
+3. family 只约束骨架，不约束具体 UI；正式页面必须复刻已映射的 pencil 设计稿。
+4. 列表页筛选/排序/分页必须 URL 化（可分享、可回放）。
+5. 页面/壳组件禁止直连 API；页面只通过 VM Hook + BFF。
+6. 前端禁止自定义状态枚举；状态只来自 `packages/shared`。
+7. 库存只认 `inventory_ledger` 为事实源，余额表仅做查询加速。
+8. 所有过账接口强制 `Idempotency-Key`。
+9. 禁止物理删除已过账单据；只能作废/冲销。
+10. 所有写操作必须带 `tenant_id` 与审计字段（who/when/what）。
+11. BFF 是前端唯一数据入口，禁止页面绕过 BFF。
+12. PR 必须通过：设计一致性审查 + 状态契约 + 过账一致性测试。
+13. 允许复用的层级仅限 primitives / shells / 局部业务块；禁止新的万能页面装配器。
+14. `WorkbenchAssembly` / `OverviewAssembly` 仅允许用于 legacy fallback、临时页、未重构页。
+15. 并行执行时，共享事实必须同批更新五份规则文档与 `.claude/rules/erp-rules.md`，避免 agent 间规则漂移。
 
 ---
 

@@ -67,11 +67,12 @@ From runtime config behavior (`apps/server/src/config/env.schema.ts`, BFF header
 
 ## Project-specific architecture decisions
 
-1. **Template-first frontend**: T1–T4 page families are the default approach (`designs/ui/minierp_page_spec.md`).
+1. **Design-driven + family-governed frontend**: keep T1–T4 names, but family only governs page skeletons; formal pages must recreate the mapped pencil design and land as page-level views rather than generic assemblies (`designs/ui/minierp_page_spec.md`, `docs/plans/2026-03-07-erp-page-reconstruction-design.md`).
 2. **Two-layer evidence model**: document-level + row-level evidence (`designs/ui/miniERP_evidence_system.md`).
 3. **Web data path**: hooks/components -> SDK/BFF -> `/api/bff/*` -> backend.
 4. **Fixture fallback boundary**: BFF fallback is allowed only in `development/test`; non-dev env should surface upstream unavailability.
 5. **Shared contract boundary**: cross-layer types/constants/utilities belong in `packages/shared`.
+6. **Legacy frontend boundary**: `WorkbenchAssembly` / `OverviewAssembly` and their old layout semantics are legacy/fallback only; do not use them as the default runtime path for rebuilt pages.
 
 ## Business invariants (non-negotiable)
 
@@ -82,16 +83,25 @@ From `.claude/rules/erp-rules.md`:
 
 ## Engineering redlines (must follow)
 
-1. New pages must use **T1/T2/T3/T4** only; no fifth layout pattern.
-2. List pages must URL-encode filter/sort/pagination state (shareable + replayable).
-3. Template components must not call APIs directly; pages use VM hooks + BFF only.
-4. Frontend must not define custom status enums; use `packages/shared` as the single source.
-5. Inventory truth source is `inventory_ledger`; balance table is query acceleration only.
-6. All posting endpoints must require `Idempotency-Key`.
-7. Physical deletion of posted documents is forbidden; use void/reversal only.
-8. All write operations must carry `tenant_id` and audit fields (who/when/what).
-9. BFF is the only frontend data entry layer; no bypass to backend APIs.
-10. PR gate must pass: template compliance + status contract + posting consistency tests.
+1. New pages must use **T1/T2/T3/T4** only; no fifth page family.
+2. T1/T2/T3/T4 are **family shells**, not fixed UI templates:
+   - T1 = Hub / Dashboard family
+   - T2 = List / Index family
+   - T3 = Detail / Record family
+   - T4 = Flow / Wizard family
+3. Formal pages must recreate the mapped pencil design; family only constrains skeleton, not concrete UI.
+4. List pages must URL-encode filter/sort/pagination state (shareable + replayable).
+5. Template/shell components must not call APIs directly; pages use VM hooks + BFF only.
+6. Frontend must not define custom status enums; use `packages/shared` as the single source.
+7. Inventory truth source is `inventory_ledger`; balance table is query acceleration only.
+8. All posting endpoints must require `Idempotency-Key`.
+9. Physical deletion of posted documents is forbidden; use void/reversal only.
+10. All write operations must carry `tenant_id` and audit fields (who/when/what).
+11. BFF is the only frontend data entry layer; no bypass to backend APIs.
+12. PR gate must pass: design parity review + status contract + posting consistency tests.
+13. Do not introduce a new universal page assembly. Reuse is allowed only at primitives / shells / local business blocks.
+14. `WorkbenchAssembly` / `OverviewAssembly` are legacy/fallback only for unmigrated routes and placeholders.
+15. When coordinating parallel agents, assign work by route or document scope, keep shared fact updates synchronized across `CLAUDE.md`, `AGENTS.md`, `README.md`, `CLAW.md`, and `.claude/rules/erp-rules.md`, and do not let one agent redefine page family rules in isolation.
 
 ## Repo etiquette
 

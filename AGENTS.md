@@ -19,13 +19,15 @@ miniERP 是一个 **design-first + runnable monorepo**：
 ## 2) 进入任务前先读
 
 1. `README.md`
-2. `designs/ui/minierp_page_spec.md`（T1–T4 模板体系）
-3. `designs/ui/miniERP_evidence_system.md`（单据级/行级凭证）
-4. `designs/ui/miniERP_design_summary.md`
-5. `.claude/rules/erp-rules.md`
-6. `openspec/config.yaml`
-7. `docs/commit.md`（提交信息规范，含执行者恢复信息）
-8. `docs/Macmini-infra.md`（本地开发基础设施：共享中间件、访问地址、排障）
+2. `docs/plans/2026-03-07-erp-page-reconstruction-design.md`（ERP 页面新治理路线）
+3. `docs/plans/2026-03-07-erp-page-reconstruction-implementation-plan.md`（实施批次与顺序）
+4. `designs/ui/minierp_page_spec.md`（历史 T1–T4 语义参考，正式定义以重构设计文档为准）
+5. `designs/ui/miniERP_evidence_system.md`（单据级/行级凭证）
+6. `designs/ui/miniERP_design_summary.md`
+7. `.claude/rules/erp-rules.md`
+8. `openspec/config.yaml`
+9. `docs/commit.md`（提交信息规范，含执行者恢复信息）
+10. `docs/Macmini-infra.md`（本地开发基础设施：共享中间件、访问地址、排障）
 
 ---
 
@@ -87,13 +89,17 @@ bun run project -- infra doctor
 
 ## 4) 架构执行要点（Agent 视角）
 
-### A. 前端：模板优先 + 配置装配
+### A. 前端：设计稿驱动 + family shells + page views
 - 路由主入口：`apps/web/src/app/(dashboard)/...`
-- 页面配置：`apps/web/src/components/business/erp-page-config.tsx`
-- 页面装配：`apps/web/src/components/business/erp-page-assemblies.tsx`
-- 模板壳：`apps/web/src/components/layouts/`
+- 页面级 view：`apps/web/src/components/views/erp/`
+- family shells：`apps/web/src/components/shells/erp/`
+- 局部 primitives：`apps/web/src/components/primitives/erp/`
+- 语义配置与 legacy：`apps/web/src/components/business/`
 
-默认策略：优先复用 T1/T2/T3/T4，而不是新增一次性页面结构。
+默认策略：
+- 已有设计稿映射的正式页面，优先实现 page-level view。
+- 只复用 primitives / shells / 局部业务块，不要新造一次性大模板，也不要复活万能 assembly。
+- `apps/web/src/components/business/erp-page-assemblies.tsx`、旧 `apps/web/src/components/layouts/overview-layout.tsx`、`workbench-layout.tsx` 仅作 legacy/fallback 参考，不再作为重构页面默认主路径。
 
 ### B. 凭证模型是跨域能力
 - 单据级凭证 + 行级凭证（line drawer）
@@ -140,16 +146,25 @@ bun run project -- infra doctor
 
 ## 6) 工程红线（必须遵守）
 
-1. 新页面只能落在 **T1/T2/T3/T4**，禁止第 5 种布局。
-2. 列表页筛选/排序/分页必须 URL 化（可分享、可回放）。
-3. 模板组件禁止直连 API；页面只通过 VM Hook + BFF。
-4. 前端禁止自定义状态枚举；状态只来自 `packages/shared`。
-5. 库存只认 `inventory_ledger` 为事实源，余额表仅做查询加速。
-6. 所有过账接口强制 `Idempotency-Key`。
-7. 禁止物理删除已过账单据；只能作废/冲销。
-8. 所有写操作必须带 `tenant_id` 与审计字段（who/when/what）。
-9. BFF 是前端唯一数据入口，禁止页面绕过 BFF。
-10. PR 必须通过：模板合规 + 状态契约 + 过账一致性测试。
+1. 新页面只能落在 **T1/T2/T3/T4**，禁止第 5 种 family。
+2. 当前 family 定义为：
+   - T1 = Hub / Dashboard family
+   - T2 = List / Index family
+   - T3 = Detail / Record family
+   - T4 = Flow / Wizard family
+3. family 只约束骨架，不约束具体 UI；正式页面必须复刻已映射的 pencil 设计稿。
+4. 列表页筛选/排序/分页必须 URL 化（可分享、可回放）。
+5. 页面/壳组件禁止直连 API；页面只通过 VM Hook + BFF。
+6. 前端禁止自定义状态枚举；状态只来自 `packages/shared`。
+7. 库存只认 `inventory_ledger` 为事实源，余额表仅做查询加速。
+8. 所有过账接口强制 `Idempotency-Key`。
+9. 禁止物理删除已过账单据；只能作废/冲销。
+10. 所有写操作必须带 `tenant_id` 与审计字段（who/when/what）。
+11. BFF 是前端唯一数据入口，禁止页面绕过 BFF。
+12. PR 必须通过：设计一致性审查 + 状态契约 + 过账一致性测试。
+13. 禁止新的万能页面装配器；只允许抽象到 primitives / shells / 局部业务块。
+14. `WorkbenchAssembly` / `OverviewAssembly` 仅允许用于 legacy fallback、临时页、未重构页。
+15. 并行执行时优先按 route / 文档范围拆任务；涉及共享规则的变更，必须同步更新 `CLAUDE.md`、`AGENTS.md`、`README.md`、`CLAW.md`、`.claude/rules/erp-rules.md`。
 
 ---
 
@@ -185,3 +200,4 @@ bun run project -- infra doctor
 1. 先改 `CLAUDE.md` 的核心事实
 2. 同步改另外三份，但保留各自受众风格
 3. 若命令/架构/约束变更，四份文档必须同批更新
+4. 若变更的是 ERP 页面 family 治理、legacy 范围或并行协作规则，还必须同步更新 `.claude/rules/erp-rules.md`

@@ -24,19 +24,28 @@ paths:
 
 ## 模板系统
 
-### 四种页面模板（参考 designs/ui/minierp_page_spec.md）
-1. **T1 OverviewLayout** - 仪表盘/概览页
-2. **T2 WorkbenchLayout** - 列表/表格操作页
-3. **T3 DetailLayout** - 详情页（带 tabs）
-4. **T4 WizardLayout** - 向导/流程页
+### 页面 family 治理（正式定义）
+1. **T1 Hub / Dashboard family** - 聚合入口、概览、配置首页
+2. **T2 List / Index family** - 列表、索引、检索主导页面
+3. **T3 Detail / Record family** - 单据/主数据详情页
+4. **T4 Flow / Wizard family** - 新建、提交、审核、过账等流程页
+
+### family 使用规则
+- 保留 T1/T2/T3/T4 名字，但旧 `OverviewLayout / WorkbenchLayout / DetailLayout / WizardLayout` 绑定式定义失效。
+- family 只约束页面骨架，不约束具体 UI。
+- 正式页面必须复刻已映射的 pencil 设计稿。
+- 允许抽取 primitives / shells / 局部业务块。
+- 禁止新的万能页面 assembly。
+- `WorkbenchAssembly` / `OverviewAssembly` 仅允许用于 legacy fallback、临时页、未重构页。
 
 ### 组件组织
 ```
 src/components/
-├── shared/          # 通用组件
-├── layouts/         # T1-T4 模板
-├── business/        # 业务组件
-└── evidence/        # 凭证相关
+├── primitives/erp/   # ERP 稳定局部块
+├── shells/erp/       # T1-T4 family shells
+├── views/erp/        # page-level views
+├── business/         # 业务语义配置与 legacy
+└── evidence/         # 凭证相关
 ```
 
 ## 凭证系统
