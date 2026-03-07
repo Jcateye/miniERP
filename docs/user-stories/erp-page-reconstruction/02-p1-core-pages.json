@@ -1,0 +1,149 @@
+[
+  {
+    "id": "route-mdm-customers-list",
+    "scope": "route",
+    "route": "/mdm/customers",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "iYRfh",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/mdm/customers` 需要按设计节点 `iYRfh` 完成正式客户列表页复刻。",
+    "steps": [
+      "route 继续指向独立 page-level view，不回退到 settings/master-data。",
+      "页面主内容区只保留标题区、单搜索框、白底表格卡片。",
+      "移除设计稿中不存在的 filter chips、settings rail、workbench drawer、bulk bar。",
+      "表头顺序必须为：编号、客户名称、联系人、电话、信用额度、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "BFF /api/bff/customers",
+    "notes": "当前已移除 filter chips，文案与主按钮已对齐设计稿，并把页面状态收口到 page-local view model；仍需补更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-mdm-warehouses-list",
+    "scope": "route",
+    "route": "/mdm/warehouses",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "S8YEo",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/mdm/warehouses` 需要按设计节点 `S8YEo` 完成正式仓库列表页复刻。",
+    "steps": [
+      "页面 route 不再导出 settings/master-data/page.tsx。",
+      "页面主内容区与设计稿一致：标题区、单搜索框、白底表格卡片。",
+      "不出现 settings rail、通用 toolbar、分页 footer、编辑表单卡。",
+      "表头顺序必须为：仓库编号、仓库名称、类型、地址、联系人、库位管理、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "BFF /api/bff/warehouses",
+    "notes": "当前已切到独立仓库 page-level view 与 page-local view model，主内容区收口为标题区、单搜索框、白底表格卡片；按代码审查移除了当前不存在的详情跳转，把“新建仓库”按钮改为禁用态占位，并去掉未落地的 status URL 协议；keyword 仅保留在页面 URL 与本地过滤层，不再错误透传给上游；仍需补更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-finance-receipts-list",
+    "scope": "route",
+    "route": "/finance/receipts",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "ZvGFp",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/finance/receipts` 需要按设计节点 `ZvGFp` 完成正式收款列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面为 simple-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：收款编号、客户、日期、金额、方式、已核销、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立收款 page-level view 与 page-local seed view model，页面收口为标题区、演示数据提示、白底表格卡片；按代码审查显式披露 seed/mock 状态，并禁用仍指向 placeholder 的新建/详情入口；页面没有搜索框、filter chips 和额外 toolbar；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-finance-payments-list",
+    "scope": "route",
+    "route": "/finance/payments",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "vQa3s",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/finance/payments` 需要按设计节点 `vQa3s` 完成正式付款列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面为 simple-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：付款编号、供应商、日期、金额、方式、已核销、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立付款 page-level view 与 page-local seed view model，页面收口为标题区、演示数据提示、白底表格卡片；按代码审查保持 seed getter 返回新对象，避免污染共享 seed 数据，并禁用仍指向 placeholder 的新建/详情入口；页面没有搜索框、filter chips 和额外 toolbar；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-finance-gl-accounts-list",
+    "scope": "route",
+    "route": "/finance/gl-accounts",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "Ch7yZ",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/finance/gl-accounts` 需要按设计节点 `Ch7yZ` 完成正式科目表复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面为 tree-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：科目编码、科目名称、类型、币种控制、上级科目、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立科目表 page-level view 与 page-local seed view model，页面收口为标题区、演示数据提示、白底表格卡片；按当前代码库的最小可落地策略，先用扁平 seed 行数据表达树层级缩进，并禁用尚未实现的详情/新建入口；页面没有搜索框、filter chips 和额外 toolbar；仍需真实 BFF 接线、树交互增强与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-finance-cost-centers-list",
+    "scope": "route",
+    "route": "/finance/cost-centers",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "LQFcg",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/finance/cost-centers` 需要按设计节点 `LQFcg` 完成正式成本中心列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面为 simple-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：编码、名称、负责人、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立成本中心 page-level view 与 page-local seed view model，页面收口为标题区、演示数据提示、白底表格卡片；主按钮仍为禁用态占位，详情页尚未开放，因此列表不暴露 detail href；页面没有搜索框、filter chips 和额外 toolbar；按代码审查补了 page.tsx 真实接线测试，并把 finance 相关 seed VM 测试改为 non-mutating 的 fresh-array / fresh-object 断言；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-mdm-organizations-list",
+    "scope": "route",
+    "route": "/mdm/organizations",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "pDe3z",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/mdm/organizations` 需要按设计节点 `pDe3z` 完成正式组织列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面为 simple-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：编号、名称、类型、上级组织、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立组织管理 page-level view 与 page-local seed view model，页面收口为标题区、白底表格卡片；主按钮仍为禁用态占位，列表不暴露 detail href；页面没有搜索框、filter chips 和额外 toolbar；已通过真实 page.tsx 渲染测试确认列头、seed 行数据与无分页 footer；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  }
+]

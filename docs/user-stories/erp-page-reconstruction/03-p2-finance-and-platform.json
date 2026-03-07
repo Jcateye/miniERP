@@ -1,0 +1,101 @@
+[
+  {
+    "id": "route-finance-payments-list",
+    "scope": "route",
+    "route": "/finance/payments",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "vQa3s",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "planned",
+    "description": "`/finance/payments` 需要按设计节点 `vQa3s` 完成付款列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "列表页结构按对应 pencil 设计稿重建。",
+      "页面不再沿用旧 assembly 或 placeholder 壳。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "placeholder / target BFF pending"
+  },
+  {
+    "id": "route-finance-gl-accounts-list",
+    "scope": "route",
+    "route": "/finance/gl-accounts",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "Ch7yZ",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "planned",
+    "description": "`/finance/gl-accounts` 需要按设计节点 `Ch7yZ` 完成科目表页面复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面按 tree-list 语义重建，而不是普通 placeholder。",
+      "列表层级、标题区与表头结构对齐 pencil 设计稿。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "placeholder / target BFF pending"
+  },
+  {
+    "id": "route-finance-cost-centers-list",
+    "scope": "route",
+    "route": "/finance/cost-centers",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "LQFcg",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "planned",
+    "description": "`/finance/cost-centers` 需要按设计节点 `LQFcg` 完成成本中心列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面主结构、标题区、表格区与设计稿一致。",
+      "不引入设计稿中不存在的旧模板工具栏。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "placeholder / target BFF pending"
+  },
+  {
+    "id": "route-finance-budgets-list",
+    "scope": "route",
+    "route": "/finance/budgets",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "iHpnf",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/finance/budgets` 需要按设计节点 `iHpnf` 完成预算列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面为 simple-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：编号、预算名称、期间、预算金额、已使用、剩余、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立预算 page-level view 与 page-local seed view model，页面收口为标题区、白底表格卡片；按设计节点 `iHpnf` 当前结构不加入额外 seed notice；主按钮仍为禁用态占位，列表不暴露 detail href；页面没有搜索框、filter chips 和额外 toolbar；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-integration-endpoints-list",
+    "scope": "route",
+    "route": "/integration/endpoints",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "Cl9W4",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/integration/endpoints` 需要按设计节点 `Cl9W4` 完成集成端点列表页复刻。",
+    "steps": [
+      "页面 route 不再导出 settings/api-clients/page.tsx。",
+      "页面为 simple-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：名称、类型、URL、状态、最近同步。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立集成端点 page-level view 与 page-local seed view model，页面收口为标题区、白底表格卡片；没有搜索框、filter chips 和额外 toolbar；主按钮仍为禁用态占位，列表不暴露 detail href；已通过真实 page.tsx 渲染测试确认列头、seed 行数据与无分页 footer；构建过程中顺带修复了 finance/payments 与 finance/receipts 对 shared types 的错误深路径导入。"
+  }
+]

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
@@ -51,7 +52,7 @@ interface ActionButtonProps {
     disabled?: boolean;
 }
 
-export function ActionButton({ label, tone = 'secondary', icon, onClick, disabled = false }: ActionButtonProps) {
+export function ActionButton({ label, tone = 'secondary', icon, href, onClick, disabled = false }: ActionButtonProps) {
     const styles: Record<string, React.CSSProperties> = {
         primary: {
             background: '#C05A3C',
@@ -70,25 +71,37 @@ export function ActionButton({ label, tone = 'secondary', icon, onClick, disable
         },
     };
 
+    const buttonStyle: React.CSSProperties = {
+        ...styles[tone],
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 20px',
+        borderRadius: 8,
+        fontFamily: 'var(--font-display-family), sans-serif',
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        transition: 'opacity 0.15s',
+        letterSpacing: 0.5,
+        opacity: disabled ? 0.45 : 1,
+        textDecoration: 'none',
+    };
+
+    if (href && !disabled) {
+        return (
+            <Link href={href} style={buttonStyle}>
+                {icon}
+                {label}
+            </Link>
+        );
+    }
+
     return (
         <button
             onClick={onClick}
             disabled={disabled}
-            style={{
-                ...styles[tone],
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 20px',
-                borderRadius: 8,
-                fontFamily: 'var(--font-display-family), sans-serif',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                transition: 'opacity 0.15s',
-                letterSpacing: 0.5,
-                opacity: disabled ? 0.45 : 1,
-            }}
+            style={buttonStyle}
         >
             {icon}
             {label}

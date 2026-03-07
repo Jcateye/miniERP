@@ -1,0 +1,84 @@
+[
+  {
+    "id": "route-mdm-suppliers-list",
+    "scope": "route",
+    "route": "/mdm/suppliers",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "Iz7xv",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "planned",
+    "description": "`/mdm/suppliers` 需要按设计节点 `Iz7xv` 完成正式供应商列表页复刻。",
+    "steps": [
+      "页面 route 不再导出 settings/master-data/page.tsx。",
+      "页面按 search-list 语义重建。",
+      "标题区、搜索区、表格区与设计稿一致。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "BFF /api/bff/suppliers"
+  },
+  {
+    "id": "route-mdm-users-list",
+    "scope": "route",
+    "route": "/mdm/users",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "UU4t0",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/mdm/users` 需要按设计节点 `UU4t0` 完成正式用户列表页复刻。",
+    "steps": [
+      "页面 route 不再导出 settings/users/page.tsx。",
+      "页面按 simple-list 语义重建，而不是 settings 用户管理分栏页。",
+      "页面只保留标题区与白底表格卡片，没有搜索框、filter chips 和额外 toolbar。",
+      "表头顺序必须为：用户名、姓名、角色、部门、最近登录、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立用户管理 page-level view 与 page-local seed view model，页面收口为标题区、白底表格卡片；主按钮仍为禁用态占位，列表不暴露 detail href；页面没有搜索框、filter chips 和额外 toolbar；已通过真实 page.tsx 渲染测试确认列头、seed 行数据与无分页 footer；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-mdm-roles-list",
+    "scope": "route",
+    "route": "/mdm/roles",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "SNnic",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/mdm/roles` 需要按设计节点 `SNnic` 完成正式角色列表页复刻。",
+    "steps": [
+      "页面 route 不再导出 settings/roles/page.tsx。",
+      "页面按 simple-list 语义重建，而不是角色权限配置分栏页。",
+      "页面只保留标题区与白底表格卡片，没有搜索框、filter chips 和额外 toolbar。",
+      "表头顺序必须为：角色名称、描述、权限数、用户数、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立角色权限 page-level view 与 page-local seed view model，页面收口为标题区、白底表格卡片；主按钮仍为禁用态占位，列表不暴露 detail href；页面没有搜索框、filter chips 和额外 toolbar；已通过真实 page.tsx 渲染测试确认列头、seed 行数据与无分页 footer；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-mdm-organizations-list",
+    "scope": "route",
+    "route": "/mdm/organizations",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "pDe3z",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/mdm/organizations` 需要按设计节点 `pDe3z` 完成正式组织列表页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面为 simple-list：标题区加白底表格卡片。",
+      "页面没有搜索框、没有 filter chips、没有额外 toolbar。",
+      "表头顺序必须为：编号、名称、类型、上级组织、状态。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立组织管理 page-level view 与 page-local seed view model，页面收口为标题区、白底表格卡片；主按钮仍为禁用态占位，列表不暴露 detail href；页面没有搜索框、filter chips 和额外 toolbar；已通过真实 page.tsx 渲染测试确认列头、seed 行数据与无分页 footer；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  }
+]

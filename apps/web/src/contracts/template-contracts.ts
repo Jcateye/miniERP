@@ -3,6 +3,23 @@ import type { ReactNode } from 'react';
 import type { BigIntString, DocumentType } from '@minierp/shared';
 
 export type TemplateFamily = 'T1' | 'T2' | 'T3' | 'T4';
+export type TemplateFamilyVariant =
+  | 'default'
+  | 'home'
+  | 'subnav'
+  | 'simple-list'
+  | 'search-list'
+  | 'filter-list'
+  | 'action-list'
+  | 'tree-list'
+  | 'record-detail'
+  | 'document-detail'
+  | 'masterdata-detail'
+  | 'tabbed-detail'
+  | 'linear-wizard'
+  | 'posting-flow'
+  | 'review-submit'
+  | 'evidence-flow';
 export type TemplateTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 export type TemplateActionTone = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type TemplateStepStatus = 'completed' | 'current' | 'upcoming';
@@ -108,6 +125,7 @@ export interface TemplateHeader {
 
 export interface TemplatePageContractBase {
   family: TemplateFamily;
+  variant?: TemplateFamilyVariant;
   route: string;
   title: string;
   summary: string;

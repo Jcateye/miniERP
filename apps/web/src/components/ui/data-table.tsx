@@ -18,6 +18,7 @@ interface DataTableProps {
     onPageChange?: (page: number) => void;
     onRowClick?: (row: Record<string, string>) => void;
     selectedRowId?: string;
+    showPagination?: boolean;
 }
 
 export function DataTable({
@@ -29,6 +30,7 @@ export function DataTable({
     onPageChange,
     onRowClick,
     selectedRowId,
+    showPagination = true,
 }: DataTableProps) {
     return (
         <div style={{
@@ -97,7 +99,7 @@ export function DataTable({
             </div>
 
             {/* Footer / Pagination */}
-            {totalPages > 0 && (
+            {showPagination && totalPages > 0 && (
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
