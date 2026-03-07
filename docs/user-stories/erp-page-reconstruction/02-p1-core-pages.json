@@ -145,5 +145,26 @@
     "category": "functional",
     "dataSource": "page-local seed / target BFF pending",
     "notes": "当前已切到独立组织管理 page-level view 与 page-local seed view model，页面收口为标题区、白底表格卡片；主按钮仍为禁用态占位，列表不暴露 detail href；页面没有搜索框、filter chips 和额外 toolbar；已通过真实 page.tsx 渲染测试确认列头、seed 行数据与无分页 footer；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
+  },
+  {
+    "id": "route-workflow-tasks-list",
+    "scope": "route",
+    "route": "/workflow/tasks",
+    "routeType": "list",
+    "family": "T2",
+    "designNodeId": "workflow-tasks-list",
+    "expectedRuntime": "page.tsx -> page-level view -> page-local view model",
+    "stage": "visual-done",
+    "description": "`/workflow/tasks` 需要按审批任务列表设计完成正式审批任务页复刻。",
+    "steps": [
+      "页面 route 不再渲染 RoutePlaceholderPage。",
+      "页面按 search-list 语义重建：标题区、搜索框、scope filter chips 与白底表格卡片。",
+      "页面筛选状态通过 URL `keyword` / `scope` 参数编码，并保持当前输入态即时过滤。",
+      "表头顺序必须为：单据编号、类型、申请人、摘要、金额、操作。"
+    ],
+    "passes": false,
+    "category": "functional",
+    "dataSource": "page-local seed / target BFF pending",
+    "notes": "当前已切到独立 workflow tasks page-level view 与 page-local seed view model，页面收口为标题区、单搜索框、scope filter chips、白底表格卡片；主列表根据当前 keyword / scope 输入立即过滤，同时保留 URL replace 同步；已通过真实 page.tsx 渲染测试确认列头、seed 行数据、操作按钮与不再回退到流程 placeholder；仍需真实 BFF 接线、更多行为测试与最终设计核对后再评估 rebuilt。"
   }
 ]

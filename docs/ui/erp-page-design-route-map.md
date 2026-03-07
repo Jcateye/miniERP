@@ -25,4 +25,32 @@
 | `/finance/gl-accounts` | `T2` | `tree-list` | `Ch7yZ` | 科目表 | `page.tsx -> gl-accounts/gl-accounts-page-view + gl-accounts-page` | `in-progress` | `page-local seed / target BFF pending` | 当前已切到独立 page-level view 与 page-local seed VM；主内容区收口为标题区、演示数据提示、白底表格卡片；没有搜索框、filter chips 和额外 toolbar；按最小可落地策略先用扁平 seed 行数据表达层级缩进，并禁用尚未实现的详情/新建入口，尚未达到设计稿 rebuilt 标准。 |
 | `/finance/cost-centers` | `T2` | `simple-list` | `LQFcg` | 成本中心 | `page.tsx -> cost-centers/cost-centers-page-view + cost-centers-page` | `in-progress` | `page-local seed / target BFF pending` | 当前已切到独立 page-level view 与 page-local seed VM；主内容区收口为标题区、演示数据提示、白底表格卡片；没有搜索框、filter chips 和额外 toolbar；主按钮仍为禁用态占位，列表不暴露 detail href，并已补 page.tsx 真实接线测试与无分页 footer 断言；尚未达到设计稿 rebuilt 标准。 |
 | `/finance/budgets` | `T2` | `simple-list` | `iHpnf` | 预算列表 | `page.tsx -> budgets/budgets-page-view + budgets-page` | `in-progress` | `page-local seed / target BFF pending` | 当前已切到独立 page-level view 与 page-local seed VM；主内容区收口为标题区、白底表格卡片；没有搜索框、filter chips 和额外 toolbar；主按钮仍为禁用态占位，列表不暴露 detail href，并已补 page.tsx 真实接线测试与无分页 footer 断言；按设计节点当前结构不额外展示 seed notice；尚未达到设计稿 rebuilt 标准。 |
+| `/workflow/tasks` | `T2` | `search-list` | `workflow-tasks-list` | 审批任务 | `page.tsx -> tasks-page-view + tasks-page` | `in-progress` | `page-local seed / target BFF pending` | 当前已切到独立 page-level view 与 page-local seed VM；主内容区收口为标题区、单搜索框、scope filter chips、白底表格卡片；列表会基于当前 keyword / scope 输入即时过滤，同时保留 URL `keyword` / `scope` 同步；已补 page.tsx 真实接线测试、列表过滤纯函数测试与 chip `aria-pressed` 可访问性状态，尚未达到设计稿 rebuilt 标准。 |
 | `/integration/endpoints` | `T2` | `simple-list` | `Cl9W4` | 集成端点 | `page.tsx -> endpoints/endpoints-page-view + endpoints-page` | `in-progress` | `page-local seed / target BFF pending` | 当前已切到独立 page-level view 与 page-local seed VM；主内容区收口为标题区、白底表格卡片；没有搜索框、filter chips 和额外 toolbar；主按钮仍为禁用态占位，列表不暴露 detail href，并已补 page.tsx 真实接线测试与无分页 footer 断言；不再错误复用 settings API clients 页面。 |
+
+## 2026-03-08 未完成页面清单（37 页口径）
+
+以下页面已纳入当前 37 页复刻范围，但截至 2026-03-08 仍未进入正式 page-level 重建完成态：
+
+| route | current_shape | status_note |
+| --- | --- | --- |
+| `/mdm/items` | re-export | 仍转发到旧 SKU 路由，未按当前页面规划独立复刻。 |
+| `/mdm/items/:id` | legacy detail | 仍是旧 detail 实现，未进入新的 page-level 正式复刻路径。 |
+| `/mdm/items/new` | wizard assembly | 仍使用 `WizardAssembly`。 |
+| `/inventory/balances` | re-export | 仍转发到旧库存页。 |
+| `/inventory/ledger` | legacy assembly | 仍沿用旧 assembly 路线。 |
+| `/inventory/counts` | re-export | 仍转发到旧 stocktake 路由。 |
+| `/inventory/counts/:id` | re-export | 仍转发到旧 stocktake detail 路由。 |
+| `/inventory/counts/new` | re-export | 仍转发到旧 stocktake new 路由。 |
+| `/procure/purchase-orders` | re-export | 仍转发到旧 purchasing/po 路由。 |
+| `/sales/orders` | re-export | 仍转发到旧 sales/so 路由。 |
+| `/sales/shipments` | re-export | 仍转发到旧 sales/out 路由。 |
+| `/workspace` | re-export | 仍转发到旧 dashboard 首页实现。 |
+| `/sales/quotations` | legacy assembly | 仍沿用旧 assembly 路线。 |
+| `/reports` | legacy assembly | 仍沿用旧 assembly 路线。 |
+| `/integration/logs` | missing | 当前缺少目标 route page.tsx。 |
+| `/evidence/assets` | re-export | 仍转发到旧 attachments 路由。 |
+| `/manufacturing/overview` | placeholder | 仍是 placeholder。 |
+| `/manufacturing/orders/:id` | placeholder | 仍是 placeholder。 |
+| `/manufacturing/work-orders/:id` | placeholder | 仍是 placeholder。 |
+| `/quality/records/:id` | placeholder | 仍是 placeholder。 |

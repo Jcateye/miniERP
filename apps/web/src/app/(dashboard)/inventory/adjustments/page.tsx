@@ -1,16 +1,64 @@
-import { RoutePlaceholderPage, buildRoutePlaceholderProps } from '@/components/business/route-placeholder-page';
+'use client';
 
-const props = buildRoutePlaceholderProps(
-  'T2',
-  '/inventory/adjustments',
-  '库存调整工作台',
-  '承接调整单、差异核对、冲销与幂等回放。',
-  [
-    { label: '盘点工作台', href: '/inventory/counts', description: '当前已落地盘点相关页面。' },
-    { label: '库存流水', href: '/inventory/ledger', description: '查看调整后的台账效果。' },
-  ],
-);
+import { Suspense, useMemo } from 'react';
+
+import { DataTable, type TableColumn } from '@/components/ui';
+
+import {
+  buildAdjustmentListRows,
+  ADJUSTMENT_LIST_COLUMNS,
+  ADJUSTMENT_PAGE_PRESENTATION,
+  type AdjustmentListRow,
+} from './adjustments-page';
+import { InventoryAdjustmentsPageScaffold } from './adjustments-page-view';
+import { useAdjustmentsPageVm } from './use-adjustments-page-vm';
+
+function getAdjustmentTableColumns(): TableColumn[] {
+  return ADJUSTMENT_LIST_COLUMNS.map((column) => ({
+    key: column.key,
+    label: column.label,
+    width:
+      column.key === 'documentNumber'
+        ? 180
+        : column.key === 'warehouseName'
+          ? 140
+          : column.key === 'date'
+            ? 120
+            : column.key === 'lineCount'
+              ? 80
+              : column.key === 'quantity'
+                ? 100
+                : column.key === 'reason'
+                  ? 180
+                  : undefined,
+  })) satisfies TableColumn[];
+}
+
+function InventoryAdjustmentsPageContent() {
+  const { items } = useAdjustmentsPageVm();
+  const rows = useMemo<AdjustmentListRow[]>(() => buildAdjustmentListRows(items), [items]);
+  const columns = useMemo(() => getAdjustmentTableColumns(), []);
+
+  return (
+    <InventoryAdjustmentsPageScaffold
+      title={ADJUSTMENT_PAGE_PRESENTATION.title}
+      summary={ADJUSTMENT_PAGE_PRESENTATION.summary}
+      primaryActionLabel={ADJUSTMENT_PAGE_PRESENTATION.primaryActionLabel}
+      table={<DataTable columns={columns} rows={rows as unknown as Record<string, string>[]} showPagination={false} />}
+    />
+  );
+}
 
 export default function InventoryAdjustmentsPage() {
-  return <RoutePlaceholderPage {...props} />;
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: '32px 40px', fontSize: 14, color: '#666666', background: '#F5F3EF' }}>
+          正在加载库存调整列表...
+        </div>
+      }
+    >
+      <InventoryAdjustmentsPageContent />
+    </Suspense>
+  );
 }

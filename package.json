@@ -13,7 +13,9 @@
     "db:migrate": "bun run --filter server db:migrate",
     "db:seed": "bun run --filter server db:seed",
     "daily": "./project.sh all start",
-    "project": "./project.sh"
+    "project": "./project.sh",
+    "user-stories:verify": "bun scripts/verify-user-stories.ts",
+    "ralph": "bun scripts/ralph/runner.ts"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

@@ -1,560 +1,297 @@
 # ERP 页面重构设计（2026-03-07）
 
-## 1. 背景与问题定义
+## 1. 本轮已确认目标
 
-当前 dashboard 大量页面并没有复刻 pencil 设计稿，而是在运行一套通用模板壳：
+用户已明确确认本轮采用 **视觉优先** 的推进方式：
 
-- 路由页直接返回 `WorkbenchAssembly` / `OverviewAssembly`
-- `WorkbenchAssembly` / `OverviewAssembly` 再套 `WorkbenchLayout` / `OverviewLayout`
-- `erp-page-config.tsx` 提供静态 rows / columns / drawerFields / bulkHint / placeholder 文案
+- 先把页面按 `images/source/miniERP-pencil-opus4.6.pen` 复刻正确
+- 先完成 page-level view 的正式页面形态
+- 后续再补充逻辑、BFF 收敛、测试链路
+- 不再继续扩展 legacy/template 化中间层
 
-这条路径产出的页面更接近“开发脚手架/模板页”，而不是设计稿中的正式生产页面。用户实际看到的“筛选与视图”“列表结果”“选中摘要”“批量操作提示”等结构，来自模板装配器本身，而不是逐页设计实现。
+本轮最初首批页面范围固定为 3 张：
 
-### 根因总结
-
-1. 当前 `WorkbenchAssembly` / `OverviewAssembly` 是通用模板壳，而非逐页页面实现。
-2. 当前 `erp-page-config.tsx` 承载的是模板配置与静态示例内容，不是设计稿结构。
-3. 最近大量 dashboard 页面只是把路由切换到了通用装配器。
-4. 运行时代码没有直接按 `.pen` 设计稿逐页落地的页面实现层。
-
-### 设计目标
-
-本次重构的目标不是微调模板，而是纠正页面层抽象方向：
-
-- 页面必须复刻设计稿
-- 允许抽取共用 primitives / shells / 局部业务块
-- 禁止再用一个万能 assembly 套所有页面
-- 保留 T1/T2/T3/T4 的 family 治理，但重写其定义
+1. `/mdm/customers` → 设计节点 `iYRfh`
+2. `/mdm/warehouses` → 设计节点 `S8YEo`
+3. `/finance/receipts` → 设计节点 `ZvGFp`
 
 ---
 
-## 2. 重构原则
+## 2. 当前问题定义
 
-### 2.1 页面复刻优先
+当前运行时大量 dashboard 页面并不是按 pencil 设计稿逐页实现，而是：
 
-设计稿不是参考图，而是目标形态。页面完成标准必须包含：
+- route 直接转发到 `settings/master-data` 或 placeholder
+- 或通过旧 assembly / template config 生成“像模板”的页面
+- 页面中出现了设计稿没有的 tab rail、toolbar、drawer、bulk bar、表单卡等结构
 
-- 视觉结构与设计稿一致
-- 页面层级与交互位置与设计稿一致
-- 不再出现模板壳痕迹
+这条路径已经偏离“正式页面复刻”的目标。
 
-### 2.2 适度复用
+因此本轮不再从旧万能模板继续演进，而是直接恢复到：
 
-可以抽象共用组件的地方：
-
-- Sidebar
-- Top bar / title block
-- Search / filter row primitives
-- Table primitives
-- Status badge
-- Button / input / card / section container
-- Empty state / info strip
-
-但禁止抽象出新的“万能整页装配器”。
-
-### 2.3 Family 只治理骨架
-
-保留 T1/T2/T3/T4，但 family 只用于治理页面骨架：
-
-- 不绑定固定 slot 列表
-- 不绑定固定组件名
-- 不作为页面具体 UI 的直接定义
-
-### 2.4 数据路径与工程红线保持不变
-
-以下约束继续保留：
-
-- 列表页筛选/排序/分页必须 URL 化
-- 页面只通过 BFF 访问数据
-- 前端状态枚举来自 `packages/shared`
-- posting / inventory / audit / tenant 等工程红线不变
+**设计稿 → page-level view → 页面私有 view model → route page**
 
 ---
 
-## 3. 新的 T1 / T2 / T3 / T4 定义
+## 3. 本轮约束
 
-## 3.1 T1 = Hub / Dashboard
+### 3.1 必须遵守
 
-### 适用页面
+- 正式页面必须以 `.pen` 设计稿为目标形态
+- 每页必须有自己的 page-level view
+- 不再依赖 `WorkbenchAssembly`
+- 不再依赖 `settings/master-data/page.tsx` 作为 customers / warehouses 的主实现
+- 不为“减少重复”而再造新的万能页面装配器
 
-- 工作台首页
-- 各业务域 overview
-- 配置中心首页
-- 聚合型 dashboard
+### 3.2 本轮明确不做
 
-### 稳定骨架
+- 不先统一重构共享底座
+- 不先扩 shared/server contract
+- 不先追求全量测试闭环
+- 不先处理所有 legacy 页面
 
-1. Sidebar
-2. Top bar / page header
-3. Summary/KPI row（可选）
-4. Flexible content region
+### 3.3 允许的降级策略
 
-### 约束
+如设计稿字段当前 runtime contract 缺失，则：
 
-- 主内容必须是聚合视图
-- 允许多个卡片区块自由组合
-- 不强制要求 search / todo / timeline / quick actions
-
-### 允许变体
-
-- `default`
-- `home`
-- `subnav`
-
-### 说明
-
-旧 `OverviewLayout` 的固定 search/todo/quickActions/timeline 心智不再作为正式定义。
-
-## 3.2 T2 = List / Index
-
-### 适用页面
-
-- 客户 / 供应商 / 仓库 / 用户 / 角色 / 组织 列表
-- 收款 / 付款 / 科目表 / 成本中心 / 预算 / 发票 / 分录 列表
-- 工单 / 任务 / 记录 / 集成端点 / 发运等索引页
-
-### 稳定骨架
-
-1. Sidebar
-2. Top bar / page header
-3. Optional search/filter row
-4. Main table/list card（全宽主区域）
-
-### 约束
-
-- 核心任务是检索 / 浏览 / 进入详情或执行操作
-- 列表状态必须 URL 化
-- table/list 区域必须是主角
-- search/filter 是可选增强，不是固定模板区块
-
-### 允许变体
-
-- `simple-list`
-- `search-list`
-- `filter-list`
-- `action-list`
-- `tree-list`
-
-### 说明
-
-旧 `WorkbenchLayout` 的 `detailDrawer` / `bulkBar` 不再是 T2 必备结构。
-
-## 3.3 T3 = Detail / Record
-
-### 适用页面
-
-- 单据详情
-- 主数据详情
-- 实体详情页
-
-### 稳定骨架
-
-1. Sidebar
-2. Header / meta
-3. Main detail sections
-4. Optional tabs / side panels / related sections
-
-### 约束
-
-- 围绕单个实体展开
-- header 区承接状态、动作、标识信息
-- 内容区按信息层次组织，不强制固定两栏或三栏
-
-### 允许变体
-
-- `record-detail`
-- `document-detail`
-- `masterdata-detail`
-- `tabbed-detail`
-
-## 3.4 T4 = Flow / Wizard
-
-### 适用页面
-
-- 新建单据
-- 多步骤录入
-- 过账流程
-- 差异处理
-- 证据补录流程
-- 审批/提交向导
-
-### 稳定骨架
-
-1. Sidebar
-2. Header / progress / step context
-3. Editor area
-4. Summary / action area
-
-### 约束
-
-- 页面目标必须是完成一段流程
-- 必须能表达步骤状态或阶段语义
-- 必须承接保存、提交、回退、校验等流程动作
-
-### 允许变体
-
-- `linear-wizard`
-- `posting-flow`
-- `review-submit`
-- `evidence-flow`
+- 保留设计稿列位
+- 值先用占位展示
+- 不伪造业务含义
+- 在第二轮再补齐数据契约
 
 ---
 
-## 4. 新的前端页面分层架构
+## 4. 首批三页的设计决定
 
-### 4.1 Design source layer
+## 4.1 Customers (`iYRfh`)
 
-来源：
+### 页面结构
 
-- `.pen` 设计稿
-- `designs/ui/*`
-- 页面映射表（`docs/ui/erp-page-design-route-map.md`）
+- 使用 dashboard layout 已提供的全局 Sidebar
+- 页面只实现右侧主内容区
+- 主内容区结构固定为：
+  1. 标题区
+  2. 单搜索框
+  3. 白底表格卡片
 
-职责：
+### 设计文案
 
-- 定义目标页面长相
-- 定义 family 归类
-- 定义页面是否进入正式复刻范围
+- 标题：`客户管理`
+- 副标题：`客户 · 主数据管理`
+- 主按钮：`新建客户`
+- 搜索占位：`搜索客户名称, 联系人, 编号...`
 
-### 4.2 Family shell layer
+### 表格列
 
-只负责骨架，不负责具体页面内容。
+- `编号`
+- `客户名称`
+- `联系人`
+- `电话`
+- `信用额度`
+- `状态`
 
-建议形成：
+### 本轮特殊决策
 
-- `T1HubShell`
-- `T2ListShell`
-- `T3DetailShell`
-- `T4FlowShell`
-
-职责包括：
-
-- sidebar 容器
-- main 区域
-- header 区域
-- 内容主容器的宽度、间距、网格关系
-
-### 4.3 Primitive layer
-
-复用应发生在稳定共性上。
-
-建议抽取：
-
-- `DashboardSidebar`
-- `PageTopBar`
-- `PageTitleBlock`
-- `PrimaryActionButton`
-- `SecondaryActionButton`
-- `SearchField`
-- `FilterChip`
-- `FilterRow`
-- `DataTable`
-- `StatusBadge`
-- `MetricCard`
-- `SectionCard`
-- `EmptyState`
-- `InfoStrip`
-
-### 4.4 Page view layer
-
-这是正式页面主实现层。每个页面拥有明确 view：
-
-- `CustomerListView`
-- `WarehouseListView`
-- `ReceiptListView`
-- `FinanceOverviewView`
-- 等
-
-正式页面必须按设计稿逐页复刻。
-
-### 4.5 Page route layer
-
-`page.tsx` 只负责：
-
-- 调用 VM hook / BFF hook
-- 把数据组织成 view props
-- 渲染对应 page view
-
-### 4.6 Data semantics/config layer
-
-保留配置，但只保留数据语义：
-
-- route meta
-- 列定义 schema
-- filter schema
-- action schema
-- 字段映射
-
-不再承载整页视觉结构与模板文案。
+- 取消此前偏离设计稿的 filter chips
+- `信用额度` 当前 shared/server contract 不提供，首轮保留列位，值显示 `-`
+- 编号列应可作为强调文本/详情入口
 
 ---
 
-## 5. 文档先行治理（Phase 0）
+## 4.2 Warehouses (`S8YEo`)
 
-在代码重构前，必须先同步规则文档，防止其他 agent 继续沿用旧路线。
+### 页面结构
 
-### 需要同步更新的文档
+- 使用 dashboard layout 已提供的全局 Sidebar
+- 页面只实现右侧主内容区
+- 主内容区结构固定为：
+  1. 标题区
+  2. 单搜索框
+  3. 白底表格卡片
 
-- `CLAUDE.md`
-- `.claude/rules/erp-rules.md`
-- `README.md`
-- `AGENTS.md`
-- `CLAW.md`
+### 设计文案
 
-### 文档必须新增/替换的事实
+- 标题：`仓库管理`
+- 副标题：`仓库 · 主数据管理`
+- 主按钮：`新建仓库`
+- 搜索占位：`搜索仓库编号, 名称...`
 
-1. 保留 T1/T2/T3/T4，但旧定义失效，进入重写。
-2. family 只约束骨架，不约束具体 UI。
-3. 正式页面必须复刻 pencil 设计稿。
-4. 允许抽 primitives / shells / 局部业务块。
-5. 禁止再用一个万能 assembly 套所有页面。
-6. `WorkbenchAssembly / OverviewAssembly` 降级为 legacy/fallback only。
+### 表格列
 
-### 预期效果
+- `仓库编号`
+- `仓库名称`
+- `类型`
+- `地址`
+- `联系人`
+- `库位管理`
+- `状态`
 
-- 先冻结旧路线
-- 给后续 agent 明确新约束
-- 避免继续往 `erp-page-config.tsx` 和通用 assembly 堆页面
+### 本轮特殊决策
+
+- 不再转发到 `settings/master-data/page.tsx`
+- `类型`、`库位管理` 当前后端/BFF 未完整提供，首轮保留列位并做页面内降级占位
+- 不引入设计稿中不存在的额外工具条、分页 footer、表单区
 
 ---
 
-## 6. 分阶段实施蓝图
+## 4.3 Receipts (`ZvGFp`)
 
-## Phase 0：文档先行治理
+### 页面结构
 
-先改规则文档，统一新路线。
+- 使用 dashboard layout 已提供的全局 Sidebar
+- 页面只实现右侧主内容区
+- 主内容区结构固定为：
+  1. 标题区
+  2. 白底表格卡片
 
-## Phase 1：建立页面映射表
+### 设计文案
 
-建立 route 与设计稿节点的一一对应，至少包含：
+- 标题：`收款管理`
+- 副标题：`Receipts · 客户收款`
+- 主按钮：`新建收款`
 
-- route
-- family
-- variant
-- design node id
-- 当前状态（legacy / wrong / in-progress / rebuilt）
-- 数据来源（mock / BFF / live）
+### 表格列
 
-首份落盘映射表见：`docs/ui/erp-page-design-route-map.md`。
+- `收款编号`
+- `客户`
+- `日期`
+- `金额`
+- `方式`
+- `已核销`
+- `状态`
 
-示例：
+### 本轮特殊决策
 
-- `/mdm/customers` → `T2/search-list` → `iYRfh`
-- `/mdm/warehouses` → `T2/search-list` → `S8YEo`
-- `/finance/receipts` → `T2/simple-list` → `ZvGFp`
-- `/finance/gl-accounts` → `T2/tree-list` → `Ch7yZ`
+- 这是 `T2 simple-list`，**没有搜索栏、没有 filter chips**
+- 当前 `/api/bff/documents` 不支持 `REC`，首轮允许 page-local seed/mock view model 先完成视觉复刻
+- 第二轮再决定单独新增 `/api/bff/receipts` 或统一 finance documents contract
 
-## Phase 2：抽最小可复用骨架
+---
 
-先抽稳定 primitives / shells：
+## 5. 实现边界
 
-- Sidebar
-- Top bar
-- Search/filter row primitives
-- Table primitives
-- Status badge
-- Button / card / empty state
+本轮实现只允许改动页面私有层：
 
-禁止在这一阶段抽出新的万能整页装配器。
+- `apps/web/src/components/views/erp/*-list-view-model.ts`
+- `apps/web/src/components/views/erp/*-list-view.tsx`
+- 对应 route `page.tsx`
 
-## Phase 3：优先重构 T2 列表页
+尽量不碰：
 
-### 第一批顺序
+- `erp-page-config.tsx`
+- `settings/master-data/*`
+- 旧 assembly / legacy template 体系
+- shared/server contract
 
-#### A 组：主数据列表页
-1. `/mdm/customers`
-2. `/mdm/suppliers`
-3. `/mdm/warehouses`
-4. `/mdm/users`
-5. `/mdm/roles`
-6. `/mdm/organizations`
+---
 
-#### B 组：财务列表页
-7. `/finance/receipts`
-8. `/finance/payments`
-9. `/finance/gl-accounts`
-10. `/finance/cost-centers`
-11. `/finance/budgets`
-12. `/finance/invoices`
-13. `/finance/journals`
+## 6. 视觉优先的完成标准
 
-#### C 组：运营类列表页
-14. `/workflow/tasks`
-15. `/integration/endpoints`
-16. `/inventory/replenishment`
-17. `/inventory/adjustments`
-18. `/manufacturing/orders`
-19. `/quality/records`
-20. `/sales/shipments`
+首轮完成的判断标准不是“逻辑闭环”，而是：
 
-### 每页统一动作
+1. 页面结构与设计稿一致
+2. 标题、副标题、按钮、搜索区、表格区位置正确
+3. 表头与关键文案正确
+4. 页面不再显示旧模板壳痕迹
+5. route 已经指向独立 page-level view
 
-1. 确认设计稿节点
-2. 编写该页自己的 `PageView`
-3. 复用局部 primitives / shell
-4. route `page.tsx` 改为渲染该页 view
-5. 保持 URL state / BFF / shared status 约束
+只要满足以上 5 条，即可进入第二轮逻辑与测试补全。
 
-## Phase 4：重构 T1 overview / home
+---
 
-建议顺序：
+## 7. 第二轮再补的内容
 
-- `/inventory/overview`
-- `/finance/overview`
+在三张页面首轮视觉复刻完成后，再进入第二轮：
+
+- customers：搜索参数、BFF 收敛、payload 校验、view-model 测试
+- warehouses：搜索 URL state、BFF DTO 映射测试、缺字段 contract 讨论
+- receipts：真实数据入口、状态映射、view-model 测试、后续详情/新建路径
+
+---
+
+## 8. 2026-03-08 进度盘点（37 页口径）
+
+按 `docs/ui/erp-page-priority-and-interface-map.md` 第 3 节当前纳入复刻范围的 37 个页面统计：
+
+- 已复刻为独立真实页面：17
+- 尚未完成正式复刻：20
+
+### 8.1 已复刻的 17 页
+
+- `/procure/receipts`
+- `/workspace/todos`
+- `/mdm/customers`
+- `/mdm/suppliers`
+- `/mdm/warehouses`
+- `/finance/invoices`
+- `/workflow/tasks`
+- `/finance/receipts`
+- `/finance/payments`
+- `/finance/journals`
+- `/finance/gl-accounts`
+- `/finance/cost-centers`
+- `/finance/budgets`
+- `/integration/endpoints`
+- `/integration/jobs`
+- `/manufacturing/orders`
+- `/quality/records`
+
+### 8.2 尚未完成正式复刻的 20 页
+
+#### A. 仍是 re-export / 旧路由复用
+
+- `/mdm/items`
+- `/inventory/balances`
+- `/inventory/counts`
+- `/inventory/counts/:id`
+- `/inventory/counts/new`
+- `/procure/purchase-orders`
+- `/sales/orders`
+- `/sales/shipments`
+- `/workspace`
+- `/evidence/assets`
+
+#### B. 仍是 legacy assembly
+
+- `/inventory/ledger`
+- `/sales/quotations`
+- `/reports`
+
+#### C. 仍是 placeholder
+
 - `/manufacturing/overview`
-- `/procure/overview`
-- 工作台首页
-- 主数据配置页（按 T1-subnav）
+- `/manufacturing/orders/:id`
+- `/manufacturing/work-orders/:id`
+- `/quality/records/:id`
 
-目标：不再使用旧 search/todo/timeline/quickActions 模板心智，而是按设计稿做 KPI row + flexible content region。
+#### D. 缺文件 / 未落地
 
-## Phase 5：处理 legacy 层
+- `/integration/logs`
 
-### legacy 名单
+#### E. 仍属旧实现形态，未进入 page-level 正式复刻
 
-- `apps/web/src/components/business/erp-page-assemblies.tsx`
-- 当前 `OverviewAssembly`
-- 当前 `WorkbenchAssembly`
-- 旧 `OverviewLayout / WorkbenchLayout` 的固定槽位语义
-- `erp-page-config.tsx` 中承载页面长相的部分
+- `/mdm/items/:id`
+- `/mdm/items/new`
 
-### 处理原则
+### 8.3 下一批优先对象
 
-- 短期保留作为 fallback
-- 中期瘦身，仅保留语义配置
-- 长期不再作为正式页面主实现
+优先顺序保持与页面优先级一致，但在当前剩余页面里优先清掉最明显的 placeholder / missing：
 
----
+1. `/manufacturing/overview`
+2. `/integration/logs`
+3. `/quality/records/:id`
+4. `/manufacturing/orders/:id`
+5. `/manufacturing/work-orders/:id`
 
-## 7. 文件级处理建议
+## 9. 结论
 
-### 7.1 立即进入 legacy 名单
+本轮已确认采用以下正式路径：
 
-- `apps/web/src/components/business/erp-page-assemblies.tsx`
-- 当前 `OverviewAssembly`
-- 当前 `WorkbenchAssembly`
+- **先视觉复刻，再补逻辑与测试**
+- **先做 customers + warehouses + receipts 三页**
+- **每页独立 page-level view**
+- **不继续扩展 legacy/template 中间层**
+- **缺字段先占位，后续再补契约**
+- **当前 37 页口径下仍有 20 页待完成正式复刻**
 
-### 7.2 立即进入重定义名单
-
-- `apps/web/src/contracts/template-contracts.ts`
-- `apps/web/src/components/layouts/overview-layout.tsx`
-- `apps/web/src/components/layouts/workbench-layout.tsx`
-
-### 7.3 新增主战场
-
-建议新增目录：
-
-- `apps/web/src/components/shells/erp/`
-- `apps/web/src/components/primitives/erp/`
-- `apps/web/src/components/views/erp/`
-
-### 7.4 路由页逐步改造
-
-- `apps/web/src/app/(dashboard)/**/page.tsx`
-
----
-
-## 8. 风险与边界
-
-### 本次重构要做的事
-
-1. 重写页面层治理规则
-2. 重写 T1/T2/T3/T4 定义
-3. 重建页面实现路径
-4. 按设计稿逐页复刻第一批页面
-
-### 本次重构不做的事
-
-1. 不顺手重做 BFF / 后端接口 / shared contracts（除非被页面复刻阻塞）
-2. 不构建新的大一统前端页面引擎
-3. 不一次性推翻所有历史页面，只按批次推进
-
-### 主要风险
-
-#### 风险 1：文档更新了，但代码实现还在走旧路
-对策：文档 Phase 0 先行，legacy 明确标注，code review 增加硬检查。
-
-#### 风险 2：抽象过度，再造新的万能组件
-对策：抽象层级只到 primitives / shells / 局部业务块，不允许万能整页渲染器。
-
-#### 风险 3：逐页实现导致重复过多
-对策：允许小范围重复，待 2-3 页模式稳定后再抽局部共用。
-
-#### 风险 4：设计稿复刻和工程约束冲突
-对策：视觉按设计稿，数据与行为按工程红线。
-
-#### 风险 5：legacy 长期不清，造成双轨混乱
-对策：明确 legacy 名单，第一批页面切完后更新映射表，逐步收缩 legacy 范围。
-
----
-
-## 9. 执行中的判断规则
-
-每做一页，都必须回答以下问题：
-
-1. 这页是否已经对上设计稿 node？
-2. 这页是否有自己的 page view？
-3. 这页是否只是复用了 primitives/shell，而不是复用整页万能装配器？
-4. 这页是否仍满足 BFF / URL / shared status 等工程红线？
-5. 这页完成后，用户看到的是否就是设计稿页面，而不是“像模板的页面”？
-
-只要有一个答案是否定，就不能算完成。
-
----
-
-## 10. 验收标准
-
-### 10.1 治理验收
-
-以下文档同步完成并一致：
-
-- `CLAUDE.md`
-- `README.md`
-- `AGENTS.md`
-- `CLAW.md`
-- `.claude/rules/erp-rules.md`
-
-并明确包含：
-
-- 新 family 定义
-- legacy 说明
-- 设计复刻优先
-- 禁止万能装配器
-
-### 10.2 架构验收
-
-页面分层明确成立：
-
-- design source
-- family shells
-- primitives
-- page views
-- route layer
-- semantic config/data layer
-
-### 10.3 页面验收
-
-第一批页面必须满足：
-
-1. 视觉结构与设计稿一致
-2. 不再出现旧模板壳文案与结构
-3. 不再依赖 `WorkbenchAssembly/OverviewAssembly` 作为主实现
-4. 仍满足 URL 化、BFF、shared status 等工程要求
-
-### 10.4 团队协作验收
-
-其他 agent 再进入项目时，不会被旧规则误导继续走老路。
-
----
-
-## 11. 结论
-
-本次 ERP 页面重构采用以下正式方向：
-
-- 保留 T1/T2/T3/T4 名字，但完全重写其定义与实现边界
-- 页面必须复刻设计稿
-- 允许适度共用 primitives / shells / 局部业务块
-- 禁止再使用一个万能 assembly 套所有页面
-- 正式页面的主路径改为：设计稿 → page view → family shell → primitives → BFF/hook 数据接入
-
-后续 implementation planning 与代码实施必须严格遵循本设计文档。
+后续 implementation plan 与代码实施必须以本设计文档为准。

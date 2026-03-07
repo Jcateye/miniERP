@@ -244,3 +244,23 @@
   - `bun run --filter web build`
 - 备注：按设计节点 `Iz7xv` 切到独立 page-level view + page-local seed VM；页面收口为标题区、单搜索框、白底表格卡片；主按钮保持禁用态占位，列表保留 detail href，并通过真实 page.tsx 渲染测试确认不再回退到 settings/master-data 工作台；当前搜索通过 URL `keyword` 参数编码并驱动本地过滤，仍需真实 BFF 接线与最终设计核对后再评估 rebuilt。
 - 下一轮建议：继续实现下一个仍处于 placeholder / wrong 的列表页，优先回到 inventory 或 procure 域中仍未复刻的 T2 页面。
+
+## 2026-03-07 /workflow/tasks
+
+- 处理 story：`route-workflow-tasks-list`
+- 改动文件：
+  - `apps/web/src/app/(dashboard)/workflow/tasks/page.tsx`
+  - `apps/web/src/app/(dashboard)/workflow/tasks/tasks-page.ts`
+  - `apps/web/src/app/(dashboard)/workflow/tasks/tasks-page-view.tsx`
+  - `apps/web/src/app/(dashboard)/workflow/tasks/tasks-page.spec.tsx`
+  - `apps/web/src/app/(dashboard)/workflow/tasks/use-tasks-page-vm.ts`
+  - `apps/web/src/app/(dashboard)/workflow/tasks/use-tasks-page-vm.spec.ts`
+  - `docs/user-stories/erp-page-reconstruction/02-p1-core-pages.json`
+  - `docs/ui/erp-page-design-route-map.md`
+  - `scripts/ralph/log.md`
+- 是否完成：部分完成，已达到 `visual-done`
+- 最小验证：
+  - `bun test apps/web/src/app/(dashboard)/workflow/tasks/tasks-page.spec.tsx apps/web/src/app/(dashboard)/workflow/tasks/use-tasks-page-vm.spec.ts`
+  - `bun run --filter web build`
+- 备注：按审批任务列表设计切到独立 page-level view + page-local seed VM；页面收口为标题区、单搜索框、scope filter chips、白底表格卡片；通过 TDD 先补失败测试，再实现 URL `keyword` / `scope` 编解码、本地过滤与真实 page.tsx 接线；根据代码审查补了“当前输入态立即过滤”的纯函数测试与实现，避免列表必须等 URL debounce 后才更新，同时为 chip 补上 `aria-pressed` 可访问性状态；仍需真实 BFF 接线与最终设计核对后再评估 rebuilt。
+- 下一轮建议：继续实现下一张仍处于 placeholder / wrong 的 T2 列表页，优先回到 inventory / procure 域未复刻页面。
