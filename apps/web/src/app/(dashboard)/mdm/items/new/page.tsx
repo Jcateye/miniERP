@@ -5,15 +5,15 @@ const ITEM_CREATE_STEPS = ['基础信息', '规格与分类', '提交确认'] as
 const ITEM_CREATE_SECTIONS = [
   {
     title: '基础信息',
-    lines: ['物料编码：按主数据规则生成', '物料名称：支持中英文双语录入'],
+    lines: ['编码规则：按 SKU 编码规范自动生成', 'SKU 名称：支持中英文双语录入'],
   },
   {
     title: '规格与分类',
-    lines: ['规格：最小必填字段', '分类：先提供单选占位，后续接 BFF'],
+    lines: ['分类：按 SKU 分类树选择', '基础单位：按最小销售/库存单位维护'],
   },
   {
     title: '提交确认',
-    lines: ['提交前校验基础单位', '提交后创建审计记录'],
+    lines: ['保存草稿后进入后续补充', '提交后生成审计记录'],
   },
 ] as const;
 
@@ -32,12 +32,10 @@ export default function NewItemPage() {
       >
         <div style={{ display: 'grid', gap: 8 }}>
           <Link href="/mdm/items" style={{ color: '#C05A3C', textDecoration: 'none', fontSize: 13 }}>
-            返回物料列表
+            返回列表
           </Link>
-          <h1 style={{ margin: 0, fontSize: 28, color: '#1A1A1A' }}>新建物料</h1>
-          <p style={{ margin: 0, fontSize: 14, color: '#666666', lineHeight: 1.6 }}>
-            以最小 T4 向导承接物料创建流程，先覆盖必填字段与提交确认。
-          </p>
+          <h1 style={{ margin: 0, fontSize: 28, color: '#1A1A1A' }}>新建 SKU</h1>
+          <p style={{ margin: 0, fontSize: 14, color: '#666666', lineHeight: 1.6 }}>按 T4 创建流承接 SKU 主数据创建，先覆盖基础信息、规格分类与提交确认。</p>
         </div>
         <button
           type="button"
@@ -52,7 +50,7 @@ export default function NewItemPage() {
             fontFamily: 'inherit',
           }}
         >
-          创建物料草稿
+          保存草稿
         </button>
       </section>
 
