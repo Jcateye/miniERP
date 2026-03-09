@@ -213,11 +213,29 @@
 
 按 `docs/ui/erp-page-priority-and-interface-map.md` 第 3 节当前纳入复刻范围的 37 个页面统计：
 
-- 已复刻为独立真实页面：17
-- 尚未完成正式复刻：20
+- 已复刻为独立真实页面：35
+- 尚未完成正式复刻：2
 
-### 8.1 已复刻的 17 页
+### 8.1 已复刻的 35 页
 
+- `/mdm/items/:id`
+- `/mdm/items/new`
+- `/inventory/counts/:id`
+- `/sales/orders`
+- `/sales/shipments`
+- `/sales/quotations`
+- `/mdm/items`
+- `/evidence/assets`
+- `/inventory/counts/new`
+- `/inventory/balances`
+- `/workspace`
+- `/procure/purchase-orders`
+- `/inventory/ledger`
+- `/integration/logs`
+- `/manufacturing/work-orders/:id`
+- `/manufacturing/orders/:id`
+- `/quality/records/:id`
+- `/manufacturing/overview`
 - `/procure/receipts`
 - `/workspace/todos`
 - `/mdm/customers`
@@ -236,37 +254,23 @@
 - `/manufacturing/orders`
 - `/quality/records`
 
-### 8.2 尚未完成正式复刻的 20 页
+### 8.2 尚未完成正式复刻的 2 页
 
 #### A. 仍是 re-export / 旧路由复用
 
-- `/mdm/items`
-- `/inventory/balances`
-- `/inventory/counts`
-- `/inventory/counts/:id`
-- `/inventory/counts/new`
-- `/procure/purchase-orders`
-- `/sales/orders`
-- `/sales/shipments`
-- `/workspace`
-- `/evidence/assets`
+- 无
 
 #### B. 仍是 legacy assembly
 
-- `/inventory/ledger`
-- `/sales/quotations`
-- `/reports`
+- 无
 
 #### C. 仍是 placeholder
 
-- `/manufacturing/overview`
-- `/manufacturing/orders/:id`
-- `/manufacturing/work-orders/:id`
-- `/quality/records/:id`
+- 无
 
 #### D. 缺文件 / 未落地
 
-- `/integration/logs`
+- 无
 
 #### E. 仍属旧实现形态，未进入 page-level 正式复刻
 
@@ -277,11 +281,7 @@
 
 优先顺序保持与页面优先级一致，但在当前剩余页面里优先清掉最明显的 placeholder / missing：
 
-1. `/manufacturing/overview`
-2. `/integration/logs`
-3. `/quality/records/:id`
-4. `/manufacturing/orders/:id`
-5. `/manufacturing/work-orders/:id`
+1. 无（当前 remaining 列表已无 placeholder / missing）
 
 ## 9. 结论
 
@@ -292,6 +292,6 @@
 - **每页独立 page-level view**
 - **不继续扩展 legacy/template 中间层**
 - **缺字段先占位，后续再补契约**
-- **当前 37 页口径下仍有 20 页待完成正式复刻**
+- **当前 37 页口径下仍有 2 页待完成正式复刻**
 
 后续 implementation plan 与代码实施必须以本设计文档为准。

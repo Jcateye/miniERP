@@ -803,7 +803,7 @@
     {
       "type": "frame",
       "id": "44noB",
-      "x": 360,
+      "x": 0,
       "y": 0,
       "name": "SKU列表工作台",
       "clip": true,

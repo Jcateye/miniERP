@@ -30,7 +30,7 @@
 
 ## 2026-03-08 未完成页面清单（37 页口径）
 
-以下页面已纳入当前 37 页复刻范围，但截至 2026-03-08 仍未进入正式 page-level 重建完成态：
+以下页面已纳入当前 37 页复刻范围，但截至 2026-03-08 仍未进入独立 page-level 正式路径或仍保留旧实现形态：
 
 | route | current_shape | status_note |
 | --- | --- | --- |
@@ -38,19 +38,14 @@
 | `/mdm/items/:id` | legacy detail | 仍是旧 detail 实现，未进入新的 page-level 正式复刻路径。 |
 | `/mdm/items/new` | wizard assembly | 仍使用 `WizardAssembly`。 |
 | `/inventory/balances` | re-export | 仍转发到旧库存页。 |
-| `/inventory/ledger` | legacy assembly | 仍沿用旧 assembly 路线。 |
-| `/inventory/counts` | re-export | 仍转发到旧 stocktake 路由。 |
+| `/inventory/ledger` | page-level view | 已切到 `page.tsx -> ledger-page-view + ledger-page`；页面收口为标题区、单搜索框与白底表格区；已通过真实 page.tsx 渲染测试确认不再回退到 legacy `WorkbenchAssembly`，尚未达到设计稿 rebuilt 标准。 |
+| `/inventory/counts` | page-level view | 已切到 `page.tsx -> counts-page-view + counts-page + use-counts-page-vm`；页面收口为标题区、主按钮、单搜索框、filter chips 与白底表格区；已通过真实 page.tsx 渲染测试确认不再回退到旧 stocktake workbench 路径，尚未达到设计稿 rebuilt 标准。 |
 | `/inventory/counts/:id` | re-export | 仍转发到旧 stocktake detail 路由。 |
 | `/inventory/counts/new` | re-export | 仍转发到旧 stocktake new 路由。 |
-| `/procure/purchase-orders` | re-export | 仍转发到旧 purchasing/po 路由。 |
-| `/sales/orders` | re-export | 仍转发到旧 sales/so 路由。 |
-| `/sales/shipments` | re-export | 仍转发到旧 sales/out 路由。 |
-| `/workspace` | re-export | 仍转发到旧 dashboard 首页实现。 |
-| `/sales/quotations` | legacy assembly | 仍沿用旧 assembly 路线。 |
-| `/reports` | legacy assembly | 仍沿用旧 assembly 路线。 |
-| `/integration/logs` | missing | 当前缺少目标 route page.tsx。 |
+| `/procure/purchase-orders` | page-level view | 已切到 `page.tsx -> purchase-orders-page-view + purchase-orders-page + use-purchase-orders-page-vm`；页面收口为标题区、主按钮、单搜索框、filter chips 与白底表格区；已通过真实 page.tsx 渲染测试确认不再回退到旧 `purchasing/po` 路径，尚未达到设计稿 rebuilt 标准。 |
+| `/sales/orders` | page-level view | 已切到 `page.tsx -> orders-page-view + orders-page + use-orders-page-vm`；页面收口为标题区、主按钮、单搜索框、filter chips 与白底表格区；已通过真实 page.tsx 渲染测试确认不再回退到旧 sales/so 路径，尚未达到设计稿 rebuilt 标准。 |
+| `/sales/shipments` | page-level view | 已切到 `page.tsx -> shipments-page-view + shipments-page + use-shipments-page-vm`；页面收口为标题区、主按钮、单搜索框、filter chips 与白底表格区；已通过真实 page.tsx 渲染测试确认不再回退到旧 sales/out 路径，尚未达到设计稿 rebuilt 标准。 |
+| `/workspace` | page-level view | 已切到 `page.tsx -> workspace-home-page-view + workspace-home-page`；页面收口为标题区、搜索区、KPI 卡区、全局待办区与右侧快捷入口/最近动作区；已通过真实 page.tsx 渲染测试确认不再回退到旧 dashboard 首页路径，尚未达到设计稿 rebuilt 标准。 |
+| `/sales/quotations` | page-level view | 已切到 `page.tsx -> quotations-page-view + quotations-page`；页面收口为标题区、主按钮、单搜索框、filter chips 与白底表格区；已通过真实 page.tsx 渲染测试确认不再回退到 legacy `WorkbenchAssembly`，尚未达到设计稿 rebuilt 标准。 |
+| `/reports` | page-level view | 已切到 `page.tsx -> reports-page-view + reports-page`；页面收口为标题区、KPI 卡区、分组入口区与快捷入口区；已通过真实 page.tsx 渲染测试确认不再回退到 legacy `OverviewAssembly`，尚未达到设计稿 rebuilt 标准。 |
 | `/evidence/assets` | re-export | 仍转发到旧 attachments 路由。 |
-| `/manufacturing/overview` | placeholder | 仍是 placeholder。 |
-| `/manufacturing/orders/:id` | placeholder | 仍是 placeholder。 |
-| `/manufacturing/work-orders/:id` | placeholder | 仍是 placeholder。 |
-| `/quality/records/:id` | placeholder | 仍是 placeholder。 |
