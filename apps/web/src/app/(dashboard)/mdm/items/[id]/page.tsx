@@ -1,317 +1,207 @@
-'use client';
+import Link from 'next/link';
 
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-
-import { EvidencePanel } from '@/components/evidence/evidence-panel';
-import { ActionButton, PageHeader, StatusBadge, TabPanel, type Tab } from '@/components/ui';
-import { formatDateTime } from '@/app/(dashboard)/skus/sku-page-utils';
-
-type ItemDetailDto = {
-  id: string;
-  tenantId: string;
-  code: string;
-  name: string;
-  specification: string | null;
-  baseUnit: string;
-  categoryId: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type ItemDetailResponse =
-  | ItemDetailDto
-  | {
-      data: ItemDetailDto;
-      message?: string;
-    };
-
-function getTone(isActive: boolean) {
-  return isActive ? 'success' : 'danger';
+function buildSummaryItems() {
+  return [
+    { label: '料号', value: 'SKU-0001' },
+    { label: '品名', value: 'HDMI 高清线束（公对公）2米 黑色 / 2米' },
+    { label: '尺寸', value: '2米' },
+    { label: '颜色', value: '黑色' },
+    { label: '型号', value: 'CAB-HDMI-2M' },
+    { label: '平台', value: 'A23' },
+  ] as const;
 }
 
-function getStatusLabel(isActive: boolean) {
-  return isActive ? '启用' : '停用';
+function buildElectricalItems() {
+  return [
+    { label: '认证', value: 'HDMI 2.0' },
+    { label: '阻抗', value: '100Ω±10%' },
+    { label: '线芯', value: 'AWG28' },
+    { label: '护套', value: 'PVC' },
+  ] as const;
 }
 
-function normalizePayload(payload: ItemDetailResponse): {
-  item: ItemDetailDto;
-  message?: string;
-} {
-  if ('data' in payload) {
-    return { item: payload.data, message: payload.message };
-  }
-
-  return { item: payload };
+function buildBottomSections() {
+  return [
+    {
+      title: '引脚图',
+      entries: ['Pin 1-19 定义待接入', '后续接入工程图 PDF 与图片预览'],
+    },
+    {
+      title: '证书文档',
+      entries: ['RoHS 证书待接入', 'REACH 证书待接入'],
+    },
+    {
+      title: '报价记录',
+      entries: ['最近报价：SKU-2026-03-001', '供应商报价待接入'],
+    },
+  ] as const;
 }
 
-export default function ItemDetailPage() {
-  const params = useParams<{ id: string }>();
-  const router = useRouter();
-  const itemId = typeof params.id === 'string' ? params.id : '';
-
-  const [item, setItem] = useState<ItemDetailDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-
-  useEffect(() => {
-    if (!itemId) {
-      setError('缺少物料标识');
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadItem() {
-      setLoading(true);
-      setError('');
-      setNotice('');
-
-      try {
-        const response = await fetch(`/api/bff/mdm/items/${itemId}`, {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            'content-type': 'application/json',
-          },
-        });
-
-        const payload = (await response.json()) as ItemDetailResponse;
-        if (!response.ok) {
-          const message =
-            typeof payload === 'object' &&
-            payload !== null &&
-            'error' in payload &&
-            typeof payload.error === 'object' &&
-            payload.error !== null &&
-            'message' in payload.error &&
-            typeof payload.error.message === 'string'
-              ? payload.error.message
-              : '物料详情加载失败';
-          throw new Error(message);
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        const normalized = normalizePayload(payload);
-        setItem(normalized.item);
-        if (normalized.message === 'fixture') {
-          setNotice('当前详情来自 BFF fixture 回退数据，后端恢复后会自动切回真实数据。');
-        }
-      } catch (requestError) {
-        if (cancelled) {
-          return;
-        }
-
-        setError(
-          requestError instanceof Error ? requestError.message : '物料详情加载失败',
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadItem();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [itemId]);
-
-  const tabs = useMemo<Tab[]>(() => {
-    if (!item) {
-      return [];
-    }
-
-    return [
-      {
-        key: 'overview',
-        label: '概览',
-        content: (
-          <div style={{ display: 'grid', gap: 12 }}>
-            {[
-              { label: '物料编码', value: item.code },
-              { label: '物料名称', value: item.name },
-              { label: '规格', value: item.specification ?? '—' },
-              { label: '基础单位', value: item.baseUnit },
-              { label: '分类', value: item.categoryId ?? '未分类' },
-              { label: '租户', value: item.tenantId },
-            ].map((field) => (
-              <div
-                key={field.label}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 16,
-                  padding: '12px 16px',
-                  border: '1px solid #EAE4DC',
-                  borderRadius: 8,
-                  background: '#FFFFFF',
-                }}
-              >
-                <span style={{ fontSize: 13, color: '#666666' }}>{field.label}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
-                  {field.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        ),
-      },
-      {
-        key: 'evidence',
-        label: 'Evidence',
-        content: (
-          <EvidencePanel
-            title="物料凭证"
-            description="物料主图、规格书与标签模板会统一挂在物料实体下，后续替换为真实上传链路。"
-            stats={[
-              { key: 'all', label: '总数', value: notice ? '1' : '0', tone: 'info' },
-              { key: 'required', label: '必填缺口', value: '2', tone: 'warning' },
-            ]}
-            tags={[
-              { key: 'item-image', label: '主图', required: true, tone: 'info' },
-              { key: 'spec-sheet', label: '规格书', required: true, tone: 'warning' },
-            ]}
-            items={[]}
-            emptySlot={
-              <div style={{ fontSize: 13, color: '#666666', lineHeight: 1.6 }}>
-                当前还没有挂载物料凭证；后续会复用现有 Evidence 上传意图与关联接口。
-              </div>
-            }
-          />
-        ),
-      },
-      {
-        key: 'audit',
-        label: 'Audit',
-        content: (
-          <div
-            style={{
-              display: 'grid',
-              gap: 10,
-              padding: 16,
-              borderRadius: 8,
-              background: '#FFFFFF',
-              border: '1px solid #EAE4DC',
-            }}
-          >
-            <div style={{ fontSize: 13, color: '#1A1A1A', fontWeight: 600 }}>
-              创建时间：{formatDateTime(item.createdAt)}
-            </div>
-            <div style={{ fontSize: 13, color: '#1A1A1A', fontWeight: 600 }}>
-              更新时间：{formatDateTime(item.updatedAt)}
-            </div>
-            <div style={{ fontSize: 13, color: '#666666', lineHeight: 1.6 }}>
-              审计明细后续会接入统一 `audit_log / state_transition_log` 查询接口。
-            </div>
-          </div>
-        ),
-      },
-    ];
-  }, [item, notice]);
+export default async function ItemDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const summaryItems = buildSummaryItems();
+  const electricalItems = buildElectricalItems();
+  const bottomSections = buildBottomSections();
 
   return (
-    <div
-      style={{
-        padding: '32px 40px',
-        display: 'grid',
-        gap: 24,
-        minHeight: '100%',
-      }}
-    >
-      <PageHeader
-        title={item?.name ?? '物料详情'}
-        subtitle={item ? `${item.code} · ${item.categoryId ?? '未分类'}` : '按新域模型查看物料主数据'}
-        actions={
-          <>
-            <ActionButton
-              label="返回物料列表"
-              tone="secondary"
-              onClick={() => router.push('/mdm/items')}
-            />
-            <ActionButton label="编辑物料" tone="primary" disabled />
-          </>
-        }
-      />
-
-      {notice ? (
-        <div
-          style={{
-            padding: '10px 14px',
-            borderRadius: 8,
-            background: 'rgba(192,90,60,0.08)',
-            color: '#8A3D27',
-            border: '1px solid rgba(192,90,60,0.18)',
-            fontSize: 13,
-          }}
-        >
-          {notice}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div style={{ fontSize: 14, color: '#666666' }}>正在加载物料详情…</div>
-      ) : error ? (
-        <div
-          style={{
-            display: 'grid',
-            gap: 12,
-            padding: 20,
-            borderRadius: 8,
-            background: '#FFFFFF',
-            border: '1px solid #EAE4DC',
-          }}
-        >
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#1A1A1A' }}>
-            物料详情加载失败
+    <div style={{ padding: '32px 40px', display: 'grid', gap: 20, background: '#F5F3EF' }}>
+      <section
+        data-testid="item-detail-header"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 16,
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 8 }}>
+          <Link href="/mdm/items" style={{ color: '#666666', textDecoration: 'none', fontSize: 13 }}>
+            返回列表
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0, fontSize: 28, color: '#1A1A1A' }}>CAB-HDMI-2M</h1>
+            <span style={{ color: '#4A7C59', fontSize: 12, fontWeight: 600 }}>在售</span>
           </div>
-          <div style={{ fontSize: 13, color: '#666666', lineHeight: 1.6 }}>{error}</div>
+          <p style={{ margin: 0, fontSize: 14, color: '#666666', lineHeight: 1.6 }}>SKU 详情页 ({id}) · 基础参数 / 库存 / 记录</p>
         </div>
-      ) : item ? (
-        <>
-          <div
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
             style={{
-              display: 'grid',
-              gap: 16,
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              minHeight: 40,
+              padding: '0 14px',
+              borderRadius: 8,
+              border: '1px solid #1A1A1A',
+              background: '#1A1A1A',
+              color: '#FFFFFF',
+              fontWeight: 600,
             }}
           >
-            {[
-              { label: '状态', value: <StatusBadge label={getStatusLabel(item.isActive)} tone={getTone(item.isActive)} /> },
-              { label: '基础单位', value: item.baseUnit },
-              { label: '分类', value: item.categoryId ?? '未分类' },
-              { label: '更新时间', value: formatDateTime(item.updatedAt) },
-            ].map((card) => (
-              <div
-                key={card.label}
-                style={{
-                  padding: '16px 18px',
-                  borderRadius: 8,
-                  border: '1px solid #EAE4DC',
-                  background: '#FFFFFF',
-                  display: 'grid',
-                  gap: 8,
-                }}
-              >
-                <div style={{ fontSize: 12, color: '#888888' }}>{card.label}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>
-                  {card.value}
-                </div>
-              </div>
-            ))}
-          </div>
+            复制
+          </button>
+          <button
+            type="button"
+            style={{
+              minHeight: 40,
+              padding: '0 14px',
+              borderRadius: 8,
+              border: '1px solid #D1CCC4',
+              background: '#FFFFFF',
+              color: '#666666',
+              fontWeight: 600,
+            }}
+          >
+            编辑
+          </button>
+          <button
+            type="button"
+            style={{
+              minHeight: 40,
+              padding: '0 14px',
+              borderRadius: 8,
+              border: '1px solid #D1CCC4',
+              background: '#FFFFFF',
+              color: '#C05A3C',
+              fontWeight: 600,
+            }}
+          >
+            停用
+          </button>
+        </div>
+      </section>
 
-          <TabPanel tabs={tabs} />
-        </>
-      ) : null}
+      <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 300px', gap: 20 }}>
+        <div
+          data-testid="item-detail-summary"
+          style={{
+            padding: 18,
+            borderRadius: 10,
+            border: '1px solid #E8E4DD',
+            background: '#FFFFFF',
+            display: 'grid',
+            gap: 10,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 16, color: '#1A1A1A' }}>基本信息</h2>
+          {summaryItems.map((item) => (
+            <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13 }}>
+              <span style={{ color: '#888888' }}>{item.label}</span>
+              <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div
+          data-testid="item-detail-electrical"
+          style={{
+            padding: 18,
+            borderRadius: 10,
+            border: '1px solid #E8E4DD',
+            background: '#FFFFFF',
+            display: 'grid',
+            gap: 10,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 16, color: '#1A1A1A' }}>电气参数</h2>
+          {electricalItems.map((item) => (
+            <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13 }}>
+              <span style={{ color: '#888888' }}>{item.label}</span>
+              <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div
+          data-testid="item-detail-stock-card"
+          style={{
+            padding: 18,
+            borderRadius: 10,
+            background: '#1A1A1A',
+            color: '#F5F3EF',
+            display: 'grid',
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 13, color: '#CCCCCC' }}>库存价值</div>
+          <div style={{ fontSize: 40, fontWeight: 700 }}>342</div>
+          <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>库存数量</span><span>57</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>在途数量</span><span>10</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>安全库存</span><span>32</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        data-testid="item-detail-bottom-tabs"
+        style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}
+      >
+        {bottomSections.map((section) => (
+          <article
+            key={section.title}
+            style={{
+              padding: 18,
+              borderRadius: 10,
+              border: '1px solid #E8E4DD',
+              background: '#FFFFFF',
+              display: 'grid',
+              gap: 10,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 16, color: '#1A1A1A' }}>{section.title}</h2>
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8, color: '#666666', fontSize: 13 }}>
+              {section.entries.map((entry) => (
+                <li key={entry}>{entry}</li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </section>
     </div>
   );
 }

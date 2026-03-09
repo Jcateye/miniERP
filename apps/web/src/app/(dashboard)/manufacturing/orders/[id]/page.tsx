@@ -1,13 +1,25 @@
-import { RoutePlaceholderPage, buildRoutePlaceholderProps } from '@/components/business/route-placeholder-page';
+import {
+  buildManufacturingOrderDetailSections,
+  buildManufacturingOrderDetailSummary,
+  MANUFACTURING_ORDER_DETAIL_PAGE_PRESENTATION,
+} from './manufacturing-order-detail-page';
+import { ManufacturingOrderDetailPageScaffold } from './manufacturing-order-detail-page-view';
 
-const props = buildRoutePlaceholderProps(
-  'T3',
-  '/manufacturing/orders/:id',
-  '生产订单详情',
-  '承接工单、领退料、报工与完工入库明细。',
-  [{ label: '生产订单工作台', href: '/manufacturing/orders', description: '返回生产订单列表。' }],
-);
+export default async function ManufacturingOrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-export default function ManufacturingOrderDetailPage() {
-  return <RoutePlaceholderPage {...props} />;
+  return (
+    <ManufacturingOrderDetailPageScaffold
+      title={id}
+      summary={MANUFACTURING_ORDER_DETAIL_PAGE_PRESENTATION.summary}
+      backLabel={MANUFACTURING_ORDER_DETAIL_PAGE_PRESENTATION.backLabel}
+      backHref={MANUFACTURING_ORDER_DETAIL_PAGE_PRESENTATION.backHref}
+      summaryItems={buildManufacturingOrderDetailSummary(id)}
+      sections={buildManufacturingOrderDetailSections()}
+    />
+  );
 }

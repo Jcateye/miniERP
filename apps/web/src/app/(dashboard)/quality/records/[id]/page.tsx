@@ -1,13 +1,25 @@
-import { RoutePlaceholderPage, buildRoutePlaceholderProps } from '@/components/business/route-placeholder-page';
+import {
+  buildQualityRecordDetailSections,
+  buildQualityRecordDetailSummary,
+  QUALITY_RECORD_DETAIL_PAGE_PRESENTATION,
+} from './quality-record-detail-page';
+import { QualityRecordDetailPageScaffold } from './quality-record-detail-page-view';
 
-const props = buildRoutePlaceholderProps(
-  'T3',
-  '/quality/records/:id',
-  '质检记录详情',
-  '承接检验结论、缺陷项、附件与处置轨迹。',
-  [{ label: '质检记录工作台', href: '/quality/records', description: '返回质检工作台。' }],
-);
+export default async function QualityRecordDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-export default function QualityRecordDetailPage() {
-  return <RoutePlaceholderPage {...props} />;
+  return (
+    <QualityRecordDetailPageScaffold
+      title={QUALITY_RECORD_DETAIL_PAGE_PRESENTATION.title}
+      summary={QUALITY_RECORD_DETAIL_PAGE_PRESENTATION.summary}
+      backLabel={QUALITY_RECORD_DETAIL_PAGE_PRESENTATION.backLabel}
+      backHref={QUALITY_RECORD_DETAIL_PAGE_PRESENTATION.backHref}
+      summaryItems={buildQualityRecordDetailSummary(id)}
+      sections={buildQualityRecordDetailSections()}
+    />
+  );
 }

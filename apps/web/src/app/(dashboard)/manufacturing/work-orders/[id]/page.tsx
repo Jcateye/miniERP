@@ -1,13 +1,25 @@
-import { RoutePlaceholderPage, buildRoutePlaceholderProps } from '@/components/business/route-placeholder-page';
+import {
+  buildWorkOrderDetailSections,
+  buildWorkOrderDetailSummary,
+  WORK_ORDER_DETAIL_PAGE_PRESENTATION,
+} from './work-order-detail-page';
+import { WorkOrderDetailPageScaffold } from './work-order-detail-page-view';
 
-const props = buildRoutePlaceholderProps(
-  'T3',
-  '/manufacturing/work-orders/:id',
-  '工单详情',
-  '承接工序、工作中心、报工结果与质量记录。',
-  [{ label: '生产订单工作台', href: '/manufacturing/orders', description: '返回生产视图。' }],
-);
+export default async function WorkOrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-export default function WorkOrderDetailPage() {
-  return <RoutePlaceholderPage {...props} />;
+  return (
+    <WorkOrderDetailPageScaffold
+      title={id}
+      summary={WORK_ORDER_DETAIL_PAGE_PRESENTATION.summary}
+      backLabel={WORK_ORDER_DETAIL_PAGE_PRESENTATION.backLabel}
+      backHref={WORK_ORDER_DETAIL_PAGE_PRESENTATION.backHref}
+      summaryItems={buildWorkOrderDetailSummary(id)}
+      sections={buildWorkOrderDetailSections()}
+    />
+  );
 }

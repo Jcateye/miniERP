@@ -1,16 +1,17 @@
-import { RoutePlaceholderPage, buildRoutePlaceholderProps } from '@/components/business/route-placeholder-page';
-
-const props = buildRoutePlaceholderProps(
-  'T1',
-  '/manufacturing/overview',
-  '制造总览',
-  '承接生产订单、工单、BOM 与质检链路的统一入口。',
-  [
-    { label: 'BOM 工作台', href: '/mdm/boms', description: '先从产品结构入口进入。' },
-    { label: '质量记录', href: '/quality/records', description: '查看质检域骨架。' },
-  ],
-);
+import {
+  MANUFACTURING_OVERVIEW_METRICS,
+  MANUFACTURING_OVERVIEW_PAGE_PRESENTATION,
+  MANUFACTURING_OVERVIEW_QUICK_LINKS,
+} from './manufacturing-overview-page';
+import { ManufacturingOverviewPageScaffold } from './manufacturing-overview-page-view';
 
 export default function ManufacturingOverviewPage() {
-  return <RoutePlaceholderPage {...props} />;
+  return (
+    <ManufacturingOverviewPageScaffold
+      title={MANUFACTURING_OVERVIEW_PAGE_PRESENTATION.title}
+      summary={MANUFACTURING_OVERVIEW_PAGE_PRESENTATION.summary}
+      metrics={MANUFACTURING_OVERVIEW_METRICS}
+      quickLinks={MANUFACTURING_OVERVIEW_QUICK_LINKS}
+    />
+  );
 }
