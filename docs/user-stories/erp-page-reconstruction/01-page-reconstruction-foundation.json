@@ -1,0 +1,31 @@
+[
+  {
+    "id": "erp-page-reconstruction-design-docs",
+    "scope": "meta",
+    "stage": "tests-passed",
+    "description": "ERP 页面复刻的设计基线文档已经落盘，并明确采用先视觉复刻、后补逻辑与测试的推进方式。",
+    "steps": [
+      "确认 docs/plans/2026-03-07-erp-page-reconstruction-design.md 明确写出正式页面必须对齐 pencil 设计稿。",
+      "确认 docs/plans/2026-03-07-erp-page-reconstruction-design.md 明确写出 customers、warehouses、receipts 为首批视觉复刻页面。",
+      "确认 AGENTS.md 与 CLAUDE.md 都要求正式页面采用 page-level view，并禁止继续扩展 legacy assembly 路线。"
+    ],
+    "passes": true,
+    "category": "functional",
+    "notes": "这条 meta story 用于固定本轮页面复刻的设计与治理基线。"
+  },
+  {
+    "id": "ralph-loop-foundation",
+    "scope": "meta",
+    "stage": "tests-passed",
+    "description": "Ralph Loop 的最小可运行骨架已经在仓库内版本化，并具备 schema 校验、runner 参数校验与信号安全退出能力。",
+    "steps": [
+      "确认 docs/user-stories/erp-page-reconstruction/*.json 已使用 route-level / stage-aware schema。",
+      "确认 scripts/verify-user-stories.ts 通过 scripts/ralph/story-schema.ts 校验 stories。",
+      "确认 scripts/ralph/runner.ts 使用 scripts/ralph/runner-lib.ts 处理参数与退出结果。",
+      "确认 bun test scripts/ralph/story-schema.test.ts scripts/ralph/runner-lib.test.ts scripts/verify-user-stories.test.ts 通过。"
+    ],
+    "passes": true,
+    "category": "functional",
+    "notes": "该 story 只描述 Ralph 基础设施，不代表页面已完成复刻。"
+  }
+]
