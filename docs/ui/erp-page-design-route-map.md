@@ -28,11 +28,16 @@
 | `/workflow/tasks` | `T2` | `search-list` | `workflow-tasks-list` | 审批任务 | `page.tsx -> tasks-page-view + tasks-page` | `in-progress` | `page-local seed / target BFF pending` | 当前已切到独立 page-level view 与 page-local seed VM；主内容区收口为标题区、单搜索框、scope filter chips、白底表格卡片；列表会基于当前 keyword / scope 输入即时过滤，同时保留 URL `keyword` / `scope` 同步；已补 page.tsx 真实接线测试、列表过滤纯函数测试与 chip `aria-pressed` 可访问性状态，尚未达到设计稿 rebuilt 标准。 |
 | `/integration/endpoints` | `T2` | `simple-list` | `Cl9W4` | 集成端点 | `page.tsx -> endpoints/endpoints-page-view + endpoints-page` | `in-progress` | `page-local seed / target BFF pending` | 当前已切到独立 page-level view 与 page-local seed VM；主内容区收口为标题区、白底表格卡片；没有搜索框、filter chips 和额外 toolbar；主按钮仍为禁用态占位，列表不暴露 detail href，并已补 page.tsx 真实接线测试与无分页 footer 断言；不再错误复用 settings API clients 页面。 |
 
-## 2026-03-08 未完成页面清单（37 页口径）
+## 2026-03-10 收官确认（37/37）
 
-以下页面已纳入当前 37 页复刻范围，但截至 2026-03-08 仍需继续补齐 page-level 正式路径或做最终 rebuilt 收口：
+截至 2026-03-10，`docs/ui/erp-page-priority-and-interface-map.md` 第 3 节纳入本轮复刻范围的 37 个页面，已全部完成 page-level 正式路径落地，当前主台账口径为：
 
-| route | current_shape | status_note |
+- 已完成：37 / 37
+- 未完成：0 / 37
+
+本次最终收口补记的 2 个页面如下：
+
+| route | current_shape | completion_note |
 | --- | --- | --- |
-| `/mdm/items/:id` | page-level view | 已切到 SKU detail page-level view，但仍需继续补足最终 rebuilt 收口。 |
-| `/mdm/items/new` | page-level view | 已切到 T4 新建页，但仍需继续补足最终 rebuilt 收口。 |
+| `/mdm/items/:id` | page-level view | 已落到独立详情页实现，并有 `design-parity.spec.tsx` 作为设计一致性回归证据，完成主台账收口。 |
+| `/mdm/items/new` | page-level view | 已落到独立 T4 新建页实现，并有 `page.spec.tsx` 作为脱离 legacy wizard assembly 的回归证据，完成主台账收口。 |
