@@ -209,18 +209,19 @@
 
 ---
 
-## 8. 2026-03-08 进度盘点（37 页口径）
+## 8. 2026-03-10 进度盘点（37 页口径）
 
 按 `docs/ui/erp-page-priority-and-interface-map.md` 第 3 节当前纳入复刻范围的 37 个页面统计：
 
-- 已复刻为独立真实页面：35
-- 尚未完成正式复刻：2
+- 已复刻为独立真实页面：37
+- 尚未完成正式复刻：0
 
-### 8.1 已复刻的 35 页
+### 8.1 已复刻的 37 页
 
 - `/mdm/items/:id`
 - `/mdm/items/new`
 - `/inventory/counts/:id`
+- `/inventory/counts`
 - `/sales/orders`
 - `/sales/shipments`
 - `/sales/quotations`
@@ -249,12 +250,13 @@
 - `/finance/gl-accounts`
 - `/finance/cost-centers`
 - `/finance/budgets`
+- `/reports`
 - `/integration/endpoints`
 - `/integration/jobs`
 - `/manufacturing/orders`
 - `/quality/records`
 
-### 8.2 尚未完成正式复刻的 2 页
+### 8.2 尚未完成正式复刻的 0 页
 
 #### A. 仍是 re-export / 旧路由复用
 
@@ -274,14 +276,15 @@
 
 #### E. 仍属旧实现形态，未进入 page-level 正式复刻
 
-- `/mdm/items/:id`
-- `/mdm/items/new`
+- 无
 
 ### 8.3 下一批优先对象
 
-优先顺序保持与页面优先级一致，但在当前剩余页面里优先清掉最明显的 placeholder / missing：
+当前 37 页口径的 page-level 复刻已完成；后续优先转入：
 
-1. 无（当前 remaining 列表已无 placeholder / missing）
+1. 关键页面与 BFF/真实数据联调
+2. 设计一致性复审与 rebuilt 收口
+3. 交互细节、筛选统计与按钮行为补齐
 
 ## 9. 结论
 
@@ -292,6 +295,6 @@
 - **每页独立 page-level view**
 - **不继续扩展 legacy/template 中间层**
 - **缺字段先占位，后续再补契约**
-- **当前 37 页口径下仍有 2 页待完成正式复刻**
+- **当前 37 页口径下的 page-level 复刻已全部完成；后续重点转入联调、真实数据接入与 rebuilt 收口。**
 
 后续 implementation plan 与代码实施必须以本设计文档为准。
