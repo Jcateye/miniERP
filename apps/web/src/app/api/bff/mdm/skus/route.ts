@@ -1,14 +1,70 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+
+import type { Sku } from '@minierp/shared';
 
 import { createMockListResponse, compareListValues, normalizeSortDirection, parsePositiveIntParam } from '@/lib/bff/mock-list';
-import { skuListFixtures, skuViewMetaByCode } from '@/lib/mocks/erp-list-fixtures';
+import {
+  isFixtureFallbackEnabled,
+  toFixtureFallbackDisabledResponse,
+  toUpstreamErrorResponse,
+} from '@/lib/bff/server-fixtures';
+import {
+  skuCategoryIdByLabel,
+  skuListFixtures,
+  skuViewMetaByCode,
+} from '@/lib/mocks/erp-list-fixtures';
+import {
+  fetchBackendArray,
+  toListRouteResponse,
+} from '../../_shared/list-route-utils';
 
-function matchesKeyword(code: string, name: string, search: string) {
+interface BackendSkuDto {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  specification: string | null;
+  baseUnit: string;
+  categoryId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function matchesKeyword(item: Sku, search: string) {
+  const code = item.code;
+  const name = item.name;
   const meta = skuViewMetaByCode[code];
   const keyword = search.toLowerCase();
 
-  return [code, name, meta?.categoryLabel ?? '', meta?.supplierName ?? '', meta?.warehouseLabel ?? '']
+  return [code, name, item.specification ?? '', meta?.categoryLabel ?? '', meta?.supplierName ?? '', meta?.warehouseLabel ?? '']
     .some((value) => value.toLowerCase().includes(keyword));
+}
+
+function mapBackendSku(item: BackendSkuDto): Sku {
+  const meta = skuViewMetaByCode[item.code];
+
+  return {
+    id: item.id,
+    tenantId: item.tenantId,
+    code: item.code,
+    name: item.name,
+    specification: item.specification,
+    unit: item.baseUnit,
+    categoryId:
+      item.categoryId ??
+      (meta ? skuCategoryIdByLabel[meta.categoryLabel] ?? null : null),
+    barcode: null,
+    batchManaged: false,
+    serialManaged: false,
+    status: item.isActive
+      ? meta && meta.stock <= meta.threshold
+        ? 'warning'
+        : 'normal'
+      : 'disabled',
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -23,19 +79,47 @@ export async function GET(request: NextRequest) {
   const lowStock = searchParams.get('lowStock') === '1';
   const sortBy = (searchParams.get('sortBy') || 'code') as SortField;
   const sortOrder = normalizeSortDirection(searchParams.get('sortOrder'));
+  let source: readonly Sku[] = skuListFixtures;
+  let fallbackReason: string | undefined;
 
-  const filtered = skuListFixtures
+  const upstream = await fetchBackendArray<BackendSkuDto>('/skus');
+  if (upstream.ok) {
+    source = upstream.data.map(mapBackendSku);
+  } else if (upstream.response) {
+    if (upstream.response.status >= 400 && upstream.response.status < 500) {
+      return toUpstreamErrorResponse(upstream.response);
+    }
+
+    if (!isFixtureFallbackEnabled()) {
+      return toFixtureFallbackDisabledResponse(
+        'Backend SKU list is unavailable in current environment',
+        upstream.response.status,
+      );
+    }
+
+    fallbackReason = 'fixture_response';
+  } else if (!isFixtureFallbackEnabled()) {
+    return toFixtureFallbackDisabledResponse(
+      'Backend SKU list is unavailable in current environment',
+    );
+  } else {
+    fallbackReason = 'fixture_response';
+  }
+
+  const filtered = source
     .filter((item) => {
       const meta = skuViewMetaByCode[item.code];
-      if (!meta) {
+      const hasMeta = Boolean(meta);
+
+      if ((supplier || warehouse || lowStock) && !hasMeta) {
         return false;
       }
 
-      if (q && !matchesKeyword(item.code, item.name, q)) {
+      if (q && !matchesKeyword(item, q)) {
         return false;
       }
 
-      if (category && meta.categoryLabel !== category) {
+      if (category && meta?.categoryLabel !== category) {
         return false;
       }
 
@@ -65,7 +149,14 @@ export async function GET(request: NextRequest) {
       );
     });
 
-  return NextResponse.json(createMockListResponse(filtered, page, pageSize));
+  const payload = createMockListResponse(
+    filtered,
+    page,
+    pageSize,
+    fallbackReason ? 'fixture' : 'OK',
+  );
+
+  return toListRouteResponse(payload, fallbackReason);
 }
 
 function mapStatusLabelToValue(label: string) {
@@ -81,7 +172,7 @@ function mapStatusLabelToValue(label: string) {
 
 type SortField = 'cat' | 'code' | 'name' | 'status' | 'stock' | 'supp' | 'threshold';
 
-function getSortValue(item: (typeof skuListFixtures)[number], sortBy: SortField) {
+function getSortValue(item: Sku, sortBy: SortField) {
   const meta = skuViewMetaByCode[item.code];
 
   switch (sortBy) {
