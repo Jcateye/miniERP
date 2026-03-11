@@ -66,24 +66,24 @@ export const WORKSPACE_HOME_KPIS: readonly WorkspaceHomeKpiCard[] = [
 export const WORKSPACE_HOME_TODO_ITEMS: readonly WorkspaceHomeTodoItem[] = [
   {
     id: 'todo_001',
-    title: '14 个 SKU 低库存预警',
-    summary: 'SKU管理 → 库存工作台 · 低库存视图',
-    meta: '今天 09:12 · 库存',
-    href: '/inventory/balances',
+    title: 'SKU 主数据待核对',
+    summary: '检查当前物料台账与关键字段完整性',
+    meta: '今天 09:12 · 主数据',
+    href: '/mdm/items',
   },
   {
     id: 'todo_002',
-    title: '3 个待入库 GRN 草稿需过账',
-    summary: '采购管理 → GRN工作台 · 草稿',
-    meta: '今天 09:47 · 收货',
-    href: '/procure/receipts',
+    title: '报表中心待查看',
+    summary: '确认经营分析首页与报表详情入口状态',
+    meta: '今天 09:47 · 报表',
+    href: '/reports',
   },
   {
     id: 'todo_003',
-    title: '7 个待出库订单今日需发货',
-    summary: '销售出库 → OUT工作台 · 今日待发',
-    meta: '今天 10:05 · 履约',
-    href: '/sales/shipments',
+    title: '工作台信息待整理',
+    summary: '回到首页补充今日协作摘要与操作入口',
+    meta: '今天 10:05 · 工作台',
+    href: '/workspace',
   },
 ];
 
@@ -92,20 +92,18 @@ export const WORKSPACE_HOME_RIGHT_PANEL_SECTIONS: readonly WorkspaceHomePanelSec
     id: 'quick-links',
     title: '快捷入口',
     items: [
-      { id: 'quick-sku', label: '新建 SKU', href: '/mdm/items/new' },
-      { id: 'quick-grn', label: '新建入库单 GRN', href: '/procure/receipts/new' },
-      { id: 'quick-out', label: '新建出库单 OUT', href: '/sales/shipments/new' },
-      { id: 'quick-query', label: '库存查询', href: '/inventory/balances' },
+      { id: 'quick-home', label: '工作台首页', href: '/workspace' },
+      { id: 'quick-sku', label: 'SKU 管理', href: '/mdm/items' },
+      { id: 'quick-reports', label: '报表中心', href: '/reports' },
     ],
   },
   {
     id: 'recent-actions',
     title: '最近动作',
     items: [
-      { id: 'recent-1', label: '入库 GRN-2026-0142 过账', href: '/procure/receipts' },
-      { id: 'recent-2', label: '出库 OUT-2026-0089 过账', href: '/sales/shipments' },
-      { id: 'recent-3', label: '新建 SKU: PWR-100W-GN3', href: '/mdm/items' },
-      { id: 'recent-4', label: '盘点 ST-2026-0012 完成', href: '/inventory/counts' },
+      { id: 'recent-1', label: '查看 SKU 列表更新', href: '/mdm/items' },
+      { id: 'recent-2', label: '进入报表中心', href: '/reports' },
+      { id: 'recent-3', label: '返回工作台首页', href: '/workspace' },
     ],
   },
 ];

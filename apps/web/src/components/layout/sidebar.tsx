@@ -2,16 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutGrid,
-  Boxes,
-  ShoppingCart,
-  Truck,
-  Warehouse,
-  Landmark,
-  Factory,
-  Workflow,
-} from 'lucide-react';
+import { BarChart3, Boxes, LayoutGrid } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 import { getPrimaryNavItem, primaryNav, type PrimaryRouteItem } from '@/lib/navigation/route-manifest';
@@ -19,13 +10,7 @@ import { getPrimaryNavItem, primaryNav, type PrimaryRouteItem } from '@/lib/navi
 const navIconMap: Record<PrimaryRouteItem['icon'], ComponentType<{ size?: number; color?: string }>> = {
   workspace: LayoutGrid,
   mdm: Boxes,
-  procure: ShoppingCart,
-  sales: Truck,
-  inventory: Warehouse,
-  finance: Landmark,
-  manufacturing: Factory,
-  workflow: Workflow,
-  platform: LayoutGrid,
+  reports: BarChart3,
 };
 
 export default function Sidebar() {

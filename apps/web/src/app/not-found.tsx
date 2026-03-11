@@ -40,7 +40,7 @@ export default function NotFound() {
             }}>
                 您访问的页面不存在或已被移除
             </p>
-            <Link href="/" style={{
+            <Link href="/workspace" style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
