@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
@@ -40,71 +39,5 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
                 </div>
             )}
         </div>
-    );
-}
-
-interface ActionButtonProps {
-    label: string;
-    tone?: 'primary' | 'secondary' | 'ghost';
-    icon?: ReactNode;
-    href?: string;
-    onClick?: () => void;
-    disabled?: boolean;
-}
-
-export function ActionButton({ label, tone = 'secondary', icon, href, onClick, disabled = false }: ActionButtonProps) {
-    const styles: Record<string, React.CSSProperties> = {
-        primary: {
-            background: '#C05A3C',
-            color: '#FFFFFF',
-            border: 'none',
-        },
-        secondary: {
-            background: '#FFFFFF',
-            color: '#1a1a1a',
-            border: '1px solid #D1CCC4',
-        },
-        ghost: {
-            background: 'transparent',
-            color: '#666666',
-            border: '1px solid transparent',
-        },
-    };
-
-    const buttonStyle: React.CSSProperties = {
-        ...styles[tone],
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '10px 20px',
-        borderRadius: 8,
-        fontFamily: 'var(--font-display-family), sans-serif',
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'opacity 0.15s',
-        letterSpacing: 0.5,
-        opacity: disabled ? 0.45 : 1,
-        textDecoration: 'none',
-    };
-
-    if (href && !disabled) {
-        return (
-            <Link href={href} style={buttonStyle}>
-                {icon}
-                {label}
-            </Link>
-        );
-    }
-
-    return (
-        <button
-            onClick={onClick}
-            disabled={disabled}
-            style={buttonStyle}
-        >
-            {icon}
-            {label}
-        </button>
     );
 }

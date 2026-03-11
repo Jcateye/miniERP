@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 const ITEM_ROWS = [
   {
     id: 'item-001',
@@ -162,9 +160,9 @@ export default function ItemsPage() {
                 {ITEM_ROWS.map((item) => (
                   <tr key={item.id}>
                     <td style={tableCellStyle}>
-                      <Link href={`/mdm/items/${item.id}`} style={{ color: '#C05A3C', textDecoration: 'none', fontWeight: 600 }}>
+                      <span style={{ color: '#C05A3C', fontWeight: 600 }}>
                         {item.code}
-                      </Link>
+                      </span>
                     </td>
                     <td style={tableCellStyle}>{item.name}</td>
                     <td style={tableCellStyle}>{item.category}</td>

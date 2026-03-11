@@ -56,12 +56,12 @@ describe('workspace home page contract', () => {
     expect(markup).toContain('待出库 OUT');
     expect(markup).toContain('延迟 PO');
     expect(markup).toContain('全局待办');
-    expect(markup).toContain('新建 SKU');
-    expect(markup).toContain('入库 GRN-2026-0142 过账');
-    expect(markup).toContain('href="/mdm/items/new"');
-    expect(markup).toContain('href="/procure/receipts/new"');
-    expect(markup).toContain('href="/sales/shipments/new"');
-    expect(markup).toContain('href="/inventory/balances"');
+    expect(markup).toContain('SKU 管理');
+    expect(markup).toContain('报表中心');
+    expect(markup).toContain('查看 SKU 列表更新');
+    expect(markup).toContain('href="/mdm/items"');
+    expect(markup).toContain('href="/reports"');
+    expect(markup).toContain('href="/workspace"');
   });
 
   it('renders the real page instead of old dashboard export', () => {
@@ -73,8 +73,8 @@ describe('workspace home page contract', () => {
     expect(markup).toContain('待出库 OUT');
     expect(markup).toContain('延迟 PO');
     expect(markup).toContain('全局待办');
-    expect(markup).toContain('新建 SKU');
-    expect(markup).toContain('入库 GRN-2026-0142 过账');
+    expect(markup).toContain('SKU 管理');
+    expect(markup).toContain('报表中心');
     expect(markup).not.toContain('WorkbenchAssembly');
     expect(markup).not.toContain('dashboard 首页');
   });
