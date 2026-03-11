@@ -1,11 +1,18 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 /**
  * SKU 编码重复
  */
 export class SkuCodeDuplicateError extends ConflictException {
   constructor(code: string) {
-    super(`SKU with code "${code}" already exists`, 'MASTERDATA_SKU_CODE_DUPLICATE');
+    super(
+      `SKU with code "${code}" already exists`,
+      'MASTERDATA_SKU_CODE_DUPLICATE',
+    );
   }
 }
 

@@ -76,9 +76,9 @@ describe('CustomerController', () => {
   });
 
   it('should reject invalid update payload', async () => {
-    await expect(controller.update('cust_001', { isActive: 'yes' })).rejects.toThrow(
-      'isActive must be boolean',
-    );
+    await expect(
+      controller.update('cust_001', { isActive: 'yes' }),
+    ).rejects.toThrow('isActive must be boolean');
   });
 
   it('should list customers with total', async () => {

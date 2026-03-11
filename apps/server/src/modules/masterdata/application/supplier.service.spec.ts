@@ -84,9 +84,9 @@ describe('SupplierService', () => {
     });
 
     it('throws when not found', async () => {
-      await expect(service.findById(tenantId, 'nonexistent')).rejects.toBeInstanceOf(
-        SupplierNotFoundError,
-      );
+      await expect(
+        service.findById(tenantId, 'nonexistent'),
+      ).rejects.toBeInstanceOf(SupplierNotFoundError);
     });
   });
 
@@ -132,7 +132,7 @@ describe('SupplierService', () => {
 
     it('filters by isActive', async () => {
       const all = await service.findAll(tenantId);
-      await service.update(tenantId, all[0]!.id, { isActive: false });
+      await service.update(tenantId, all[0].id, { isActive: false });
       const results = await service.findAll(tenantId, { isActive: true });
       expect(results).toHaveLength(2);
     });
@@ -145,7 +145,9 @@ describe('SupplierService', () => {
         name: 'Original',
       });
 
-      const updated = await service.update(tenantId, created.id, { name: 'Updated' });
+      const updated = await service.update(tenantId, created.id, {
+        name: 'Updated',
+      });
       expect(updated?.name).toBe('Updated');
     });
 
@@ -155,7 +157,9 @@ describe('SupplierService', () => {
         name: 'Active Test',
       });
 
-      const updated = await service.update(tenantId, created.id, { isActive: false });
+      const updated = await service.update(tenantId, created.id, {
+        isActive: false,
+      });
       expect(updated?.isActive).toBe(false);
     });
 
@@ -187,15 +191,15 @@ describe('SupplierService', () => {
       const result = await service.delete(tenantId, created.id);
       expect(result).toBe(true);
 
-      await expect(service.findById(tenantId, created.id)).rejects.toBeInstanceOf(
-        SupplierNotFoundError,
-      );
+      await expect(
+        service.findById(tenantId, created.id),
+      ).rejects.toBeInstanceOf(SupplierNotFoundError);
     });
 
     it('throws when not found', async () => {
-      await expect(service.delete(tenantId, 'nonexistent')).rejects.toBeInstanceOf(
-        SupplierNotFoundError,
-      );
+      await expect(
+        service.delete(tenantId, 'nonexistent'),
+      ).rejects.toBeInstanceOf(SupplierNotFoundError);
     });
   });
 

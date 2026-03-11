@@ -24,7 +24,10 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     return tenantStore.get(id) ?? null;
   }
 
-  async findByCode(tenantId: string, code: string): Promise<CustomerEntity | null> {
+  async findByCode(
+    tenantId: string,
+    code: string,
+  ): Promise<CustomerEntity | null> {
     const tenantStore = this.getTenantStore(tenantId);
     for (const entity of tenantStore.values()) {
       if (entity.code === code) {

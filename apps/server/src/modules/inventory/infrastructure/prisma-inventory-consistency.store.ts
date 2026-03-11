@@ -37,9 +37,7 @@ function parseLedgerId(rawId: string): bigint {
   }
 }
 
-function mapLedgerEntry(
-  entry: PrismaInventoryLedger,
-): InventoryLedgerEntry {
+function mapLedgerEntry(entry: PrismaInventoryLedger): InventoryLedgerEntry {
   return {
     id: entry.id.toString(),
     tenantId: entry.tenantId.toString(),
@@ -55,13 +53,20 @@ function mapLedgerEntry(
 
 function decodePostingResult(payload: unknown): InventoryPostingResult {
   if (typeof payload !== 'object' || payload === null) {
-    throw new InventoryValidationError('Invalid inventory idempotency response payload');
+    throw new InventoryValidationError(
+      'Invalid inventory idempotency response payload',
+    );
   }
 
   const candidate = payload as Partial<InventoryPostingResult>;
 
-  if (!Array.isArray(candidate.ledgerEntries) || !Array.isArray(candidate.balanceSnapshots)) {
-    throw new InventoryValidationError('Invalid inventory idempotency response payload');
+  if (
+    !Array.isArray(candidate.ledgerEntries) ||
+    !Array.isArray(candidate.balanceSnapshots)
+  ) {
+    throw new InventoryValidationError(
+      'Invalid inventory idempotency response payload',
+    );
   }
 
   return {
@@ -164,7 +169,10 @@ export class PrismaInventoryConsistencyStore implements InventoryConsistencyStor
 
 export class PrismaInventoryTenantTransaction implements InventoryTenantTransaction {
   private readonly idempotencyCache = new Map<string, IdempotencyRecord>();
-  private readonly balanceCache = new Map<string, { id: bigint; onHand: number }>();
+  private readonly balanceCache = new Map<
+    string,
+    { id: bigint; onHand: number }
+  >();
 
   constructor(
     private readonly tx: Prisma.TransactionClient,
@@ -294,7 +302,9 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
 
     return ledgerIds
       .map((ledgerId) => byId.get(ledgerId))
-      .filter((entry): entry is InventoryLedgerEntry => typeof entry !== 'undefined');
+      .filter(
+        (entry): entry is InventoryLedgerEntry => typeof entry !== 'undefined',
+      );
   }
 
   async findBalance(key: InventoryKey): Promise<number> {
@@ -372,7 +382,9 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
   private async selectBalanceRowForUpdate(
     key: InventoryKey,
   ): Promise<{ id: bigint; onHand: number } | undefined> {
-    const rows = await this.tx.$queryRaw<Array<{ id: bigint; on_hand: number }>>`
+    const rows = await this.tx.$queryRaw<
+      Array<{ id: bigint; on_hand: number }>
+    >`
       SELECT "id", "on_hand"
       FROM "inventory_balance"
       WHERE "tenant_id" = ${this.tenantDbId}

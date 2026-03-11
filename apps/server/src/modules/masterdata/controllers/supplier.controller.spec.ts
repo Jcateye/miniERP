@@ -76,9 +76,9 @@ describe('SupplierController', () => {
   });
 
   it('should reject invalid update payload', async () => {
-    await expect(controller.update('sup_001', { isActive: 'yes' })).rejects.toThrow(
-      'isActive must be boolean',
-    );
+    await expect(
+      controller.update('sup_001', { isActive: 'yes' }),
+    ).rejects.toThrow('isActive must be boolean');
   });
 
   it('should list suppliers with total', async () => {

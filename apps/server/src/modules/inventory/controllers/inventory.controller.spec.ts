@@ -56,9 +56,10 @@ describe('InventoryController', () => {
 
     const result = await controller.getBalances('SKU-1', 'WH-1');
 
-    expect(mockInventoryPostingService.getBalanceSnapshot).toHaveBeenCalledWith('1001', [
-      { skuId: 'SKU-1', warehouseId: 'WH-1' },
-    ]);
+    expect(mockInventoryPostingService.getBalanceSnapshot).toHaveBeenCalledWith(
+      '1001',
+      [{ skuId: 'SKU-1', warehouseId: 'WH-1' }],
+    );
     expect(result).toEqual({
       data: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 }],
       total: 1,
@@ -73,7 +74,9 @@ describe('InventoryController', () => {
 
     const result = await controller.getBalances();
 
-    expect(mockInventoryStore.getAllBalanceSnapshots).toHaveBeenCalledWith('1001');
+    expect(mockInventoryStore.getAllBalanceSnapshots).toHaveBeenCalledWith(
+      '1001',
+    );
     expect(result.total).toBe(2);
   });
 
@@ -109,7 +112,13 @@ describe('InventoryController', () => {
       },
     ]);
 
-    const result = await controller.getLedger(undefined, undefined, undefined, '1', '1');
+    const result = await controller.getLedger(
+      undefined,
+      undefined,
+      undefined,
+      '1',
+      '1',
+    );
 
     expect(result.total).toBe(2);
     expect(result.page).toBe(1);

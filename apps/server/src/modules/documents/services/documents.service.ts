@@ -160,7 +160,10 @@ export class DocumentsService {
   private readonly documents = new Map<string, DocumentDetail>();
   private readonly docNoCounter = new Map<string, number>();
   private readonly idempotencyCache = new Map<string, DocumentActionResult>();
-  private readonly createIdempotencyCache = new Map<string, DocumentCreateResult>();
+  private readonly createIdempotencyCache = new Map<
+    string,
+    DocumentCreateResult
+  >();
   private readonly inflightActionRequests = new Map<
     string,
     Promise<DocumentActionResult>
@@ -320,7 +323,9 @@ export class DocumentsService {
     }
 
     const allDocs = Array.from(this.documents.values())
-      .filter((doc) => doc.tenantId === tenantId && doc.docType === query.docType)
+      .filter(
+        (doc) => doc.tenantId === tenantId && doc.docType === query.docType,
+      )
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     const page = query.page ?? 1;
@@ -644,7 +649,11 @@ export class DocumentsService {
       throw new UnknownDocumentActionError(action);
     }
 
-    const detail = await this.getSalesOutboundDetailFromDb(docType, id, tenantId);
+    const detail = await this.getSalesOutboundDetailFromDb(
+      docType,
+      id,
+      tenantId,
+    );
     if (!detail) {
       throw new DocumentNotFoundError(docType, id);
     }
@@ -671,7 +680,11 @@ export class DocumentsService {
         entityId: id,
         result: 'deny',
         reason: 'INVALID_STATUS_TRANSITION',
-        metadata: { docType, fromStatus: detail.status, toStatus: targetStatus },
+        metadata: {
+          docType,
+          fromStatus: detail.status,
+          toStatus: targetStatus,
+        },
       });
       throw error;
     }
@@ -707,11 +720,8 @@ export class DocumentsService {
                   referenceId: id,
                   lines: detail.lines.map((line) => ({
                     skuId: line.skuId,
-                    warehouseId:
-                      outbound.warehouseId?.toString() ?? 'WH-001',
-                    quantityDelta: -Math.abs(
-                      Math.trunc(Number(line.qty) || 0),
-                    ),
+                    warehouseId: outbound.warehouseId?.toString() ?? 'WH-001',
+                    quantityDelta: -Math.abs(Math.trunc(Number(line.qty) || 0)),
                   })),
                 },
                 requestId,
@@ -900,7 +910,10 @@ export class DocumentsService {
     let inventoryPosted = false;
     let ledgerEntryIds: string[] = [];
 
-    if ((docType === 'GRN' || docType === 'OUT' || docType === 'ADJ') && action === 'post') {
+    if (
+      (docType === 'GRN' || docType === 'OUT' || docType === 'ADJ') &&
+      action === 'post'
+    ) {
       try {
         const referenceType = docType === 'ADJ' ? 'ADJUSTMENT' : docType;
         const result = await this.inventoryPostingService.post(
@@ -926,7 +939,10 @@ export class DocumentsService {
         inventoryPosted = true;
         ledgerEntryIds = result.ledgerEntries.map((e) => e.id);
       } catch (error) {
-        if (docType === 'OUT' && error instanceof InventoryInsufficientStockError) {
+        if (
+          docType === 'OUT' &&
+          error instanceof InventoryInsufficientStockError
+        ) {
           throw new OutboundStockInsufficientError(error.message);
         }
         throw error;
@@ -1090,28 +1106,40 @@ export class DocumentsService {
         orderBy: { docNo: 'desc' },
         select: { docNo: true },
       });
-      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+      maxSeq = Math.max(
+        maxSeq,
+        latest ? this.parseSeqFromDocNo(latest.docNo) : 0,
+      );
     } else if (docType === 'GRN') {
       const latest = await this.prisma.grn.findFirst({
         where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
         orderBy: { docNo: 'desc' },
         select: { docNo: true },
       });
-      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+      maxSeq = Math.max(
+        maxSeq,
+        latest ? this.parseSeqFromDocNo(latest.docNo) : 0,
+      );
     } else if (docType === 'SO') {
       const latest = await this.prisma.salesOrder.findFirst({
         where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
         orderBy: { docNo: 'desc' },
         select: { docNo: true },
       });
-      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+      maxSeq = Math.max(
+        maxSeq,
+        latest ? this.parseSeqFromDocNo(latest.docNo) : 0,
+      );
     } else {
       const latest = await this.prisma.outbound.findFirst({
         where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
         orderBy: { docNo: 'desc' },
         select: { docNo: true },
       });
-      maxSeq = Math.max(maxSeq, latest ? this.parseSeqFromDocNo(latest.docNo) : 0);
+      maxSeq = Math.max(
+        maxSeq,
+        latest ? this.parseSeqFromDocNo(latest.docNo) : 0,
+      );
     }
 
     const next = maxSeq + 1;
@@ -1224,10 +1252,7 @@ export class DocumentsService {
     return row?.id ?? null;
   }
 
-  private async resolveSkuId(
-    tenantDbId: bigint,
-    raw: string,
-  ): Promise<bigint> {
+  private async resolveSkuId(tenantDbId: bigint, raw: string): Promise<bigint> {
     if (!this.prisma) {
       throw new HttpException(
         {
@@ -1299,7 +1324,13 @@ export class DocumentsService {
       );
     }
 
-    return this.createInMemoryDocument(docType, input, tenantId, actorId, requestId);
+    return this.createInMemoryDocument(
+      docType,
+      input,
+      tenantId,
+      actorId,
+      requestId,
+    );
   }
 
   private async createPersistentDocument(
@@ -1332,12 +1363,24 @@ export class DocumentsService {
       }),
     );
 
-    const totalQty = lines.reduce((sum, line) => sum.add(line.qty), new Decimal(0));
-    const totalAmount = lines.reduce((sum, line) => sum.add(line.amount), new Decimal(0));
+    const totalQty = lines.reduce(
+      (sum, line) => sum.add(line.qty),
+      new Decimal(0),
+    );
+    const totalAmount = lines.reduce(
+      (sum, line) => sum.add(line.amount),
+      new Decimal(0),
+    );
 
     if (docType === 'PO') {
-      const supplierId = await this.resolveSupplierId(tenantDbId, input.supplierId);
-      const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+      const supplierId = await this.resolveSupplierId(
+        tenantDbId,
+        input.supplierId,
+      );
+      const warehouseId = await this.resolveWarehouseId(
+        tenantDbId,
+        input.warehouseId,
+      );
 
       const header = await this.prisma.purchaseOrder.create({
         data: {
@@ -1388,8 +1431,14 @@ export class DocumentsService {
       };
     }
 
-    const poId = await this.resolvePurchaseOrderId(tenantDbId, input.sourceDocId);
-    const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+    const poId = await this.resolvePurchaseOrderId(
+      tenantDbId,
+      input.sourceDocId,
+    );
+    const warehouseId = await this.resolveWarehouseId(
+      tenantDbId,
+      input.warehouseId,
+    );
 
     const header = await this.prisma.grn.create({
       data: {
@@ -1470,12 +1519,24 @@ export class DocumentsService {
       }),
     );
 
-    const totalQty = lines.reduce((sum, line) => sum.add(line.qty), new Decimal(0));
-    const totalAmount = lines.reduce((sum, line) => sum.add(line.amount), new Decimal(0));
+    const totalQty = lines.reduce(
+      (sum, line) => sum.add(line.qty),
+      new Decimal(0),
+    );
+    const totalAmount = lines.reduce(
+      (sum, line) => sum.add(line.amount),
+      new Decimal(0),
+    );
 
     if (docType === 'SO') {
-      const customerId = await this.resolveCustomerId(tenantDbId, input.customerId);
-      const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+      const customerId = await this.resolveCustomerId(
+        tenantDbId,
+        input.customerId,
+      );
+      const warehouseId = await this.resolveWarehouseId(
+        tenantDbId,
+        input.warehouseId,
+      );
 
       const header = await this.prisma.salesOrder.create({
         data: {
@@ -1527,7 +1588,10 @@ export class DocumentsService {
     }
 
     const soId = await this.resolveSalesOrderId(tenantDbId, input.sourceDocId);
-    const warehouseId = await this.resolveWarehouseId(tenantDbId, input.warehouseId);
+    const warehouseId = await this.resolveWarehouseId(
+      tenantDbId,
+      input.warehouseId,
+    );
 
     const header = await this.prisma.outbound.create({
       data: {
@@ -1602,8 +1666,14 @@ export class DocumentsService {
       };
     });
 
-    const totalQty = lines.reduce((sum, line) => sum.add(new Decimal(line.qty)), new Decimal(0));
-    const totalAmount = lines.reduce((sum, line) => sum.add(new Decimal(line.amount)), new Decimal(0));
+    const totalQty = lines.reduce(
+      (sum, line) => sum.add(new Decimal(line.qty)),
+      new Decimal(0),
+    );
+    const totalAmount = lines.reduce(
+      (sum, line) => sum.add(new Decimal(line.amount)),
+      new Decimal(0),
+    );
 
     const detail: DocumentDetail = {
       id,
@@ -2104,7 +2174,12 @@ export class DocumentsService {
             orderBy: { lineNo: 'asc' },
           });
 
-          await this.validateGrnPrePost(tx, tenantDbId, transactionalDoc, lines);
+          await this.validateGrnPrePost(
+            tx,
+            tenantDbId,
+            transactionalDoc,
+            lines,
+          );
 
           const result = await this.inventoryPostingService.postInTransaction(
             tenantId,

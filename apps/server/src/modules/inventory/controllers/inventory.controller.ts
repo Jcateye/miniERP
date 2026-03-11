@@ -54,17 +54,22 @@ export class InventoryController {
     const ctx = this.tenantContextService.getRequiredContext();
 
     if (skuId && !warehouseId) {
-      throw new InventoryValidationError('warehouseId is required when skuId is provided');
+      throw new InventoryValidationError(
+        'warehouseId is required when skuId is provided',
+      );
     }
 
     if (!skuId && warehouseId) {
-      throw new InventoryValidationError('skuId is required when warehouseId is provided');
+      throw new InventoryValidationError(
+        'skuId is required when warehouseId is provided',
+      );
     }
 
     if (skuId && warehouseId) {
-      const snapshots = await this.inventoryPostingService.getBalanceSnapshot(ctx.tenantId, [
-        { skuId, warehouseId },
-      ]);
+      const snapshots = await this.inventoryPostingService.getBalanceSnapshot(
+        ctx.tenantId,
+        [{ skuId, warehouseId }],
+      );
 
       return {
         data: snapshots,

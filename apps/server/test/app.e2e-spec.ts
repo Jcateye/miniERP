@@ -192,7 +192,9 @@ async function startProbePair(): Promise<{
   );
 
   if (probeFailure) {
-    await Promise.allSettled(startedServers.map((server) => stopProbeServer(server)));
+    await Promise.allSettled(
+      startedServers.map((server) => stopProbeServer(server)),
+    );
     throw probeFailure.reason;
   }
 

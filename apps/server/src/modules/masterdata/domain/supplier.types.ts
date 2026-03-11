@@ -43,9 +43,19 @@ export interface SupplierQueryFilter {
 export interface SupplierRepository {
   findById(tenantId: string, id: string): Promise<SupplierEntity | null>;
   findByCode(tenantId: string, code: string): Promise<SupplierEntity | null>;
-  findAll(tenantId: string, filter?: SupplierQueryFilter): Promise<readonly SupplierEntity[]>;
-  save(tenantId: string, entity: Omit<SupplierEntity, 'tenantId'>): Promise<SupplierEntity>;
-  update(tenantId: string, id: string, updates: UpdateSupplierCommand): Promise<SupplierEntity | null>;
+  findAll(
+    tenantId: string,
+    filter?: SupplierQueryFilter,
+  ): Promise<readonly SupplierEntity[]>;
+  save(
+    tenantId: string,
+    entity: Omit<SupplierEntity, 'tenantId'>,
+  ): Promise<SupplierEntity>;
+  update(
+    tenantId: string,
+    id: string,
+    updates: UpdateSupplierCommand,
+  ): Promise<SupplierEntity | null>;
   delete(tenantId: string, id: string): Promise<boolean>;
   existsByCode(tenantId: string, code: string): Promise<boolean>;
 }

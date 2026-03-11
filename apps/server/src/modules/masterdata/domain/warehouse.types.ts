@@ -40,9 +40,19 @@ export interface WarehouseQueryFilter {
 export interface WarehouseRepository {
   findById(tenantId: string, id: string): Promise<WarehouseEntity | null>;
   findByCode(tenantId: string, code: string): Promise<WarehouseEntity | null>;
-  findAll(tenantId: string, filter?: WarehouseQueryFilter): Promise<readonly WarehouseEntity[]>;
-  save(tenantId: string, entity: Omit<WarehouseEntity, 'tenantId'>): Promise<WarehouseEntity>;
-  update(tenantId: string, id: string, updates: UpdateWarehouseCommand): Promise<WarehouseEntity | null>;
+  findAll(
+    tenantId: string,
+    filter?: WarehouseQueryFilter,
+  ): Promise<readonly WarehouseEntity[]>;
+  save(
+    tenantId: string,
+    entity: Omit<WarehouseEntity, 'tenantId'>,
+  ): Promise<WarehouseEntity>;
+  update(
+    tenantId: string,
+    id: string,
+    updates: UpdateWarehouseCommand,
+  ): Promise<WarehouseEntity | null>;
   delete(tenantId: string, id: string): Promise<boolean>;
   existsByCode(tenantId: string, code: string): Promise<boolean>;
 }

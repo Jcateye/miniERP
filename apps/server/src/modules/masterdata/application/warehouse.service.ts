@@ -21,10 +21,16 @@ export class WarehouseService {
     private readonly repository: WarehouseRepository,
   ) {}
 
-  async create(tenantId: string, command: CreateWarehouseCommand): Promise<WarehouseEntity> {
+  async create(
+    tenantId: string,
+    command: CreateWarehouseCommand,
+  ): Promise<WarehouseEntity> {
     this.validateCreateCommand(command);
 
-    const codeExists = await this.repository.existsByCode(tenantId, command.code);
+    const codeExists = await this.repository.existsByCode(
+      tenantId,
+      command.code,
+    );
     if (codeExists) {
       throw new WarehouseCodeDuplicateError(command.code);
     }
@@ -54,7 +60,10 @@ export class WarehouseService {
     return entity;
   }
 
-  async findByCode(tenantId: string, code: string): Promise<WarehouseEntity | null> {
+  async findByCode(
+    tenantId: string,
+    code: string,
+  ): Promise<WarehouseEntity | null> {
     return this.repository.findByCode(tenantId, code);
   }
 

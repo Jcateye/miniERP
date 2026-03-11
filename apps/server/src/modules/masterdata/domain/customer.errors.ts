@@ -1,11 +1,18 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 /**
  * Customer 编码重复
  */
 export class CustomerCodeDuplicateError extends ConflictException {
   constructor(code: string) {
-    super(`Customer with code "${code}" already exists`, 'MASTERDATA_CUSTOMER_CODE_DUPLICATE');
+    super(
+      `Customer with code "${code}" already exists`,
+      'MASTERDATA_CUSTOMER_CODE_DUPLICATE',
+    );
   }
 }
 
@@ -14,7 +21,10 @@ export class CustomerCodeDuplicateError extends ConflictException {
  */
 export class CustomerNotFoundError extends NotFoundException {
   constructor(id: string) {
-    super(`Customer with id "${id}" not found`, 'MASTERDATA_CUSTOMER_NOT_FOUND');
+    super(
+      `Customer with id "${id}" not found`,
+      'MASTERDATA_CUSTOMER_NOT_FOUND',
+    );
   }
 }
 

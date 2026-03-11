@@ -104,18 +104,14 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
     });
   }
 
-  async getAllLedgerEntries(
-    tenantId: string,
-  ): Promise<InventoryLedgerEntry[]> {
+  async getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]> {
     const state = this.stateByTenant.get(tenantId) ?? createTenantState();
     return [...state.ledgerEntries.values()].map((entry) => ({ ...entry }));
   }
 }
 
 class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
-  constructor(
-    private readonly workingState: TenantState,
-  ) {}
+  constructor(private readonly workingState: TenantState) {}
 
   async findIdempotencyRecord(
     actionType: InventoryIdempotencyAction,

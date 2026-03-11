@@ -21,10 +21,16 @@ export class SupplierService {
     private readonly repository: SupplierRepository,
   ) {}
 
-  async create(tenantId: string, command: CreateSupplierCommand): Promise<SupplierEntity> {
+  async create(
+    tenantId: string,
+    command: CreateSupplierCommand,
+  ): Promise<SupplierEntity> {
     this.validateCreateCommand(command);
 
-    const codeExists = await this.repository.existsByCode(tenantId, command.code);
+    const codeExists = await this.repository.existsByCode(
+      tenantId,
+      command.code,
+    );
     if (codeExists) {
       throw new SupplierCodeDuplicateError(command.code);
     }
@@ -55,7 +61,10 @@ export class SupplierService {
     return entity;
   }
 
-  async findByCode(tenantId: string, code: string): Promise<SupplierEntity | null> {
+  async findByCode(
+    tenantId: string,
+    code: string,
+  ): Promise<SupplierEntity | null> {
     return this.repository.findByCode(tenantId, code);
   }
 

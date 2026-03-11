@@ -1,5 +1,8 @@
 import { describe, expect, it, beforeEach } from '@jest/globals';
-import { WarehouseService, WAREHOUSE_REPOSITORY_TOKEN } from './warehouse.service';
+import {
+  WarehouseService,
+  WAREHOUSE_REPOSITORY_TOKEN,
+} from './warehouse.service';
 import { InMemoryWarehouseRepository } from '../infrastructure/in-memory-warehouse.repository';
 import {
   WarehouseCodeDuplicateError,
@@ -94,9 +97,9 @@ describe('WarehouseService', () => {
     });
 
     it('throws when not found', async () => {
-      await expect(service.findById(tenantId, 'nonexistent')).rejects.toBeInstanceOf(
-        WarehouseNotFoundError,
-      );
+      await expect(
+        service.findById(tenantId, 'nonexistent'),
+      ).rejects.toBeInstanceOf(WarehouseNotFoundError);
     });
   });
 
@@ -142,7 +145,7 @@ describe('WarehouseService', () => {
 
     it('filters by isActive', async () => {
       const all = await service.findAll(tenantId);
-      await service.update(tenantId, all[0]!.id, { isActive: false });
+      await service.update(tenantId, all[0].id, { isActive: false });
       const results = await service.findAll(tenantId, { isActive: true });
       expect(results).toHaveLength(2);
     });
@@ -155,7 +158,9 @@ describe('WarehouseService', () => {
         name: 'Original',
       });
 
-      const updated = await service.update(tenantId, created.id, { name: 'Updated' });
+      const updated = await service.update(tenantId, created.id, {
+        name: 'Updated',
+      });
       expect(updated?.name).toBe('Updated');
     });
 
@@ -165,7 +170,9 @@ describe('WarehouseService', () => {
         name: 'Active Test',
       });
 
-      const updated = await service.update(tenantId, created.id, { isActive: false });
+      const updated = await service.update(tenantId, created.id, {
+        isActive: false,
+      });
       expect(updated?.isActive).toBe(false);
     });
 
@@ -197,15 +204,15 @@ describe('WarehouseService', () => {
       const result = await service.delete(tenantId, created.id);
       expect(result).toBe(true);
 
-      await expect(service.findById(tenantId, created.id)).rejects.toBeInstanceOf(
-        WarehouseNotFoundError,
-      );
+      await expect(
+        service.findById(tenantId, created.id),
+      ).rejects.toBeInstanceOf(WarehouseNotFoundError);
     });
 
     it('throws when not found', async () => {
-      await expect(service.delete(tenantId, 'nonexistent')).rejects.toBeInstanceOf(
-        WarehouseNotFoundError,
-      );
+      await expect(
+        service.delete(tenantId, 'nonexistent'),
+      ).rejects.toBeInstanceOf(WarehouseNotFoundError);
     });
   });
 

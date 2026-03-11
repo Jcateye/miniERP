@@ -19,12 +19,18 @@ export class InMemoryWarehouseRepository implements WarehouseRepository {
     return tenantStore;
   }
 
-  async findById(tenantId: string, id: string): Promise<WarehouseEntity | null> {
+  async findById(
+    tenantId: string,
+    id: string,
+  ): Promise<WarehouseEntity | null> {
     const tenantStore = this.getTenantStore(tenantId);
     return tenantStore.get(id) ?? null;
   }
 
-  async findByCode(tenantId: string, code: string): Promise<WarehouseEntity | null> {
+  async findByCode(
+    tenantId: string,
+    code: string,
+  ): Promise<WarehouseEntity | null> {
     const tenantStore = this.getTenantStore(tenantId);
     for (const entity of tenantStore.values()) {
       if (entity.code === code) {
