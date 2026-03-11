@@ -22,7 +22,7 @@ paths:
 - 使用 TypeScript 联合类型定义状态
 - 状态变更记录到审计日志
 
-## 模板系统
+## 页面治理
 
 ### 页面 family 治理（正式定义）
 1. **T1 Hub / Dashboard family** - 聚合入口、概览、配置首页
@@ -37,6 +37,39 @@ paths:
 - 允许抽取 primitives / shells / 局部业务块。
 - 禁止新的万能页面 assembly。
 - `WorkbenchAssembly` / `OverviewAssembly` 仅允许用于 legacy fallback、临时页、未重构页。
+
+### 页面状态定义
+- `placeholder`：仅占位，不得宣称页面完成。
+- `legacy-assembly`：仍通过旧 assembly / fallback 运行，不得宣称 page-level 重构完成。
+- `page-view`：已有独立 page-level view，但尚未满足完整完成标准。
+- `verified`：设计一致性、数据联调、测试通过三项均满足，但尚未完成发布前治理闭环。
+- `production`：代码审查与文档同步也已完成，才可算正式完成。
+
+规则：
+- 路由可访问不等于页面完成。
+- `page-view` 不等于 `verified`。
+- `verified` 不等于 `production`。
+- 页面盘点与 PR 描述必须显式标注页面状态。
+
+### 页面完成标准
+页面升级为 `production` 必须同时满足：
+1. 设计一致性：family 归类正确，具体 UI 与映射设计稿一致，无 legacy 痕迹。
+2. 数据联调：通过 VM Hook + BFF 接入，且使用冻结后的共享接口。
+3. 测试通过：完成与改动范围匹配的 lint / build / test / 手动验证。
+4. 代码审查：PR reviewer 已完成必要审查。
+5. 文档同步：四文档与本规则文件已同步。
+
+### 并行开发接口冻结机制
+多人并行前，必须先冻结：
+1. `packages/shared` 的共享类型、常量、状态枚举
+2. BFF request / response DTO
+3. shells / primitives 的公开 props
+4. 页面状态定义、完成标准、门禁口径
+
+冻结后若需改动：
+1. 先更新四文档与本规则文件
+2. 再通知相关 agent
+3. 最后修改代码
 
 ### 组件组织
 ```
