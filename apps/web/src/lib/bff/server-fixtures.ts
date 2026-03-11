@@ -7,6 +7,7 @@ import type { DocumentDetailDto, DocumentListItemDto, PaginationEnvelope } from 
 
 const DEV_FALLBACK_AUTH_CONTEXT_SECRET = 'dev-only-auth-context-secret';
 const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
+const DEV_AUTHORIZATION_HEADER = 'Bearer dev-token';
 const BFF_FALLBACK_ENV = 'MINIERP_ENABLE_BFF_FIXTURE_FALLBACK';
 const BFF_FALLBACK_HIT_HEADER = 'x-bff-fallback-hit';
 const BFF_FALLBACK_REASON_HEADER = 'x-bff-fallback-reason';
@@ -180,6 +181,10 @@ export function createServerHeaders() {
     'x-tenant-id': tenantId,
     'x-request-id': randomUUID(),
   };
+
+  if (nodeEnv === 'development') {
+    headers.authorization = DEV_AUTHORIZATION_HEADER;
+  }
 
   const encodedContext = base64UrlEncode(JSON.stringify(authContext));
   headers['x-auth-context'] = encodedContext;
