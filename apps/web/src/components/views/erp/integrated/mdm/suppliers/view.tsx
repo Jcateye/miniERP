@@ -1,11 +1,18 @@
 'use client';
 
-import React from 'react';
-import { ArrowDown, ArrowUp, Plus, Search } from 'lucide-react';
+import * as React from 'react';
+import { ArrowDown, ArrowUp, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
-import { parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import {
+  SupplierForm,
+  type SupplierFormData,
+} from '@/components/views/erp/integrated/mdm/suppliers/supplier-form';
+import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
 import { useSupplierList } from '@/lib/hooks/use-supplier-list';
 import { supplierViewMetaByCode } from '@/lib/mocks/erp-list-fixtures';
+
+import type { Supplier } from '@minierp/shared';
 
 const DEFAULT_PARAMS = {
   order: 'asc',
@@ -15,19 +22,67 @@ const DEFAULT_PARAMS = {
 };
 
 type SupplierSortField = 'contact' | 'id' | 'name' | 'orders' | 'status';
+
 type SupplierRow = {
+  address: string;
   cert: string;
+  code: string;
   contact: string;
+  email: string;
   id: string;
   name: string;
   orders: number;
-  status: string;
+  phone: string;
+  status: Supplier['status'];
+  statusLabel: string;
+};
+
+type Notice = {
+  id: number;
+  message: string;
+  tone: 'error' | 'success';
 };
 
 export default function SuppliersPage() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
-  const { data, error, loading, pagination } = useSupplierList();
+  const { data, error, loading, pagination, reload } = useSupplierList();
   const [draftQuery, setDraftQuery] = React.useState(params.q);
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
+  const [notice, setNotice] = React.useState<Notice | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = React.useState<SupplierRow | null>(null);
+
+  const pageRows = React.useMemo<SupplierRow[]>(
+    () =>
+      data.map((item) => {
+        const meta = supplierViewMetaByCode[item.code];
+
+        return {
+          address: item.address ?? '',
+          cert: meta?.cert ?? '-',
+          code: item.code,
+          contact: item.contactName ?? '-',
+          email: item.email ?? '',
+          id: item.id,
+          name: item.name,
+          orders: meta?.orders ?? 0,
+          phone: item.phone ?? '',
+          status: item.status,
+          statusLabel: getStatusLabel(item.status),
+        };
+      }),
+    [data],
+  );
+
+  const showNotice = React.useCallback((message: string, tone: Notice['tone']) => {
+    setNotice({
+      id: Date.now(),
+      message,
+      tone,
+    });
+  }, []);
 
   React.useEffect(() => {
     setDraftQuery(params.q);
@@ -44,22 +99,17 @@ export default function SuppliersPage() {
     }
   }, [loading, pagination.page, params.page, updateParams]);
 
-  const pageRows = React.useMemo<SupplierRow[]>(
-    () =>
-      data.map((item) => {
-        const meta = supplierViewMetaByCode[item.code];
+  React.useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
 
-        return {
-          cert: meta?.cert ?? '-',
-          contact: item.contactName ?? '-',
-          id: item.code,
-          name: item.name,
-          orders: meta?.orders ?? 0,
-          status: getStatusLabel(item.status),
-        };
-      }),
-    [data],
-  );
+    const timer = window.setTimeout(() => {
+      setNotice((current) => (current?.id === notice.id ? null : current));
+    }, 3200);
+
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -73,166 +123,350 @@ export default function SuppliersPage() {
     updateParams({ order: nextOrder, sort: field });
   };
 
+  const handleCreate = async (formData: SupplierFormData) => {
+    const response = await requestSupplierMutation('/api/bff/mdm/suppliers', {
+      body: JSON.stringify(formData),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const message = await extractErrorMessage(response, '新增失败');
+      showNotice(message, 'error');
+      throw new Error(message);
+    }
+
+    setCreateDialogOpen(false);
+    reload();
+    showNotice('新增成功', 'success');
+  };
+
+  const handleUpdate = async (formData: SupplierFormData) => {
+    if (!selectedSupplier) {
+      throw new Error('未选择要编辑的供应商');
+    }
+
+    const response = await requestSupplierMutation(
+      `/api/bff/mdm/suppliers/${selectedSupplier.id}`,
+      {
+        body: JSON.stringify(formData),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'PUT',
+      },
+    );
+
+    if (!response.ok) {
+      const message = await extractErrorMessage(response, '更新失败');
+      showNotice(message, 'error');
+      throw new Error(message);
+    }
+
+    setEditDialogOpen(false);
+    reload();
+    showNotice('更新成功', 'success');
+  };
+
+  const handleDelete = async () => {
+    if (!selectedSupplier) {
+      showNotice('未选择要删除的供应商', 'error');
+      return;
+    }
+
+    setDeleteLoading(true);
+    const response = await requestSupplierMutation(
+      `/api/bff/mdm/suppliers/${selectedSupplier.id}`,
+      {
+        method: 'DELETE',
+      },
+    );
+    setDeleteLoading(false);
+
+    if (!response.ok) {
+      const message = await extractErrorMessage(response, '删除失败');
+      showNotice(message, 'error');
+      return;
+    }
+
+    setDeleteDialogOpen(false);
+    reload();
+    showNotice('删除成功', 'success');
+  };
+
   const totalPages = Math.max(1, pagination.totalPages);
+  const pageNumbers = buildPagination(pagination.page, totalPages);
   const rangeStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
   const rangeEnd = pagination.total === 0 ? 0 : rangeStart + pageRows.length - 1;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">供应商管理</h1>
-          <p className="text-sm text-muted mt-1">Suppliers - 供应链协作</p>
-        </div>
-        <button className="bg-primary text-white px-4 py-2 rounded-sm flex items-center gap-2 text-sm font-bold hover:opacity-90 transition-opacity shadow-sm whitespace-nowrap">
-          <Plus className="w-4 h-4" />
-          新增供应商
-        </button>
-      </div>
-
-      <form className="bg-white border border-border rounded-sm p-2" onSubmit={handleSearchSubmit}>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-          <input
-            type="text"
-            value={draftQuery}
-            onChange={(event) => setDraftQuery(event.target.value)}
-            placeholder="搜索供应商名称、联系人、编号..."
-            className="w-full h-10 pl-10 pr-24 bg-transparent text-sm outline-none"
-          />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            {params.q ? (
-              <button
-                type="button"
-                className="text-xs text-muted hover:text-foreground"
-                onClick={() => {
-                  setDraftQuery('');
-                  updateParams({ page: '1', q: '' });
-                }}
-              >
-                清除
-              </button>
-            ) : null}
-            <button className="h-8 px-3 bg-primary text-white text-xs font-medium rounded-sm" type="submit">
-              搜索
-            </button>
+    <>
+      <div className="flex h-full flex-col gap-6 p-8 pb-20 sm:p-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">供应商管理</h1>
+            <p className="mt-1 text-sm text-muted">Suppliers - 供应链协作</p>
           </div>
+          <button
+            className="flex items-center gap-2 bg-primary px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
+            onClick={() => setCreateDialogOpen(true)}
+            type="button"
+          >
+            <Plus className="h-4 w-4" />
+            新增供应商
+          </button>
         </div>
-      </form>
 
-      <div className="flex justify-between items-center text-xs text-muted">
-        <span>共 {pagination.total} 家供应商</span>
-        <span>
-          排序: {getSortLabel(params.sort as SupplierSortField)} / {params.order === 'desc' ? '降序' : '升序'}
-        </span>
-      </div>
+        {notice ? <InlineNotice message={notice.message} tone={notice.tone} /> : null}
 
-      <div className="bg-white border border-border rounded-sm overflow-hidden mt-2 text-sm">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-background border-b border-border">
-              <th className="px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">
-                <SortButton active={params.sort === 'id'} direction={params.order} label="编号" onClick={() => handleSort('id')} />
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">
-                <SortButton active={params.sort === 'name'} direction={params.order} label="供应商名称" onClick={() => handleSort('name')} />
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">
-                <SortButton active={params.sort === 'contact'} direction={params.order} label="联系人" onClick={() => handleSort('contact')} />
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">联系资质</th>
-              <th className="px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider text-right">
-                <SortButton active={params.sort === 'orders'} direction={params.order} label="合作订单" onClick={() => handleSort('orders')} />
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider text-right">
-                <SortButton active={params.sort === 'status'} direction={params.order} label="状态" onClick={() => handleSort('status')} />
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {loading ? (
-              <tr>
-                <td className="px-4 py-8 text-center text-sm text-muted" colSpan={6}>
-                  加载中...
-                </td>
-              </tr>
-            ) : null}
-            {!loading && error ? (
-              <tr>
-                <td className="px-4 py-8 text-center text-sm text-red-600" colSpan={6}>
-                  错误: {error.message}
-                </td>
-              </tr>
-            ) : null}
-            {!loading && !error && pageRows.map((item) => (
-              <tr key={item.id} className="hover:bg-background/50 transition-colors group">
-                <td className="px-4 py-4 text-primary font-mono font-bold italic tracking-wider">{item.id}</td>
-                <td className="px-4 py-4 font-bold text-foreground">{item.name}</td>
-                <td className="px-4 py-4 text-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                      {item.contact[0]}
-                    </span>
-                    {item.contact}
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-muted text-xs">{item.cert}</td>
-                <td className="px-4 py-4 text-right font-bold text-foreground font-mono">{item.orders}</td>
-                <td className="px-4 py-4 text-right">
-                  <span className={getStatusClassName(item.status)}>{item.status}</span>
-                </td>
-              </tr>
-            ))}
-            {!loading && !error && pageRows.length === 0 ? (
-              <tr>
-                <td className="px-4 py-6 text-center text-sm text-muted" colSpan={6}>
-                  没有匹配的供应商记录。
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+        <form className="rounded-sm border border-border bg-white p-2" onSubmit={handleSearchSubmit}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              className="h-10 w-full bg-transparent pl-10 pr-24 text-sm outline-none"
+              onChange={(event) => setDraftQuery(event.target.value)}
+              placeholder="搜索供应商名称、联系人、编号..."
+              type="text"
+              value={draftQuery}
+            />
+            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+              {params.q ? (
+                <button
+                  className="text-xs text-muted hover:text-foreground"
+                  onClick={() => {
+                    setDraftQuery('');
+                    updateParams({ page: '1', q: '' });
+                  }}
+                  type="button"
+                >
+                  清除
+                </button>
+              ) : null}
+              <button className="h-8 rounded-sm bg-primary px-3 text-xs font-medium text-white" type="submit">
+                搜索
+              </button>
+            </div>
+          </div>
+        </form>
 
-        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
-          <span className="text-muted">
-            显示 {rangeStart}-{rangeEnd} / 共 {pagination.total} 条
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>共 {pagination.total} 家供应商</span>
+          <span>
+            排序: {getSortLabel(params.sort as SupplierSortField)} /{' '}
+            {params.order === 'desc' ? '降序' : '升序'}
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              className="px-3 py-1 border border-border bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={pagination.page === 1 || loading}
-              onClick={() => updateParams({ page: String(pagination.page - 1) })}
-              type="button"
-            >
-              上一页
-            </button>
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+        </div>
+
+        <div className="overflow-hidden rounded-sm border border-border bg-white text-sm">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-border bg-background">
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted">
+                  <SortButton
+                    active={params.sort === 'id'}
+                    direction={params.order}
+                    label="编号"
+                    onClick={() => handleSort('id')}
+                  />
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted">
+                  <SortButton
+                    active={params.sort === 'name'}
+                    direction={params.order}
+                    label="供应商名称"
+                    onClick={() => handleSort('name')}
+                  />
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted">
+                  <SortButton
+                    active={params.sort === 'contact'}
+                    direction={params.order}
+                    label="联系人"
+                    onClick={() => handleSort('contact')}
+                  />
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted">
+                  联系资质
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-muted">
+                  <SortButton
+                    active={params.sort === 'orders'}
+                    direction={params.order}
+                    label="合作订单"
+                    onClick={() => handleSort('orders')}
+                  />
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-muted">
+                  <SortButton
+                    active={params.sort === 'status'}
+                    direction={params.order}
+                    label="状态"
+                    onClick={() => handleSort('status')}
+                  />
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-muted">
+                  操作
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-sm text-muted" colSpan={7}>
+                    加载中...
+                  </td>
+                </tr>
+              ) : null}
+              {!loading && error ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-sm text-red-600" colSpan={7}>
+                    错误: {error.message}
+                  </td>
+                </tr>
+              ) : null}
+              {!loading && !error
+                ? pageRows.map((item) => (
+                    <tr key={item.id} className="group transition-colors hover:bg-background/50">
+                      <td className="px-4 py-4 font-mono font-bold italic tracking-wider text-primary">
+                        {item.code}
+                      </td>
+                      <td className="px-4 py-4 font-bold text-foreground">{item.name}</td>
+                      <td className="px-4 py-4 text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                            {item.contact === '-' ? '无' : item.contact[0]}
+                          </span>
+                          {item.contact}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-xs text-muted">{item.cert}</td>
+                      <td className="px-4 py-4 text-right font-mono font-bold text-foreground">
+                        {item.orders}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <span className={getStatusClassName(item.status)}>{item.statusLabel}</span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
+                            onClick={() => {
+                              setSelectedSupplier(item);
+                              setEditDialogOpen(true);
+                            }}
+                            type="button"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            编辑
+                          </button>
+                          <button
+                            className="inline-flex h-8 items-center gap-1 border border-[#E7B9B9] bg-white px-3 text-xs font-medium text-[#B54A4A] transition-colors hover:bg-[#FFF5F5]"
+                            onClick={() => {
+                              setSelectedSupplier(item);
+                              setDeleteDialogOpen(true);
+                            }}
+                            type="button"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            删除
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                : null}
+              {!loading && !error && pageRows.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-6 text-center text-sm text-muted" colSpan={7}>
+                    没有匹配的供应商记录。
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+
+          <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
+            <span className="text-muted">
+              显示 {rangeStart}-{rangeEnd} / 共 {pagination.total} 条
+            </span>
+            <div className="flex items-center gap-1">
               <button
-                key={page}
-                className={`px-3 py-1 border text-xs ${
-                  page === pagination.page
-                    ? 'border-[#1a1a1a] bg-[#1a1a1a] text-white'
-                    : 'border-border bg-white'
-                }`}
-                onClick={() => updateParams({ page: String(page) })}
+                className="border border-border bg-white px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={pagination.page === 1 || loading}
+                onClick={() => updateParams({ page: String(pagination.page - 1) })}
                 type="button"
               >
-                {page}
+                上一页
               </button>
-            ))}
-            <button
-              className="px-3 py-1 border border-border bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={pagination.page === totalPages || loading}
-              onClick={() => updateParams({ page: String(pagination.page + 1) })}
-              type="button"
-            >
-              下一页
-            </button>
+              {pageNumbers.map((page) => (
+                <button
+                  className={`border px-3 py-1 text-xs ${
+                    page === pagination.page
+                      ? 'border-[#1a1a1a] bg-[#1a1a1a] text-white'
+                      : 'border-border bg-white'
+                  }`}
+                  key={page}
+                  onClick={() => updateParams({ page: String(page) })}
+                  type="button"
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                className="border border-border bg-white px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={pagination.page === totalPages || loading}
+                onClick={() => updateParams({ page: String(pagination.page + 1) })}
+                type="button"
+              >
+                下一页
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <SupplierForm
+        mode="create"
+        onOpenChange={setCreateDialogOpen}
+        onSubmit={handleCreate}
+        open={createDialogOpen}
+      />
+
+      <SupplierForm
+        initialData={selectedSupplier ? toSupplierFormData(selectedSupplier) : undefined}
+        mode="edit"
+        onOpenChange={setEditDialogOpen}
+        onSubmit={handleUpdate}
+        open={editDialogOpen}
+      />
+
+      <DeleteConfirmDialog
+        description={
+          selectedSupplier
+            ? `将删除供应商「${selectedSupplier.code} / ${selectedSupplier.name}」，此操作无法撤销。`
+            : '此操作无法撤销。'
+        }
+        loading={deleteLoading}
+        onConfirm={handleDelete}
+        onOpenChange={setDeleteDialogOpen}
+        open={deleteDialogOpen}
+        title="确认删除供应商"
+      />
+    </>
   );
+}
+
+function toSupplierFormData(row: SupplierRow): SupplierFormData {
+  return {
+    address: row.address,
+    code: row.code,
+    contact: row.contact === '-' ? '' : row.contact,
+    email: row.email,
+    name: row.name,
+    phone: row.phone,
+  };
 }
 
 function getSortLabel(field: SupplierSortField) {
@@ -250,19 +484,19 @@ function getSortLabel(field: SupplierSortField) {
   }
 }
 
-function getStatusClassName(status: SupplierRow['status']) {
-  if (status === '停用') {
-    return 'px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-tight';
+function getStatusClassName(status: Supplier['status']) {
+  if (status === 'disabled') {
+    return 'rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight text-gray-500';
   }
 
-  if (status === '审核中') {
-    return 'px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold uppercase tracking-tight';
+  if (status === 'warning') {
+    return 'rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight text-amber-700';
   }
 
-  return 'px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-bold uppercase tracking-tight';
+  return 'rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight text-green-600';
 }
 
-function getStatusLabel(status: 'disabled' | 'normal' | 'warning') {
+function getStatusLabel(status: Supplier['status']) {
   switch (status) {
     case 'disabled':
       return '停用';
@@ -271,6 +505,20 @@ function getStatusLabel(status: 'disabled' | 'normal' | 'warning') {
     default:
       return '启用';
   }
+}
+
+function InlineNotice({ message, tone }: { message: string; tone: Notice['tone'] }) {
+  return (
+    <div
+      className={`rounded-sm border px-4 py-3 text-sm ${
+        tone === 'success'
+          ? 'border-[#B6D7BD] bg-[#F2FBF4] text-[#2E7D32]'
+          : 'border-[#E7B9B9] bg-[#FFF5F5] text-[#B54A4A]'
+      }`}
+    >
+      {message}
+    </div>
+  );
 }
 
 function SortButton({
@@ -292,4 +540,37 @@ function SortButton({
       ) : null}
     </button>
   );
+}
+
+async function requestSupplierMutation(input: RequestInfo | URL, init: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch {
+    return new Response(
+      JSON.stringify({
+        error: {
+          message: '网络请求失败，请稍后重试',
+        },
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        status: 503,
+      },
+    );
+  }
+}
+
+async function extractErrorMessage(response: Response, fallbackMessage: string) {
+  try {
+    const payload = (await response.json()) as {
+      error?: { message?: string };
+      message?: string;
+    };
+
+    return payload.error?.message || payload.message || fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
 }
