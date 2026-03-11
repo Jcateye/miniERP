@@ -17,13 +17,31 @@
 ## 2) 项目定位
 
 miniERP 是一个 **design-first + runnable monorepo**：
+
 - 产品意图：`designs/`
 - 运行时代码：`apps/web`、`apps/server`、`packages/shared`
 
 若设计与代码冲突：
+
 1. 用 `designs/` 理解业务意图
 2. 以 `apps/*` 当前实现作为运行事实
 3. 以四文档和 `.claude/rules/erp-rules.md` 判断能否继续实现
+
+### 2.1 当前项目信息（2026-03-11）
+
+- 页面状态台账当前统计：`production` 1 页、`verified` 3 页、`page-view` 7 页
+- 最新进入 `page-view` 的页面：
+  - `/mdm/skus`
+  - `/mdm/customers`
+  - `/mdm/suppliers`
+  - `/inventory/balance`
+  - `/inventory/ledger`
+  - `/sales/orders`
+  - `/procure/purchase-orders`
+- 最近完成 PR：
+  - `#30` 二级菜单样式修复
+  - `#31` 列表页 URL 状态管理 + 核心类型定义
+  - `#32` 7 个模块的 VM Hook + BFF 页面集成
 
 ---
 
@@ -87,6 +105,7 @@ bun run --filter server test:e2e -- test/app.e2e-spec.ts
 ```
 
 注意：
+
 - `apps/web` 当前无 `test` script。
 - 根 `db:*` 代理到 server Prisma 脚本。
 - 本地基础设施与访问地址以 `docs/Macmini-infra.md` 为准。
@@ -97,13 +116,13 @@ bun run --filter server test:e2e -- test/app.e2e-spec.ts
 
 ERP 页面只允许五种状态：
 
-| 状态 | 判定 | 允许说法 | 不允许说法 |
-| --- | --- | --- | --- |
-| `placeholder` | 只有占位内容或待实现路由 | 路由占坑、待设计/待联调 | 页面完成 |
-| `legacy-assembly` | 仍经由旧 assembly/fallback 主路径运行 | 历史兼容、过渡中 | 独立 page-level view 已完成 |
-| `page-view` | 已有独立 page-level view，但未满足全部完成标准 | 已开始正式重构 | 已 verified |
-| `verified` | 设计一致性 + 数据联调 + 测试通过 | 候选完成 | `production` |
-| `production` | 已通过代码审查并完成文档同步，进入正式运行口径 | 正式完成 | 无 |
+| 状态              | 判定                                           | 允许说法                | 不允许说法                  |
+| ----------------- | ---------------------------------------------- | ----------------------- | --------------------------- |
+| `placeholder`     | 只有占位内容或待实现路由                       | 路由占坑、待设计/待联调 | 页面完成                    |
+| `legacy-assembly` | 仍经由旧 assembly/fallback 主路径运行          | 历史兼容、过渡中        | 独立 page-level view 已完成 |
+| `page-view`       | 已有独立 page-level view，但未满足全部完成标准 | 已开始正式重构          | 已 verified                 |
+| `verified`        | 设计一致性 + 数据联调 + 测试通过               | 候选完成                | `production`                |
+| `production`      | 已通过代码审查并完成文档同步，进入正式运行口径 | 正式完成                | 无                          |
 
 执行要求：
 
@@ -147,11 +166,19 @@ ERP 页面只允许五种状态：
 4. 代码审查：确认门禁项有 reviewer 结论。
 5. 文档同步：回写文档、状态、风险。
 
+### E. 文档同步工作流（适用于本次 P2 文档治理）
+
+1. 先更新 `docs/page-state-ledger.md`，把页面状态、完成标准结论、最后更新时间、PR 号写全。
+2. 再同步四文档中的项目进度、当前状态、最近完成 PR，避免“代码已变、口径没变”。
+3. 最后在 `memory/<date>.md` 记录当天完成事项、PR 落点、待办与风险。
+4. 若本次同步改变了核心事实，再额外回写 `.claude/rules/erp-rules.md`。
+
 ---
 
 ## 7) 架构执行要点（Agent 视角）
 
 ### A. 前端：设计稿驱动 + family shells + page views
+
 - 路由主入口：`apps/web/src/app/(dashboard)/...`
 - 页面级 view：`apps/web/src/components/views/erp/`
 - family shells：`apps/web/src/components/shells/erp/`
@@ -159,11 +186,13 @@ ERP 页面只允许五种状态：
 - 语义配置与 legacy：`apps/web/src/components/business/`
 
 默认策略：
+
 - 已有设计稿映射的正式页面，优先实现 page-level view。
 - 只复用 primitives / shells / 局部业务块，不要新造一次性大模板，也不要复活万能 assembly。
 - `apps/web/src/components/business/erp-page-assemblies.tsx`、旧 `overview-layout.tsx`、`workbench-layout.tsx` 仅作 `legacy-assembly` 参考，不是重构默认路径。
 
 ### B. 凭证模型是跨域能力
+
 - 单据级凭证 + 行级凭证（line drawer）
 - 相关组件：
   - `apps/web/src/components/evidence/evidence-panel.tsx`
@@ -173,16 +202,19 @@ ERP 页面只允许五种状态：
   - `apps/web/src/app/api/bff/evidence/links/route.ts`
 
 ### C. Web 数据链路：SDK -> BFF -> Backend
+
 - 客户端通过 `lib/bff/client.ts` + `lib/sdk/client.ts` 请求 `/api/bff/*`
 - BFF 转发后端并注入租户/签名头
 - 部分 GET 在上游不可用时仅在 `development/test` 回退 fixtures
 
 ### D. Server 全局约束
+
 - `main.ts`：auth context、tenant context、中间件 + 全局 ValidationPipe
 - `app.module.ts`：全局响应包裹拦截器 + 全局异常过滤器
 - 响应约定被 web SDK/BFF 依赖
 
 ### E. 契约边界
+
 - `packages/shared` 是前后端共享契约边界
 - 新增跨层数据结构时优先沉淀 shared
 
@@ -191,6 +223,7 @@ ERP 页面只允许五种状态：
 ## 8) 业务硬约束（必须遵守）
 
 来自 `.claude/rules/erp-rules.md`：
+
 - 单据号：`DOC-{type}-{YYYYMMDD}-{seq}`
 - 金额：必须使用 `decimal.js`
 - 状态：显式流转 + 可审计
@@ -276,12 +309,14 @@ PR 描述至少应回答：
 ## 14) 文档一致性约定（四文档）
 
 以下四个文件共享同一组“核心事实”：
+
 - `CLAUDE.md`
 - `AGENTS.md`
 - `README.md`
 - `CLAW.md`
 
 更新原则：
+
 1. 先改 `CLAUDE.md` 的核心事实
 2. 同步改另外三份，但保留各自受众风格
 3. 若变更命令、架构、状态定义、完成标准、接口冻结机制，四份文档必须同批更新

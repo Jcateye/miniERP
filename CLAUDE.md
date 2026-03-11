@@ -72,13 +72,13 @@ bun run --filter server test:e2e -- test/app.e2e-spec.ts
 
 ERP 正式页面只允许处于以下五种状态之一：
 
-| 状态 | 定义 | 允许用途 | 禁止宣称 |
-| --- | --- | --- | --- |
-| `placeholder` | 仅占位，可能只有标题、空壳或说明 | 占坑路由、等待设计/契约 | 已完成、已复刻 |
-| `legacy-assembly` | 仍由旧 assembly / fallback 路径支撑 | 兼容历史路由、过渡期运行 | page-level 重构完成 |
-| `page-view` | 已有独立 page-level view，但尚未完成联调或验证 | 设计复刻、联调进行中 | verified |
-| `verified` | 设计一致性、数据联调、测试三项均通过，但尚未完成发布前治理闭环 | 候选完成态 | production |
-| `production` | 已完成代码审查、文档同步，并进入正式运行口径 | 正式完成口径 | 无 |
+| 状态              | 定义                                                           | 允许用途                 | 禁止宣称            |
+| ----------------- | -------------------------------------------------------------- | ------------------------ | ------------------- |
+| `placeholder`     | 仅占位，可能只有标题、空壳或说明                               | 占坑路由、等待设计/契约  | 已完成、已复刻      |
+| `legacy-assembly` | 仍由旧 assembly / fallback 路径支撑                            | 兼容历史路由、过渡期运行 | page-level 重构完成 |
+| `page-view`       | 已有独立 page-level view，但尚未完成联调或验证                 | 设计复刻、联调进行中     | verified            |
+| `verified`        | 设计一致性、数据联调、测试三项均通过，但尚未完成发布前治理闭环 | 候选完成态               | production          |
+| `production`      | 已完成代码审查、文档同步，并进入正式运行口径                   | 正式完成口径             | 无                  |
 
 判定规则：
 
@@ -112,6 +112,28 @@ ERP 正式页面只允许处于以下五种状态之一：
 
 若前 3 项任一缺失，页面不得标记为 `verified`。
 若第 4 或第 5 项缺失，页面不得标记为 `production`。
+
+## 4.1 当前进展（2026-03-11）
+
+当前页面状态快照：
+
+- `production`：1 页（`/workspace`）
+- `verified`：3 页（`/mdm/items`、`/reports`、`/reports/[slug]`）
+- `page-view`：7 页（`/mdm/skus`、`/mdm/customers`、`/mdm/suppliers`、`/inventory/balance`、`/inventory/ledger`、`/sales/orders`、`/procure/purchase-orders`）
+
+这 7 个 `page-view` 页面的当前结论一致：
+
+- 设计一致性：已满足
+- 数据联调：已满足（VM Hook + BFF mock）
+- 测试通过：待补
+- 代码审查：待完成
+- 文档同步：已完成
+
+最近完成的 PR：
+
+- `#30` `fix(web): 修复二级菜单样式 - 紧挨着一级菜单显示`
+- `#31` `feat(web): 列表页 URL 状态管理 + 核心类型定义`
+- `#32` `feat(web): 数据联调 - VM Hook + BFF + 页面集成（7 个模块）`
 
 ## 5. 架构决策记录（ADR）
 
@@ -151,13 +173,13 @@ ERP 正式页面只允许处于以下五种状态之一：
 
 ## 6. 技术债台账
 
-| 债项 | 当前表现 | 风险 | 退出条件 |
-| --- | --- | --- | --- |
-| legacy assembly 仍在运行路径 | 部分页面仍依赖 `WorkbenchAssembly` / `OverviewAssembly` | 设计偏移、难以验证完成度 | 页面迁移到独立 page-level view，并移出默认主路径 |
-| 页面状态缺少统一标记 | 历史盘点容易把可访问页面算作完成 | 进度失真、排期失真 | 路由盘点统一采用五状态定义 |
-| 接口冻结机制未制度化 | 并行开发时 shared/BFF 容易边改边用 | 多 agent 冲突、页面返工 | 每轮并行任务先产出冻结清单 |
-| web 验证链路偏弱 | `apps/web` 无独立 test script | “看起来能用”替代验证 | 补足页面级验证脚本或稳定的手动门禁记录 |
-| fixture fallback 容易掩盖上游故障 | development/test 可回退 fixtures | 误判联调完成 | 在页面状态判断中显式区分“真实联调”与“fixture 降级” |
+| 债项                              | 当前表现                                                | 风险                     | 退出条件                                           |
+| --------------------------------- | ------------------------------------------------------- | ------------------------ | -------------------------------------------------- |
+| legacy assembly 仍在运行路径      | 部分页面仍依赖 `WorkbenchAssembly` / `OverviewAssembly` | 设计偏移、难以验证完成度 | 页面迁移到独立 page-level view，并移出默认主路径   |
+| 页面状态缺少统一标记              | 历史盘点容易把可访问页面算作完成                        | 进度失真、排期失真       | 路由盘点统一采用五状态定义                         |
+| 接口冻结机制未制度化              | 并行开发时 shared/BFF 容易边改边用                      | 多 agent 冲突、页面返工  | 每轮并行任务先产出冻结清单                         |
+| web 验证链路偏弱                  | `apps/web` 无独立 test script                           | “看起来能用”替代验证     | 补足页面级验证脚本或稳定的手动门禁记录             |
+| fixture fallback 容易掩盖上游故障 | development/test 可回退 fixtures                        | 误判联调完成             | 在页面状态判断中显式区分“真实联调”与“fixture 降级” |
 
 ## 7. 项目级架构事实
 

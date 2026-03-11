@@ -79,13 +79,13 @@ bun run --filter server test:e2e
 
 ## 页面状态定义
 
-| 状态 | 含义 | 典型表现 | 完成口径 |
-| --- | --- | --- | --- |
-| `placeholder` | 页面仅占位 | 空壳、说明、待实现入口 | 未完成 |
-| `legacy-assembly` | 仍依赖旧 assembly/fallback | 共享模板主导页面结构 | 未完成 |
-| `page-view` | 已有独立 page-level view | 路由已切到独立页面实现 | 重构进行中 |
-| `verified` | 已完成工程验证 | 设计、联调、测试均通过 | 候选完成 |
-| `production` | 已完成发布前治理闭环 | 代码审查通过，文档已同步 | 已完成 |
+| 状态              | 含义                       | 典型表现                 | 完成口径   |
+| ----------------- | -------------------------- | ------------------------ | ---------- |
+| `placeholder`     | 页面仅占位                 | 空壳、说明、待实现入口   | 未完成     |
+| `legacy-assembly` | 仍依赖旧 assembly/fallback | 共享模板主导页面结构     | 未完成     |
+| `page-view`       | 已有独立 page-level view   | 路由已切到独立页面实现   | 重构进行中 |
+| `verified`        | 已完成工程验证             | 设计、联调、测试均通过   | 候选完成   |
+| `production`      | 已完成发布前治理闭环       | 代码审查通过，文档已同步 | 已完成     |
 
 关键规则：
 
@@ -123,6 +123,28 @@ bun run --filter server test:e2e
 
 1. 满足前 3 项，可进入 `verified`。
 2. 满足 5 项，才可进入 `production`。
+
+### 2026-03-11 状态样例
+
+以下 7 个页面当前统一判定为 `page-view`：
+
+- `/mdm/skus`
+- `/mdm/customers`
+- `/mdm/suppliers`
+- `/inventory/balance`
+- `/inventory/ledger`
+- `/sales/orders`
+- `/procure/purchase-orders`
+
+判定原因：
+
+- 设计一致性：✅
+- 数据联调：✅（VM Hook + BFF mock）
+- 测试通过：⏳
+- 代码审查：⏳
+- 文档同步：✅
+
+因此这批页面不能直接宣称为 `verified` 或 `production`。
 
 ---
 
