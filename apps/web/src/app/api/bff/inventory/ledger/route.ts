@@ -17,6 +17,7 @@ import {
   inventoryLedgerListFixtures,
   type InventoryLedgerListItem,
 } from '@/lib/mocks/erp-list-fixtures';
+import { mergeInventoryLedgerItems, upsertInventoryLedgerDraft } from './_store';
 import {
   fetchBackendArray,
   toListRouteResponse,
@@ -123,7 +124,7 @@ export async function GET(request: NextRequest) {
     fallbackReason = 'fixture_response';
   }
 
-  const filtered = source
+  const filtered = mergeInventoryLedgerItems(source)
     .filter((item) => {
       if (type && item.type !== type) {
         return false;
@@ -156,6 +157,78 @@ export async function GET(request: NextRequest) {
   );
 
   return toListRouteResponse(payload, fallbackReason);
+}
+
+export async function POST(request: NextRequest) {
+  let payload: unknown;
+
+  try {
+    payload = await request.json();
+  } catch {
+    return Response.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_JSON',
+          category: 'validation',
+          message: 'Request body must be valid JSON',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const candidate = payload as Record<string, unknown>;
+
+    if (typeof candidate.skuId !== 'string' || candidate.skuId.trim() === '') {
+      throw new Error('skuId is required');
+    }
+
+    if (typeof candidate.warehouseId !== 'string' || candidate.warehouseId.trim() === '') {
+      throw new Error('warehouseId is required');
+    }
+
+    if (typeof candidate.type !== 'string' || candidate.type.trim() === '') {
+      throw new Error('type is required');
+    }
+
+    const quantity = Number(candidate.quantity);
+    if (!Number.isFinite(quantity)) {
+      throw new Error('quantity must be a valid number');
+    }
+
+    const id = upsertInventoryLedgerDraft({
+      quantity: candidate.type.trim() === '出库' ? -Math.abs(quantity) : Math.abs(quantity),
+      reason:
+        typeof candidate.reason === 'string'
+          ? candidate.reason.trim()
+          : '',
+      skuId: candidate.skuId.trim(),
+      type: candidate.type.trim() as '入库' | '出库' | '调整',
+      warehouseId: candidate.warehouseId.trim(),
+    });
+
+    return Response.json(
+      {
+        data: {
+          id,
+        },
+        message: '新增成功',
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    return Response.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_PAYLOAD',
+          category: 'validation',
+          message: error instanceof Error ? error.message : 'Invalid payload',
+        },
+      },
+      { status: 400 },
+    );
+  }
 }
 
 function getSortValue(
