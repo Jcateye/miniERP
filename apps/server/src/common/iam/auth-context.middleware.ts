@@ -4,6 +4,20 @@ import type { AuthContext, AuthenticatedRequest } from './auth-context';
 
 const HEALTH_PATH_PATTERN = /\/health\/(live|ready)\/?$/u;
 const SWAGGER_PATH_PATTERN = /\/docs(?:\/.*)?$|\/docs-(json|yaml)$/u;
+const DEV_AUTHORIZATION_HEADER = 'Bearer dev-token';
+const DEV_AUTH_TENANT_ID = '1';
+const DEV_AUTH_ACTOR_ID = 'dev-user';
+const DEV_AUTH_PERMISSIONS = [
+  'evidence:*',
+  'masterdata.customer.read',
+  'masterdata.customer.write',
+  'masterdata.sku.read',
+  'masterdata.sku.write',
+  'masterdata.supplier.read',
+  'masterdata.supplier.write',
+  'masterdata.warehouse.read',
+  'masterdata.warehouse.write',
+] as const;
 
 interface AuthContextMiddlewareOptions {
   readonly secret: string;
@@ -105,6 +119,33 @@ function readHeaderValue(
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function tryAttachDevelopmentAuthContext(
+  request: Request,
+  nodeEnv: AuthContextMiddlewareOptions['nodeEnv'],
+): boolean {
+  if (nodeEnv !== 'development') {
+    return false;
+  }
+
+  const authorization = readHeaderValue(request, 'authorization');
+  if (authorization !== DEV_AUTHORIZATION_HEADER) {
+    return false;
+  }
+
+  const authenticatedRequest = request as Request & AuthenticatedRequest;
+  Object.assign(authenticatedRequest, {
+    // 开发环境认证绕过固定到测试租户/用户，避免依赖可变 tenant header 配置。
+    authContext: {
+      tenantId: DEV_AUTH_TENANT_ID,
+      actorId: DEV_AUTH_ACTOR_ID,
+      permissions: [...DEV_AUTH_PERMISSIONS],
+      role: 'tenant_admin' as const,
+    },
+  });
+
+  return true;
+}
+
 export function createAuthContextMiddleware(
   options: AuthContextMiddlewareOptions,
 ) {
@@ -115,6 +156,11 @@ export function createAuthContextMiddleware(
   ): void {
     const requestPath = request.path ?? request.originalUrl ?? '';
     if (shouldBypassAuth(requestPath, options.nodeEnv)) {
+      next();
+      return;
+    }
+
+    if (tryAttachDevelopmentAuthContext(request, options.nodeEnv)) {
       next();
       return;
     }

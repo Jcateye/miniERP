@@ -118,6 +118,63 @@ describe('authContextMiddleware', () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it('attaches development auth context when dev token is provided', () => {
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'development',
+    });
+    const request = createRequest({
+      authorization: 'Bearer dev-token',
+      'x-tenant-id': '2002',
+    }) as Request & { authContext?: unknown };
+    const { response, status } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+    expect(request.authContext).toEqual({
+      tenantId: '1',
+      actorId: 'dev-user',
+      permissions: [
+        'evidence:*',
+        'masterdata.customer.read',
+        'masterdata.customer.write',
+        'masterdata.sku.read',
+        'masterdata.sku.write',
+        'masterdata.supplier.read',
+        'masterdata.supplier.write',
+        'masterdata.warehouse.read',
+        'masterdata.warehouse.write',
+      ],
+      role: 'tenant_admin',
+    });
+  });
+
+  it('does not allow dev token outside development', () => {
+    const middleware = createAuthContextMiddleware({
+      secret,
+      nodeEnv: 'test',
+    });
+    const request = createRequest({
+      authorization: 'Bearer dev-token',
+    });
+    const { response, status, json } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'AUTH_INVALID_CONTEXT',
+        message: 'Missing or invalid authenticated context',
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('does not skip auth validation for swagger docs endpoint in production', () => {
     const middleware = createAuthContextMiddleware({
       secret,

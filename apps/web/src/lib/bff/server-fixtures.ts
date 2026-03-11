@@ -7,6 +7,9 @@ import type { DocumentDetailDto, DocumentListItemDto, PaginationEnvelope } from 
 
 const DEV_FALLBACK_AUTH_CONTEXT_SECRET = 'dev-only-auth-context-secret';
 const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
+const DEV_AUTHORIZATION_HEADER = 'Bearer dev-token';
+const DEV_AUTH_TENANT_ID = '1';
+const DEV_AUTH_ACTOR_ID = 'dev-user';
 const BFF_FALLBACK_ENV = 'MINIERP_ENABLE_BFF_FIXTURE_FALLBACK';
 const BFF_FALLBACK_HIT_HEADER = 'x-bff-fallback-hit';
 const BFF_FALLBACK_REASON_HEADER = 'x-bff-fallback-reason';
@@ -155,10 +158,17 @@ export function createServerHeaders() {
 
   const secret =
     configuredSecret || (nodeEnv === 'test' ? TEST_AUTH_CONTEXT_SECRET : DEV_FALLBACK_AUTH_CONTEXT_SECRET);
-  const tenantId = process.env.MINIERP_TENANT_ID ?? '1001';
+  const tenantId =
+    nodeEnv === 'development'
+      ? DEV_AUTH_TENANT_ID
+      : process.env.MINIERP_TENANT_ID ?? '1001';
+  const actorId =
+    nodeEnv === 'development'
+      ? DEV_AUTH_ACTOR_ID
+      : process.env.MINIERP_ACTOR_ID ?? '9001';
   const authContext = {
     tenantId,
-    actorId: process.env.MINIERP_ACTOR_ID ?? '9001',
+    actorId,
     permissions: [
       'evidence:link:create',
       'evidence:link:read',
@@ -177,9 +187,14 @@ export function createServerHeaders() {
 
   const headers: Record<string, string> = {
     'content-type': 'application/json',
-    'x-tenant-id': tenantId,
     'x-request-id': randomUUID(),
   };
+
+  if (nodeEnv === 'development') {
+    headers.authorization = DEV_AUTHORIZATION_HEADER;
+  } else {
+    headers['x-tenant-id'] = tenantId;
+  }
 
   const encodedContext = base64UrlEncode(JSON.stringify(authContext));
   headers['x-auth-context'] = encodedContext;

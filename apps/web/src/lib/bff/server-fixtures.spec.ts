@@ -81,4 +81,22 @@ describe('server-fixtures environment guards', () => {
       ]),
     );
   });
+
+  it('adds dev authorization header only in development', () => {
+    process.env.NODE_ENV = 'development';
+    const developmentHeaders = createServerHeaders();
+    expect(developmentHeaders.authorization).toBe('Bearer dev-token');
+    expect(developmentHeaders['x-tenant-id']).toBeUndefined();
+    expect(decodeAuthContext(developmentHeaders['x-auth-context']).tenantId).toBe(
+      '1',
+    );
+    expect(decodeAuthContext(developmentHeaders['x-auth-context']).actorId).toBe(
+      'dev-user',
+    );
+
+    process.env.NODE_ENV = 'test';
+    const testHeaders = createServerHeaders();
+    expect(testHeaders.authorization).toBeUndefined();
+    expect(testHeaders['x-tenant-id']).toBeDefined();
+  });
 });
