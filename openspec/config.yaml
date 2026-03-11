@@ -15,7 +15,7 @@ context: |
 rules:
   proposal:
     - Keep proposal concise and implementation-oriented.
-    - Reuse T1-T4 template system from designs/ui/minierp_page_spec.md when applicable.
+    - Reuse T1-T4 family skeleton constraints from designs/ui/minierp_page_spec.md when applicable; do not treat them as a template system.
     - Preserve the two-layer evidence model from designs/ui/miniERP_evidence_system.md for related workflows.
   tasks:
     - Prefer small, verifiable tasks mapped to existing monorepo boundaries (apps/web, apps/server, packages/shared).
