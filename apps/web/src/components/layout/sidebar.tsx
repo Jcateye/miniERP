@@ -23,6 +23,7 @@ type NestedNavItem = {
   label: string;
   href: string;
   matchPrefixes?: readonly string[];
+  exactMatch?: boolean;
 };
 
 const masterDataItems: readonly NestedNavItem[] = [
@@ -38,13 +39,13 @@ const masterDataItems: readonly NestedNavItem[] = [
 
 const purchaseItems: readonly NestedNavItem[] = [
   { label: '采购概览', href: '/procure/purchase-orders/overview' },
-  { label: '采购单管理', href: '/procure/purchase-orders', matchPrefixes: ['/procure/purchase-orders'] },
+  { label: '采购单管理', href: '/procure/purchase-orders', exactMatch: true },
 ];
 
 const salesItems: readonly NestedNavItem[] = [
   { label: '销售概览', href: '/sales/orders/overview' },
   { label: '报价管理', href: '/sales/orders/quote' },
-  { label: '销售订单管理', href: '/sales/orders', matchPrefixes: ['/sales/orders'] },
+  { label: '销售订单管理', href: '/sales/orders', exactMatch: true },
   { label: '发运记录', href: '/sales/orders/ship' },
 ];
 
@@ -55,7 +56,7 @@ const inventoryItems: readonly NestedNavItem[] = [
   { label: '库存流水', href: '/inventory/ledger' },
   { label: '库存调整', href: '/inventory/adjustment' },
   { label: '补货建议', href: '/inventory/restock' },
-  { label: '盘点管理', href: '/inventory/stocktake', matchPrefixes: ['/inventory/stocktake'] },
+  { label: '盘点管理', href: '/inventory/stocktake', exactMatch: true },
 ];
 
 const manufacturingItems: readonly NestedNavItem[] = [
@@ -75,8 +76,16 @@ const financeItems: readonly NestedNavItem[] = [
   { label: '预算管理', href: '/finance/budget' },
 ];
 
+function isNestedItemActive(pathname: string, item: NestedNavItem) {
+  if (item.exactMatch) {
+    return pathname === item.href;
+  }
+
+  return isRouteActive(pathname, item.href, item.matchPrefixes);
+}
+
 function nestedItemClass(pathname: string, item: NestedNavItem) {
-  const active = isRouteActive(pathname, item.href, item.matchPrefixes);
+  const active = isNestedItemActive(pathname, item);
 
   return `px-3 py-2 text-sm rounded-sm transition-colors ${
     active ? 'bg-sidebar-hover text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
