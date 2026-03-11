@@ -4,8 +4,9 @@ import React from 'react';
 import { ArrowDown, ArrowUp, Download, Search } from 'lucide-react';
 
 import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
+import { useInventoryLedger } from '@/lib/hooks/use-inventory-ledger';
+import type { InventoryLedgerListItem } from '@/lib/mocks/erp-list-fixtures';
 
-const PAGE_SIZE = 4;
 const DEFAULT_PARAMS = {
   order: 'desc',
   page: '1',
@@ -15,65 +16,33 @@ const DEFAULT_PARAMS = {
   warehouse: '',
 };
 
-const LEDGER_ROWS = [
-  { date: '2026-03-10 14:30', skuId: 'SKU-HDMI-2M', warehouse: '深圳总仓', type: '入库', direction: '+100', balance: 500, source: 'GRN-001', operator: '张三' },
-  { date: '2026-03-09 10:20', skuId: 'SKU-HDMI-2M', warehouse: '深圳总仓', type: '出库', direction: '-20', balance: 400, source: 'OUT-021', operator: '李四' },
-  { date: '2026-03-08 09:12', skuId: 'SKU-RJ45-CAT6', warehouse: '青岛 B 仓', type: '调拨', direction: '+60', balance: 160, source: 'TRF-008', operator: '王倩' },
-  { date: '2026-03-07 17:06', skuId: 'SKU-USBC-VGA', warehouse: '苏州周转仓', type: '盘点', direction: '+2', balance: 82, source: 'ST-112', operator: '赵云' },
-  { date: '2026-03-06 15:48', skuId: 'SKU-PD-65W', warehouse: '深圳总仓', type: '入库', direction: '+40', balance: 560, source: 'GRN-119', operator: '张三' },
-  { date: '2026-03-05 13:30', skuId: 'SKU-RJ45-CAT6', warehouse: '青岛 B 仓', type: '出库', direction: '-15', balance: 100, source: 'OUT-019', operator: '韩梅' },
-] as const;
-
-type LedgerRow = (typeof LEDGER_ROWS)[number];
 type LedgerSortField = 'balance' | 'date' | 'skuId' | 'type' | 'warehouse';
 
 export default function InventoryLedgerPage() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
+  const { data, error, loading, pagination, reload } = useInventoryLedger();
   const [draftQuery, setDraftQuery] = React.useState(params.q);
 
   React.useEffect(() => {
     setDraftQuery(params.q);
   }, [params.q]);
 
-  const filteredRows = React.useMemo(() => {
-    const keyword = params.q.trim().toLowerCase();
-    const sortField = (params.sort as LedgerSortField) || 'date';
-    const sortOrder = params.order === 'asc' ? 'asc' : 'desc';
-
-    return LEDGER_ROWS.filter((row) => {
-      if (params.type && row.type !== params.type) {
-        return false;
-      }
-
-      if (params.warehouse && row.warehouse !== params.warehouse) {
-        return false;
-      }
-
-      if (!keyword) {
-        return true;
-      }
-
-      return [row.skuId, row.warehouse, row.source, row.operator].some((value) =>
-        value.toLowerCase().includes(keyword),
-      );
-    }).toSorted((left, right) => compareLedger(left, right, sortField, sortOrder));
-  }, [params.order, params.q, params.sort, params.type, params.warehouse]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(parsePageParam(params.page), totalPages);
-
   React.useEffect(() => {
-    const rawPage = parsePageParam(params.page);
-
-    if (rawPage !== currentPage) {
-      updateParams({ page: String(currentPage) }, { replace: true });
+    if (loading) {
+      return;
     }
-  }, [currentPage, params.page, updateParams]);
 
-  const pageRows = React.useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredRows.slice(start, start + PAGE_SIZE);
-  }, [currentPage, filteredRows]);
+    const rawPage = parsePageParam(params.page);
+    if (rawPage !== pagination.page) {
+      updateParams({ page: String(pagination.page) }, { replace: true });
+    }
+  }, [loading, pagination.page, params.page, updateParams]);
+
+  const currentPage = pagination.page;
+  const totalPages = Math.max(1, pagination.totalPages);
+  const pageNumbers = buildPagination(currentPage, totalPages);
+  const rangeStart = pagination.total === 0 ? 0 : (currentPage - 1) * pagination.pageSize + 1;
+  const rangeEnd = pagination.total === 0 ? 0 : rangeStart + data.length - 1;
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -86,10 +55,6 @@ export default function InventoryLedgerPage() {
 
     updateParams({ order: nextOrder, sort: field });
   };
-
-  const pageNumbers = buildPagination(currentPage, totalPages);
-  const rangeStart = filteredRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = filteredRows.length === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, filteredRows.length);
 
   return (
     <div className="flex flex-col gap-6">
@@ -111,7 +76,7 @@ export default function InventoryLedgerPage() {
             type="text"
             value={draftQuery}
             onChange={(event) => setDraftQuery(event.target.value)}
-            placeholder="搜索SKU、仓库、单据号..."
+            placeholder="搜索 SKU、仓库、单据号..."
             className="w-full pl-10 pr-24 py-2 bg-white border border-border rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -184,21 +149,27 @@ export default function InventoryLedgerPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {pageRows.map((item) => (
-              <tr key={`${item.date}-${item.source}`} className="hover:bg-background/50 transition-colors group text-sm">
-                <td className="px-4 py-4 text-muted font-mono whitespace-nowrap">{item.date}</td>
-                <td className="px-4 py-4 font-bold text-primary italic">{item.skuId}</td>
-                <td className="px-4 py-4 text-foreground">{item.warehouse}</td>
-                <td className="px-4 py-4 font-bold">{item.type}</td>
-                <td className={`px-4 py-4 text-right font-bold ${item.direction.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                  {item.direction}
+            {loading ? (
+              <tr>
+                <td className="px-4 py-8 text-center text-sm text-muted" colSpan={8}>
+                  加载库存流水中...
                 </td>
-                <td className="px-4 py-4 text-right font-mono font-bold">{item.balance}</td>
-                <td className="px-4 py-4 text-primary cursor-pointer hover:underline">{item.source}</td>
-                <td className="px-4 py-4 text-foreground">{item.operator}</td>
               </tr>
+            ) : null}
+            {!loading && error ? (
+              <tr>
+                <td className="px-4 py-8 text-center text-sm text-primary" colSpan={8}>
+                  <p>库存流水加载失败：{error.message}</p>
+                  <button className="mt-3 text-sm font-medium underline underline-offset-4" onClick={reload} type="button">
+                    重试
+                  </button>
+                </td>
+              </tr>
+            ) : null}
+            {!loading && !error && data.map((item) => (
+              <LedgerTableRow key={`${item.date}-${item.source}`} item={item} />
             ))}
-            {pageRows.length === 0 ? (
+            {!loading && !error && data.length === 0 ? (
               <tr>
                 <td className="px-4 py-6 text-center text-sm text-muted" colSpan={8}>
                   没有匹配的库存流水记录。
@@ -210,7 +181,7 @@ export default function InventoryLedgerPage() {
 
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
           <span className="text-muted">
-            显示 {rangeStart}-{rangeEnd} / 共 {filteredRows.length} 条
+            显示 {rangeStart}-{rangeEnd} / 共 {pagination.total} 条
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -250,19 +221,21 @@ export default function InventoryLedgerPage() {
   );
 }
 
-function compareLedger(
-  left: LedgerRow,
-  right: LedgerRow,
-  field: LedgerSortField,
-  order: 'asc' | 'desc',
-) {
-  const direction = order === 'asc' ? 1 : -1;
-
-  if (field === 'balance') {
-    return (left.balance - right.balance) * direction;
-  }
-
-  return String(left[field]).localeCompare(String(right[field]), 'zh-CN') * direction;
+function LedgerTableRow({ item }: { item: InventoryLedgerListItem }) {
+  return (
+    <tr className="hover:bg-background/50 transition-colors group text-sm">
+      <td className="px-4 py-4 text-muted font-mono whitespace-nowrap">{item.date}</td>
+      <td className="px-4 py-4 font-bold text-primary italic">{item.skuId}</td>
+      <td className="px-4 py-4 text-foreground">{item.warehouse}</td>
+      <td className="px-4 py-4 font-bold">{item.type}</td>
+      <td className={`px-4 py-4 text-right font-bold ${item.direction.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+        {item.direction}
+      </td>
+      <td className="px-4 py-4 text-right font-mono font-bold">{item.balance}</td>
+      <td className="px-4 py-4 text-primary cursor-pointer hover:underline">{item.source}</td>
+      <td className="px-4 py-4 text-foreground">{item.operator}</td>
+    </tr>
+  );
 }
 
 function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {

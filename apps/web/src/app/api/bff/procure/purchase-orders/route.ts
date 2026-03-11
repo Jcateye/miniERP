@@ -6,27 +6,22 @@ import {
   normalizeSortDirection,
   parsePositiveIntParam,
 } from '@/lib/bff/mock-list';
-import { inventoryLedgerListFixtures } from '@/lib/mocks/erp-list-fixtures';
+import { purchaseOrderListFixtures } from '@/lib/mocks/erp-list-fixtures';
 
-type SortField = 'balance' | 'date' | 'skuId' | 'type' | 'warehouse';
+type SortField = 'amount' | 'date' | 'po' | 'skuCount' | 'supplier';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const page = parsePositiveIntParam(searchParams.get('page'), 1);
   const pageSize = parsePositiveIntParam(searchParams.get('pageSize'), 4);
   const q = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
-  const type = (searchParams.get('type') || '').trim();
-  const warehouse = (searchParams.get('warehouse') || '').trim();
+  const status = (searchParams.get('status') || '').trim();
   const sortBy = (searchParams.get('sortBy') || 'date') as SortField;
   const sortOrder = normalizeSortDirection(searchParams.get('sortOrder'), 'desc');
 
-  const filtered = inventoryLedgerListFixtures
+  const filtered = purchaseOrderListFixtures
     .filter((item) => {
-      if (type && item.type !== type) {
-        return false;
-      }
-
-      if (warehouse && item.warehouse !== warehouse) {
+      if (status && item.status !== status) {
         return false;
       }
 
@@ -34,8 +29,7 @@ export async function GET(request: NextRequest) {
         return true;
       }
 
-      return [item.skuId, item.warehouse, item.source, item.operator]
-        .some((value) => value.toLowerCase().includes(q));
+      return [item.po, item.supplier].some((value) => value.toLowerCase().includes(q));
     })
     .toSorted((left, right) => {
       return compareListValues(
@@ -49,18 +43,18 @@ export async function GET(request: NextRequest) {
 }
 
 function getSortValue(
-  item: (typeof inventoryLedgerListFixtures)[number],
+  item: (typeof purchaseOrderListFixtures)[number],
   sortBy: SortField,
 ) {
   switch (sortBy) {
-    case 'balance':
-      return item.balance;
-    case 'skuId':
-      return item.skuId;
-    case 'type':
-      return item.type;
-    case 'warehouse':
-      return item.warehouse;
+    case 'amount':
+      return item.amount;
+    case 'po':
+      return item.po;
+    case 'skuCount':
+      return item.skuCount;
+    case 'supplier':
+      return item.supplier;
     default:
       return item.date;
   }

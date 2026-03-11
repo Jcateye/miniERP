@@ -6,27 +6,31 @@ import {
   normalizeSortDirection,
   parsePositiveIntParam,
 } from '@/lib/bff/mock-list';
-import { inventoryLedgerListFixtures } from '@/lib/mocks/erp-list-fixtures';
+import { inventoryBalanceListFixtures } from '@/lib/mocks/erp-list-fixtures';
 
-type SortField = 'balance' | 'date' | 'skuId' | 'type' | 'warehouse';
+type SortField = 'available' | 'balance' | 'name' | 'safe' | 'sku';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const page = parsePositiveIntParam(searchParams.get('page'), 1);
   const pageSize = parsePositiveIntParam(searchParams.get('pageSize'), 4);
   const q = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
-  const type = (searchParams.get('type') || '').trim();
+  const stockState = (searchParams.get('stockState') || '').trim();
   const warehouse = (searchParams.get('warehouse') || '').trim();
-  const sortBy = (searchParams.get('sortBy') || 'date') as SortField;
+  const sortBy = (searchParams.get('sortBy') || 'balance') as SortField;
   const sortOrder = normalizeSortDirection(searchParams.get('sortOrder'), 'desc');
 
-  const filtered = inventoryLedgerListFixtures
+  const filtered = inventoryBalanceListFixtures
     .filter((item) => {
-      if (type && item.type !== type) {
+      if (warehouse && item.warehouse !== warehouse) {
         return false;
       }
 
-      if (warehouse && item.warehouse !== warehouse) {
+      if (stockState === 'low' && item.balance >= item.safe) {
+        return false;
+      }
+
+      if (stockState === 'cycle' && item.balance < item.safe) {
         return false;
       }
 
@@ -34,7 +38,7 @@ export async function GET(request: NextRequest) {
         return true;
       }
 
-      return [item.skuId, item.warehouse, item.source, item.operator]
+      return [item.sku, item.name, item.warehouse]
         .some((value) => value.toLowerCase().includes(q));
     })
     .toSorted((left, right) => {
@@ -49,19 +53,19 @@ export async function GET(request: NextRequest) {
 }
 
 function getSortValue(
-  item: (typeof inventoryLedgerListFixtures)[number],
+  item: (typeof inventoryBalanceListFixtures)[number],
   sortBy: SortField,
 ) {
   switch (sortBy) {
-    case 'balance':
-      return item.balance;
-    case 'skuId':
-      return item.skuId;
-    case 'type':
-      return item.type;
-    case 'warehouse':
-      return item.warehouse;
+    case 'available':
+      return item.available;
+    case 'name':
+      return item.name;
+    case 'safe':
+      return item.safe;
+    case 'sku':
+      return item.sku;
     default:
-      return item.date;
+      return item.balance;
   }
 }

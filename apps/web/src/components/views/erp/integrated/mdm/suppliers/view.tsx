@@ -3,9 +3,10 @@
 import React from 'react';
 import { ArrowDown, ArrowUp, Plus, Search } from 'lucide-react';
 
-import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
+import { parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
+import { useSupplierList } from '@/lib/hooks/use-supplier-list';
+import { supplierViewMetaByCode } from '@/lib/mocks/erp-list-fixtures';
 
-const PAGE_SIZE = 4;
 const DEFAULT_PARAMS = {
   order: 'asc',
   page: '1',
@@ -13,57 +14,52 @@ const DEFAULT_PARAMS = {
   sort: 'id',
 };
 
-const SUPPLIER_ROWS = [
-  { id: 'V-001', name: '华为技术有限公司', contact: '安经理', cert: 'ISO9001 / ISO14001', orders: 25, status: '启用' },
-  { id: 'V-002', name: '南方连接器制造', contact: '郭峰', cert: 'UL / RoHS', orders: 31, status: '启用' },
-  { id: 'V-003', name: '蓝海包装科技', contact: '夏颖', cert: 'FSC / ISO9001', orders: 12, status: '审核中' },
-  { id: 'V-004', name: '捷科五金建材', contact: '宋明', cert: 'ISO45001', orders: 9, status: '启用' },
-  { id: 'V-005', name: '鸿鹏电子器件', contact: '刘欣', cert: 'RoHS / REACH', orders: 44, status: '启用' },
-  { id: 'V-006', name: '远望物流物料', contact: '于淼', cert: '运输资质', orders: 4, status: '停用' },
-] as const;
-
-type SupplierRow = (typeof SUPPLIER_ROWS)[number];
 type SupplierSortField = 'contact' | 'id' | 'name' | 'orders' | 'status';
+type SupplierRow = {
+  cert: string;
+  contact: string;
+  id: string;
+  name: string;
+  orders: number;
+  status: string;
+};
 
 export default function SuppliersPage() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
+  const { data, error, loading, pagination } = useSupplierList();
   const [draftQuery, setDraftQuery] = React.useState(params.q);
 
   React.useEffect(() => {
     setDraftQuery(params.q);
   }, [params.q]);
 
-  const filteredRows = React.useMemo(() => {
-    const keyword = params.q.trim().toLowerCase();
-    const sortField = (params.sort as SupplierSortField) || 'id';
-    const sortOrder = params.order === 'desc' ? 'desc' : 'asc';
-
-    return SUPPLIER_ROWS.filter((row) => {
-      if (!keyword) {
-        return true;
-      }
-
-      return [row.id, row.name, row.contact, row.cert].some((value) =>
-        value.toLowerCase().includes(keyword),
-      );
-    }).toSorted((left, right) => compareSuppliers(left, right, sortField, sortOrder));
-  }, [params.order, params.q, params.sort]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(parsePageParam(params.page), totalPages);
-
   React.useEffect(() => {
-    const rawPage = parsePageParam(params.page);
-
-    if (rawPage !== currentPage) {
-      updateParams({ page: String(currentPage) }, { replace: true });
+    if (loading) {
+      return;
     }
-  }, [currentPage, params.page, updateParams]);
 
-  const pageRows = React.useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredRows.slice(start, start + PAGE_SIZE);
-  }, [currentPage, filteredRows]);
+    const rawPage = parsePageParam(params.page);
+    if (pagination.page !== rawPage) {
+      updateParams({ page: String(pagination.page) }, { replace: true });
+    }
+  }, [loading, pagination.page, params.page, updateParams]);
+
+  const pageRows = React.useMemo<SupplierRow[]>(
+    () =>
+      data.map((item) => {
+        const meta = supplierViewMetaByCode[item.code];
+
+        return {
+          cert: meta?.cert ?? '-',
+          contact: item.contactName ?? '-',
+          id: item.code,
+          name: item.name,
+          orders: meta?.orders ?? 0,
+          status: getStatusLabel(item.status),
+        };
+      }),
+    [data],
+  );
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,9 +73,9 @@ export default function SuppliersPage() {
     updateParams({ order: nextOrder, sort: field });
   };
 
-  const pageNumbers = buildPagination(currentPage, totalPages);
-  const rangeStart = filteredRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = filteredRows.length === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, filteredRows.length);
+  const totalPages = Math.max(1, pagination.totalPages);
+  const rangeStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const rangeEnd = pagination.total === 0 ? 0 : rangeStart + pageRows.length - 1;
 
   return (
     <div className="flex flex-col gap-6">
@@ -125,8 +121,10 @@ export default function SuppliersPage() {
       </form>
 
       <div className="flex justify-between items-center text-xs text-muted">
-        <span>共 {filteredRows.length} 家供应商</span>
-        <span>排序: {getSortLabel(params.sort as SupplierSortField)} / {params.order === 'desc' ? '降序' : '升序'}</span>
+        <span>共 {pagination.total} 家供应商</span>
+        <span>
+          排序: {getSortLabel(params.sort as SupplierSortField)} / {params.order === 'desc' ? '降序' : '升序'}
+        </span>
       </div>
 
       <div className="bg-white border border-border rounded-sm overflow-hidden mt-2 text-sm">
@@ -152,7 +150,21 @@ export default function SuppliersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {pageRows.map((item) => (
+            {loading ? (
+              <tr>
+                <td className="px-4 py-8 text-center text-sm text-muted" colSpan={6}>
+                  加载中...
+                </td>
+              </tr>
+            ) : null}
+            {!loading && error ? (
+              <tr>
+                <td className="px-4 py-8 text-center text-sm text-red-600" colSpan={6}>
+                  错误: {error.message}
+                </td>
+              </tr>
+            ) : null}
+            {!loading && !error && pageRows.map((item) => (
               <tr key={item.id} className="hover:bg-background/50 transition-colors group">
                 <td className="px-4 py-4 text-primary font-mono font-bold italic tracking-wider">{item.id}</td>
                 <td className="px-4 py-4 font-bold text-foreground">{item.name}</td>
@@ -171,7 +183,7 @@ export default function SuppliersPage() {
                 </td>
               </tr>
             ))}
-            {pageRows.length === 0 ? (
+            {!loading && !error && pageRows.length === 0 ? (
               <tr>
                 <td className="px-4 py-6 text-center text-sm text-muted" colSpan={6}>
                   没有匹配的供应商记录。
@@ -183,22 +195,22 @@ export default function SuppliersPage() {
 
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
           <span className="text-muted">
-            显示 {rangeStart}-{rangeEnd} / 共 {filteredRows.length} 条
+            显示 {rangeStart}-{rangeEnd} / 共 {pagination.total} 条
           </span>
           <div className="flex items-center gap-1">
             <button
               className="px-3 py-1 border border-border bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={currentPage === 1}
-              onClick={() => updateParams({ page: String(currentPage - 1) })}
+              disabled={pagination.page === 1 || loading}
+              onClick={() => updateParams({ page: String(pagination.page - 1) })}
               type="button"
             >
               上一页
             </button>
-            {pageNumbers.map((page) => (
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
               <button
                 key={page}
                 className={`px-3 py-1 border text-xs ${
-                  page === currentPage
+                  page === pagination.page
                     ? 'border-[#1a1a1a] bg-[#1a1a1a] text-white'
                     : 'border-border bg-white'
                 }`}
@@ -210,8 +222,8 @@ export default function SuppliersPage() {
             ))}
             <button
               className="px-3 py-1 border border-border bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={currentPage === totalPages}
-              onClick={() => updateParams({ page: String(currentPage + 1) })}
+              disabled={pagination.page === totalPages || loading}
+              onClick={() => updateParams({ page: String(pagination.page + 1) })}
               type="button"
             >
               下一页
@@ -221,21 +233,6 @@ export default function SuppliersPage() {
       </div>
     </div>
   );
-}
-
-function compareSuppliers(
-  left: SupplierRow,
-  right: SupplierRow,
-  field: SupplierSortField,
-  order: 'asc' | 'desc',
-) {
-  const direction = order === 'asc' ? 1 : -1;
-
-  if (field === 'orders') {
-    return (left.orders - right.orders) * direction;
-  }
-
-  return String(left[field]).localeCompare(String(right[field]), 'zh-CN') * direction;
 }
 
 function getSortLabel(field: SupplierSortField) {
@@ -263,6 +260,17 @@ function getStatusClassName(status: SupplierRow['status']) {
   }
 
   return 'px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-bold uppercase tracking-tight';
+}
+
+function getStatusLabel(status: 'disabled' | 'normal' | 'warning') {
+  switch (status) {
+    case 'disabled':
+      return '停用';
+    case 'warning':
+      return '审核中';
+    default:
+      return '启用';
+  }
 }
 
 function SortButton({
