@@ -42,6 +42,7 @@ type SkuRow = {
   activities: readonly SkuActivity[];
   baseUnit: string;
   cat: string;
+  categoryId: string | null;
   code: string;
   desc: string;
   id: string;
@@ -112,6 +113,7 @@ export default function SkuList() {
           activities: meta?.activities ?? [],
           baseUnit: item.unit,
           cat: categoryLabel,
+          categoryId: item.categoryId,
           code: item.code,
           desc: item.specification ?? '-',
           id: item.id,
@@ -631,13 +633,22 @@ export default function SkuList() {
   );
 }
 
+/**
+ * 将表格行数据转换为表单数据（用于编辑）
+ *
+ * 重要原则：
+ * - 必须优先使用后端返回的真实数据（如 categoryId）
+ * - 不要使用展示字段（如 cat）作为数据源
+ * - 展示字段可能来自 fixture/meta，与后端真实数据不一致
+ * - 避免在保存时静默覆盖用户数据
+ */
 function toSkuFormData(row: SkuRow): SkuFormData {
   return {
     code: row.code,
     name: row.name,
     specification: row.specification,
     baseUnit: row.baseUnit,
-    category: row.cat === '-' ? '' : row.cat,
+    category: row.categoryId ?? (row.cat === '-' ? '' : row.cat),
     status: row.status,
   };
 }
