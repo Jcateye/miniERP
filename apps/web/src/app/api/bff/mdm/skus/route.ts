@@ -1,12 +1,15 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 import type { Sku } from '@minierp/shared';
 
 import { createMockListResponse, compareListValues, normalizeSortDirection, parsePositiveIntParam } from '@/lib/bff/mock-list';
 import {
+  buildBackendUrl,
+  createServerHeaders,
   isFixtureFallbackEnabled,
   toFixtureFallbackDisabledResponse,
   toUpstreamErrorResponse,
+  toUpstreamUnavailableResponse,
 } from '@/lib/bff/server-fixtures';
 import {
   skuCategoryIdByLabel,
@@ -29,6 +32,15 @@ interface BackendSkuDto {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SkuMutationPayload {
+  readonly code?: string;
+  readonly name?: string;
+  readonly specification?: string | null;
+  readonly baseUnit?: string;
+  readonly category?: string | null;
+  readonly status?: 'normal' | 'warning' | 'disabled';
 }
 
 function matchesKeyword(item: Sku, search: string) {
@@ -65,6 +77,114 @@ function mapBackendSku(item: BackendSkuDto): Sku {
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isOptionalNullableString(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === 'string';
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function normalizeOptionalNullableString(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function normalizeCategoryId(value: string | null | undefined): string | null {
+  const normalized = normalizeOptionalNullableString(value);
+
+  if (normalized === null) {
+    return null;
+  }
+
+  return skuCategoryIdByLabel[normalized] ?? normalized;
+}
+
+function parseStatus(value: unknown): SkuMutationPayload['status'] {
+  if (value === undefined) {
+    return 'normal';
+  }
+
+  if (value === 'normal' || value === 'warning' || value === 'disabled') {
+    return value;
+  }
+
+  return undefined;
+}
+
+function parseCreateSkuPayload(
+  payload: unknown,
+):
+  | {
+      readonly ok: true;
+      readonly data: {
+        readonly categoryId: string | null;
+        readonly code: string;
+        readonly name: string;
+        readonly specification: string | null;
+        readonly baseUnit: string;
+      };
+      readonly status: NonNullable<SkuMutationPayload['status']>;
+    }
+  | { readonly ok: false; readonly message: string } {
+  if (!isRecord(payload)) {
+    return { ok: false, message: 'Request body must be an object' };
+  }
+
+  if (!isNonEmptyString(payload.code)) {
+    return { ok: false, message: 'code is required' };
+  }
+
+  if (!isNonEmptyString(payload.name)) {
+    return { ok: false, message: 'name is required' };
+  }
+
+  if (!isOptionalNullableString(payload.specification)) {
+    return { ok: false, message: 'specification must be string or null' };
+  }
+
+  if (!isNonEmptyString(payload.baseUnit)) {
+    return { ok: false, message: 'baseUnit is required' };
+  }
+
+  if (!isOptionalNullableString(payload.category)) {
+    return { ok: false, message: 'category must be string or null' };
+  }
+
+  const status = parseStatus(payload.status);
+  if (!status) {
+    return { ok: false, message: 'status must be normal, warning or disabled' };
+  }
+
+  return {
+    ok: true,
+    data: {
+      categoryId: normalizeCategoryId(payload.category),
+      code: payload.code.trim(),
+      name: payload.name.trim(),
+      specification: normalizeOptionalNullableString(payload.specification),
+      baseUnit: payload.baseUnit.trim(),
+    },
+    status,
+  };
+}
+
+function unwrapPayload<T>(payload: unknown): T {
+  if (payload && typeof payload === 'object' && 'data' in (payload as Record<string, unknown>)) {
+    return (payload as { data: T }).data;
+  }
+
+  return payload as T;
 }
 
 export async function GET(request: NextRequest) {
@@ -157,6 +277,97 @@ export async function GET(request: NextRequest) {
   );
 
   return toListRouteResponse(payload, fallbackReason);
+}
+
+export async function POST(request: NextRequest) {
+  const idempotencyKey = request.headers.get('idempotency-key');
+
+  if (!idempotencyKey || idempotencyKey.trim() === '') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'IDEMPOTENCY_KEY_REQUIRED',
+          message: 'Idempotency-Key header is required for SKU creation',
+          category: 'validation',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Request body must be valid JSON',
+          category: 'validation',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const parsed = parseCreateSkuPayload(payload);
+  if (!parsed.ok) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_PAYLOAD',
+          message: parsed.message,
+          category: 'validation',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const createResponse = await fetch(buildBackendUrl('/skus'), {
+      method: 'POST',
+      headers: {
+        ...createServerHeaders(),
+        'idempotency-key': idempotencyKey,
+      },
+      body: JSON.stringify(parsed.data),
+      cache: 'no-store',
+    });
+
+    if (!createResponse.ok) {
+      return toUpstreamErrorResponse(createResponse);
+    }
+
+    const createdPayload = await createResponse.json();
+    if (parsed.status !== 'disabled') {
+      return NextResponse.json(createdPayload);
+    }
+
+    const createdSku = unwrapPayload<{ id?: string }>(createdPayload);
+    if (!createdSku?.id) {
+      return NextResponse.json(createdPayload);
+    }
+
+    const disableResponse = await fetch(buildBackendUrl(`/skus/${createdSku.id}`), {
+      method: 'PUT',
+      headers: {
+        ...createServerHeaders(),
+        'idempotency-key': `${idempotencyKey}-disable`,
+      },
+      body: JSON.stringify({ isActive: false }),
+      cache: 'no-store',
+    });
+
+    if (!disableResponse.ok) {
+      return toUpstreamErrorResponse(disableResponse);
+    }
+
+    return NextResponse.json(await disableResponse.json());
+  } catch {
+    return toUpstreamUnavailableResponse('Backend SKU creation is unavailable');
+  }
 }
 
 function mapStatusLabelToValue(label: string) {
