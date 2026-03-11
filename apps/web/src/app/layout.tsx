@@ -11,6 +11,9 @@ export const metadata: Metadata = {
 const rootFontVariables = {
   '--font-body-family': '"Inter", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif',
   '--font-display-family': '"Space Grotesk", "Avenir Next", "PingFang SC", sans-serif',
+  '--font-geist-sans': '"Inter", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif',
+  '--font-geist-mono': '"SFMono-Regular", "Menlo", "Monaco", monospace',
+  '--font-space-grotesk': '"Space Grotesk", "Avenir Next", "PingFang SC", sans-serif',
 } as CSSProperties;
 
 export default function RootLayout({
