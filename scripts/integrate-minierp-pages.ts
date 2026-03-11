@@ -1,4 +1,16 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+/**
+ * miniERP 页面迁移脚本
+ *
+ * 用法：
+ * 1. 默认从当前仓库同级目录的 ../miniERP_web 读取源项目
+ *    bun scripts/integrate-minierp-pages.ts
+ * 2. 自定义源项目根目录
+ *    MINIERP_WEB_SOURCE_ROOT=/absolute/path/to/miniERP_web bun scripts/integrate-minierp-pages.ts
+ * 3. 允许覆盖已生成文件
+ *    OVERWRITE=1 bun scripts/integrate-minierp-pages.ts
+ */
+
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 type RouteMapping = {
@@ -7,10 +19,12 @@ type RouteMapping = {
 };
 
 const repoRoot = process.cwd();
-const sourceRoot = "/Users/haoqi/OnePersonCompany/miniERP_web/src/app";
 const viewRoot = path.join(repoRoot, "apps/web/src/components/views/erp/integrated");
 const routeRoot = path.join(repoRoot, "apps/web/src/app/(dashboard)");
 const overwriteExisting = process.env.OVERWRITE === "1";
+const sourceProjectRootInput = process.env.MINIERP_WEB_SOURCE_ROOT ?? "../miniERP_web";
+const sourceProjectRoot = path.resolve(repoRoot, sourceProjectRootInput);
+const sourceRoot = path.join(sourceProjectRoot, "src/app");
 
 const routeMappings: RouteMapping[] = [
   { source: "page.tsx", target: "workspace/source-home" },
@@ -70,6 +84,45 @@ const routeRewrites = [
 
 function ensureDir(dirPath: string) {
   mkdirSync(dirPath, { recursive: true });
+}
+
+function failWithSourceRootError(message: string): never {
+  console.error(message);
+  console.error("");
+  console.error("使用方式：");
+  console.error("- 默认同级仓库：bun scripts/integrate-minierp-pages.ts");
+  console.error(
+    "- 自定义源路径：MINIERP_WEB_SOURCE_ROOT=/absolute/path/to/miniERP_web bun scripts/integrate-minierp-pages.ts",
+  );
+  process.exit(1);
+}
+
+function validateSourceProjectRoot() {
+  if (!existsSync(sourceProjectRoot)) {
+    failWithSourceRootError(
+      [
+        `未找到源项目根目录：${sourceProjectRoot}`,
+        `当前 MINIERP_WEB_SOURCE_ROOT=${process.env.MINIERP_WEB_SOURCE_ROOT ?? "(未设置，使用默认 ../miniERP_web)"}`,
+      ].join("\n"),
+    );
+  }
+
+  if (!statSync(sourceProjectRoot).isDirectory()) {
+    failWithSourceRootError(`源项目路径不是目录：${sourceProjectRoot}`);
+  }
+
+  if (!existsSync(sourceRoot)) {
+    failWithSourceRootError(
+      [
+        `源项目缺少 src/app 目录：${sourceRoot}`,
+        "请确认 MINIERP_WEB_SOURCE_ROOT 指向 miniERP_web 仓库根目录，而不是其他子目录。",
+      ].join("\n"),
+    );
+  }
+
+  if (!statSync(sourceRoot).isDirectory()) {
+    failWithSourceRootError(`源页面目录不是目录：${sourceRoot}`);
+  }
 }
 
 function escapeRegExp(value: string) {
@@ -132,6 +185,8 @@ function writeFileSafely(filePath: string, content: string) {
 function createRouteWrapper(importPath: string) {
   return `export { default } from "${importPath}";\n`;
 }
+
+validateSourceProjectRoot();
 
 const generatedFiles: string[] = [];
 const collisions: string[] = [];
