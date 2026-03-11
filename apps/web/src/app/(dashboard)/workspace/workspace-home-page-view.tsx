@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import Link from 'next/link';
 
 import { PageHeader, SearchBar } from '@/components/ui';
 
@@ -50,19 +50,22 @@ function WorkspaceTodoPane({ items }: { items: readonly WorkspaceHomeTodoItem[] 
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8E4DD', fontSize: 14, fontWeight: 700 }}>全局待办</div>
       <div style={{ display: 'grid' }}>
         {items.map((item, index) => (
-          <div
+          <Link
             key={item.id}
+            href={item.href ?? '#'}
             style={{
               padding: '14px 20px',
               borderBottom: index === items.length - 1 ? 'none' : '1px solid #E8E4DD',
               display: 'grid',
               gap: 4,
+              textDecoration: 'none',
+              color: 'inherit',
             }}
           >
             <div style={{ fontSize: 12, fontWeight: 600, color: '#C05A3C' }}>{item.title}</div>
             <div style={{ fontSize: 12, color: '#1A1A1A' }}>{item.summary}</div>
             <div style={{ fontSize: 11, color: '#888888' }}>{item.meta}</div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -98,18 +101,21 @@ function WorkspaceRightPanel({ sections }: { sections: readonly WorkspaceHomePan
               }}
             >
               {section.items.map((item, index) => (
-                <div
+                <Link
                   key={item.id}
+                  href={item.href ?? '#'}
                   style={{
+                    display: 'block',
                     padding: '14px 18px',
                     borderBottom:
                       index === section.items.length - 1 ? 'none' : `1px solid ${isPrimary ? '#333333' : '#E8E4DD'}`,
                     fontSize: 12,
                     color: isPrimary ? '#F5F3EF' : '#1A1A1A',
+                    textDecoration: 'none',
                   }}
                 >
                   {item.label}
-                </div>
+                </Link>
               ))}
             </div>
           </div>

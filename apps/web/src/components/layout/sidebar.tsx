@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
-import { primaryNav, type PrimaryRouteItem } from '@/lib/navigation/route-manifest';
+import { getPrimaryNavItem, primaryNav, type PrimaryRouteItem } from '@/lib/navigation/route-manifest';
 
 const navIconMap: Record<PrimaryRouteItem['icon'], ComponentType<{ size?: number; color?: string }>> = {
   workspace: LayoutGrid,
@@ -25,10 +25,12 @@ const navIconMap: Record<PrimaryRouteItem['icon'], ComponentType<{ size?: number
   finance: Landmark,
   manufacturing: Factory,
   workflow: Workflow,
+  platform: LayoutGrid,
 };
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const activePrimary = getPrimaryNavItem(pathname);
 
   return (
     <aside
@@ -72,7 +74,7 @@ export default function Sidebar() {
         flex: 1,
       }}>
         {primaryNav.map((item) => {
-          const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
+          const active = activePrimary?.key === item.key;
           const IconComp = navIconMap[item.icon];
 
           return (

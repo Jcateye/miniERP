@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import Link from 'next/link';
 
 import { PageHeader } from '@/components/ui';
 
@@ -34,8 +34,9 @@ function ReportGroupCard({ group }: { group: ReportsEntryGroup }) {
     >
       <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{group.title}</h2>
       {group.items.map((item, index) => (
-        <div
+        <Link
           key={item.id}
+          href={item.href}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -43,11 +44,13 @@ function ReportGroupCard({ group }: { group: ReportsEntryGroup }) {
             padding: '10px 14px',
             borderBottom: index === group.items.length - 1 ? 'none' : `1px solid ${isInverse ? '#333333' : '#E8E4DD'}`,
             fontSize: 13,
+            textDecoration: 'none',
+            color: 'inherit',
           }}
         >
           <span style={{ color: '#C05A3C' }}>◌</span>
           <span>{item.label}</span>
-        </div>
+        </Link>
       ))}
     </div>
   );
@@ -57,8 +60,9 @@ function ReportsQuickLinks({ group }: { group: ReportsEntryGroup }) {
   return (
     <div data-testid="reports-groups" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 20 }}>
       {group.items.map((item) => (
-        <div
+        <Link
           key={item.id}
+          href={item.href}
           style={{
             background: '#FFFFFF',
             border: '1px solid #E0DDD8',
@@ -67,11 +71,13 @@ function ReportsQuickLinks({ group }: { group: ReportsEntryGroup }) {
             display: 'grid',
             gap: 12,
             justifyItems: 'center',
+            textDecoration: 'none',
+            color: 'inherit',
           }}
         >
           <div style={{ color: '#C05A3C', fontSize: 28 }}>◌</div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>{item.label}</div>
-        </div>
+        </Link>
       ))}
     </div>
   );

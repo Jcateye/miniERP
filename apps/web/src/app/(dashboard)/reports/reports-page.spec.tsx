@@ -58,6 +58,11 @@ describe('reports page contract', () => {
     expect(markup).toContain('采购报表');
     expect(markup).toContain('销售报表');
     expect(markup).toContain('报价报表');
+    expect(markup).toContain('href="/reports/sku"');
+    expect(markup).toContain('href="/reports/inventory"');
+    expect(markup).toContain('href="/reports/purchase"');
+    expect(markup).toContain('href="/reports/sales"');
+    expect(markup).toContain('href="/reports/quotation"');
   });
 
   it('renders the real page instead of legacy overview assembly output', () => {

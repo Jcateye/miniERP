@@ -1,4 +1,5 @@
 import Sidebar from "@/components/layout/sidebar";
+import DashboardSecondaryNav from "@/components/layout/dashboard-secondary-nav";
 
 export default function DashboardLayout({
     children,
@@ -14,6 +15,7 @@ export default function DashboardLayout({
             }}
         >
             <Sidebar />
+            <DashboardSecondaryNav />
             <main
                 style={{
                     flex: 1,

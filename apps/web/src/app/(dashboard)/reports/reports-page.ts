@@ -8,6 +8,7 @@ export type ReportsKpiCard = {
 export type ReportsEntryItem = {
   id: string;
   label: string;
+  href: string;
 };
 
 export type ReportsEntryGroup = {
@@ -35,25 +36,25 @@ export const REPORTS_CENTER_ENTRY_GROUPS: readonly ReportsEntryGroup[] = [
     id: 'purchase',
     title: '采购分析',
     items: [
-      { id: 'purchase-trend', label: '采购金额趋势' },
-      { id: 'supplier-share', label: '供应商份额分布' },
-      { id: 'purchase-price', label: '采购价格波动' },
+      { id: 'purchase-trend', label: '采购金额趋势', href: '/reports/purchase' },
+      { id: 'supplier-share', label: '供应商份额分布', href: '/reports/purchase' },
+      { id: 'purchase-price', label: '采购价格波动', href: '/reports/purchase' },
     ],
   },
   {
     id: 'sales',
     title: '销售分析',
     items: [
-      { id: 'sales-trend', label: '销售收入趋势' },
-      { id: 'customer-rank', label: '客户排行' },
+      { id: 'sales-trend', label: '销售收入趋势', href: '/reports/sales' },
+      { id: 'customer-rank', label: '客户排行', href: '/reports/sales' },
     ],
   },
   {
     id: 'inventory',
     title: '库存分析',
     items: [
-      { id: 'turnover', label: '库存周转率' },
-      { id: 'slow-moving', label: '呆滞物料分析' },
+      { id: 'turnover', label: '库存周转率', href: '/reports/inventory' },
+      { id: 'slow-moving', label: '呆滞物料分析', href: '/reports/inventory' },
     ],
   },
   {
@@ -61,19 +62,19 @@ export const REPORTS_CENTER_ENTRY_GROUPS: readonly ReportsEntryGroup[] = [
     title: '财务报表',
     tone: 'inverse',
     items: [
-      { id: 'pnl', label: '利润表' },
-      { id: 'balance-sheet', label: '资产负债表' },
+      { id: 'pnl', label: '利润表', href: '/reports/finance' },
+      { id: 'balance-sheet', label: '资产负债表', href: '/reports/finance' },
     ],
   },
   {
     id: 'quick-links',
     title: '快捷入口',
     items: [
-      { id: 'sku-report', label: 'SKU 报表' },
-      { id: 'inventory-report', label: '库存报表' },
-      { id: 'purchase-report', label: '采购报表' },
-      { id: 'sales-report', label: '销售报表' },
-      { id: 'quotation-report', label: '报价报表' },
+      { id: 'sku-report', label: 'SKU 报表', href: '/reports/sku' },
+      { id: 'inventory-report', label: '库存报表', href: '/reports/inventory' },
+      { id: 'purchase-report', label: '采购报表', href: '/reports/purchase' },
+      { id: 'sales-report', label: '销售报表', href: '/reports/sales' },
+      { id: 'quotation-report', label: '报价报表', href: '/reports/quotation' },
     ],
   },
 ];

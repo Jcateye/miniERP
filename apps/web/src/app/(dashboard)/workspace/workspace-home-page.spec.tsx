@@ -58,6 +58,10 @@ describe('workspace home page contract', () => {
     expect(markup).toContain('全局待办');
     expect(markup).toContain('新建 SKU');
     expect(markup).toContain('入库 GRN-2026-0142 过账');
+    expect(markup).toContain('href="/mdm/items/new"');
+    expect(markup).toContain('href="/procure/receipts/new"');
+    expect(markup).toContain('href="/sales/shipments/new"');
+    expect(markup).toContain('href="/inventory/balances"');
   });
 
   it('renders the real page instead of old dashboard export', () => {
