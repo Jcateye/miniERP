@@ -4,6 +4,40 @@ import type { DocumentStatus, DocumentType } from './document';
 export type DecimalString = string;
 export type BigIntString = string;
 
+/**
+ * 通用分页参数。
+ */
+export interface PaginationParams {
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * 单个筛选值的基础类型。
+ */
+export type FilterValue = string | number | boolean | null;
+
+/**
+ * 通用筛选参数。
+ */
+export interface FilterParams {
+  search?: string;
+  filters?: Record<string, FilterValue | readonly FilterValue[]>;
+}
+
+/**
+ * 排序方向。
+ */
+export type SortDirection = 'asc' | 'desc';
+
+/**
+ * 通用排序参数。
+ */
+export interface SortParams {
+  sortBy?: string;
+  sortOrder?: SortDirection;
+}
+
 // 错误码分类基线
 export type ApiErrorCategory =
   | 'validation'
@@ -34,7 +68,9 @@ export interface ApiErrorPayload {
   transition?: StatusTransitionErrorDetails;
 }
 
-// API 响应格式
+/**
+ * 通用 API 成功响应。
+ */
 export interface ApiResponse<T> {
   data: T;
   message: string;

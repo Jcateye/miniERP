@@ -3,7 +3,7 @@
  * 统一 Server/Web/BFF 三端的文档类型
  */
 
-import type { DecimalString, BigIntString, EntityAuditFields, PageResult } from './api';
+import type { DecimalString, EntityAuditFields, PageResult } from './api';
 
 // 重新导出数值类型供其他模块使用
 export type { DecimalString, BigIntString } from './api';
