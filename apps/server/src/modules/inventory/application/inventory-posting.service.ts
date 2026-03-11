@@ -354,10 +354,7 @@ export class InventoryPostingService {
     }
 
     for (const line of command.lines) {
-      if (
-        typeof line.skuId !== 'string' ||
-        line.skuId.trim().length === 0
-      ) {
+      if (typeof line.skuId !== 'string' || line.skuId.trim().length === 0) {
         throw new InventoryValidationError('line.skuId is required');
       }
 

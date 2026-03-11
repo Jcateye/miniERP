@@ -41,9 +41,19 @@ export interface SkuQueryFilter {
 export interface SkuRepository {
   findById(tenantId: string, id: string): Promise<SkuEntity | null>;
   findByCode(tenantId: string, code: string): Promise<SkuEntity | null>;
-  findAll(tenantId: string, filter?: SkuQueryFilter): Promise<readonly SkuEntity[]>;
-  save(tenantId: string, entity: Omit<SkuEntity, 'tenantId'>): Promise<SkuEntity>;
-  update(tenantId: string, id: string, updates: UpdateSkuCommand): Promise<SkuEntity | null>;
+  findAll(
+    tenantId: string,
+    filter?: SkuQueryFilter,
+  ): Promise<readonly SkuEntity[]>;
+  save(
+    tenantId: string,
+    entity: Omit<SkuEntity, 'tenantId'>,
+  ): Promise<SkuEntity>;
+  update(
+    tenantId: string,
+    id: string,
+    updates: UpdateSkuCommand,
+  ): Promise<SkuEntity | null>;
   delete(tenantId: string, id: string): Promise<boolean>;
   existsByCode(tenantId: string, code: string): Promise<boolean>;
 }

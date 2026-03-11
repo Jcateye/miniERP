@@ -24,7 +24,10 @@ export class InMemorySupplierRepository implements SupplierRepository {
     return tenantStore.get(id) ?? null;
   }
 
-  async findByCode(tenantId: string, code: string): Promise<SupplierEntity | null> {
+  async findByCode(
+    tenantId: string,
+    code: string,
+  ): Promise<SupplierEntity | null> {
     const tenantStore = this.getTenantStore(tenantId);
     for (const entity of tenantStore.values()) {
       if (entity.code === code) {

@@ -47,9 +47,7 @@ export interface InventoryPostingResult {
   readonly balanceSnapshots: readonly InventoryBalanceSnapshot[];
 }
 
-export type InventoryIdempotencyAction =
-  | 'inventory.post'
-  | 'inventory.reverse';
+export type InventoryIdempotencyAction = 'inventory.post' | 'inventory.reverse';
 
 export interface InventoryKey {
   readonly skuId: string;
@@ -71,9 +69,7 @@ export interface InventoryConsistencyStore {
     work: (tx: InventoryTenantTransaction) => T | Promise<T>,
   ): Promise<T>;
 
-  getAllBalanceSnapshots(
-    tenantId: string,
-  ): Promise<InventoryBalanceSnapshot[]>;
+  getAllBalanceSnapshots(tenantId: string): Promise<InventoryBalanceSnapshot[]>;
   getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]>;
 }
 

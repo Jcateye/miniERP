@@ -1,83 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INVENTORY_REFERENCE_TYPES } from '@minierp/shared';
 
 import {
-  buildBackendUrl,
-  createServerHeaders,
-  toUpstreamErrorResponse,
-  toUpstreamUnavailableResponse,
-} from '@/lib/bff/server-fixtures';
-import {
-  normalizeLedgerPayload,
-  parsePaginationParams,
-  successResponse,
-} from '../contract';
+  createMockListResponse,
+  compareListValues,
+  normalizeSortDirection,
+  parsePositiveIntParam,
+} from '@/lib/bff/mock-list';
+import { inventoryLedgerListFixtures } from '@/lib/mocks/erp-list-fixtures';
 
-function isInventoryDocType(value: string): boolean {
-  return (INVENTORY_REFERENCE_TYPES as readonly string[]).includes(value);
-}
+type SortField = 'balance' | 'date' | 'skuId' | 'type' | 'warehouse';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const pagination = parsePaginationParams(searchParams);
+  const page = parsePositiveIntParam(searchParams.get('page'), 1);
+  const pageSize = parsePositiveIntParam(searchParams.get('pageSize'), 4);
+  const q = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
+  const type = (searchParams.get('type') || '').trim();
+  const warehouse = (searchParams.get('warehouse') || '').trim();
+  const sortBy = (searchParams.get('sortBy') || 'date') as SortField;
+  const sortOrder = normalizeSortDirection(searchParams.get('sortOrder'), 'desc');
 
-  if (pagination instanceof NextResponse) {
-    return pagination;
-  }
+  const filtered = inventoryLedgerListFixtures
+    .filter((item) => {
+      if (type && item.type !== type) {
+        return false;
+      }
 
-  const upstreamParams = new URLSearchParams();
-  const skuId = searchParams.get('skuId');
-  const warehouseId = searchParams.get('warehouseId');
-  const docType = searchParams.get('docType');
+      if (warehouse && item.warehouse !== warehouse) {
+        return false;
+      }
 
-  if (skuId) {
-    upstreamParams.set('skuId', skuId);
-  }
+      if (!q) {
+        return true;
+      }
 
-  if (warehouseId) {
-    upstreamParams.set('warehouseId', warehouseId);
-  }
-
-  if (docType) {
-    const normalizedDocType = docType.toUpperCase();
-    if (!isInventoryDocType(normalizedDocType)) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_INVALID_DOC_TYPE',
-            category: 'validation',
-            message: `docType must be one of ${INVENTORY_REFERENCE_TYPES.join(', ')}`,
-          },
-        },
-        { status: 400 },
+      return [item.skuId, item.warehouse, item.source, item.operator]
+        .some((value) => value.toLowerCase().includes(q));
+    })
+    .toSorted((left, right) => {
+      return compareListValues(
+        getSortValue(left, sortBy),
+        getSortValue(right, sortBy),
+        sortOrder,
       );
-    }
-    upstreamParams.set('docType', normalizedDocType);
-  }
+    });
 
-  upstreamParams.set('page', String(pagination.page));
-  upstreamParams.set('pageSize', String(pagination.pageSize));
+  return NextResponse.json(createMockListResponse(filtered, page, pageSize));
+}
 
-  try {
-    const response = await fetch(
-      buildBackendUrl(`/inventory/ledger?${upstreamParams.toString()}`),
-      {
-        headers: createServerHeaders(),
-        cache: 'no-store',
-      },
-    );
-
-    if (response.ok) {
-      const payload = normalizeLedgerPayload(await response.json());
-      return successResponse({
-        ...payload,
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-      });
-    }
-
-    return toUpstreamErrorResponse(response);
-  } catch {
-    return toUpstreamUnavailableResponse('Backend inventory ledger is unavailable');
+function getSortValue(
+  item: (typeof inventoryLedgerListFixtures)[number],
+  sortBy: SortField,
+) {
+  switch (sortBy) {
+    case 'balance':
+      return item.balance;
+    case 'skuId':
+      return item.skuId;
+    case 'type':
+      return item.type;
+    case 'warehouse':
+      return item.warehouse;
+    default:
+      return item.date;
   }
 }

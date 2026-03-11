@@ -148,8 +148,7 @@ describe('tenantContextMiddleware', () => {
     expect(json).toHaveBeenCalledWith({
       error: {
         code: 'TENANT_MISMATCH',
-        message:
-          'Tenant in authenticated context does not match tenant header',
+        message: 'Tenant in authenticated context does not match tenant header',
       },
     });
     expect(next).not.toHaveBeenCalled();

@@ -21,10 +21,16 @@ export class SkuService {
     private readonly repository: SkuRepository,
   ) {}
 
-  async create(tenantId: string, command: CreateSkuCommand): Promise<SkuEntity> {
+  async create(
+    tenantId: string,
+    command: CreateSkuCommand,
+  ): Promise<SkuEntity> {
     this.validateCreateCommand(command);
 
-    const codeExists = await this.repository.existsByCode(tenantId, command.code);
+    const codeExists = await this.repository.existsByCode(
+      tenantId,
+      command.code,
+    );
     if (codeExists) {
       throw new SkuCodeDuplicateError(command.code);
     }

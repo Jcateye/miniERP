@@ -161,9 +161,7 @@ export class InMemoryEvidenceBindingRepository implements EvidenceBindingReposit
     });
   }
 
-  attachLink(
-    params: AttachEvidenceLinkParams,
-  ): Promise<EvidenceLinkRecord> {
+  attachLink(params: AttachEvidenceLinkParams): Promise<EvidenceLinkRecord> {
     const tenantState = this.getTenantState(params.tenantId);
     const asset = tenantState.assets.get(params.assetId);
     if (!asset) {

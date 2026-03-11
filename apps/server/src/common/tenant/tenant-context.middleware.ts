@@ -49,7 +49,8 @@ export function createTenantContextMiddleware(
       response.status(403).json({
         error: {
           code: 'TENANT_MISMATCH',
-          message: 'Tenant in authenticated context does not match tenant header',
+          message:
+            'Tenant in authenticated context does not match tenant header',
         },
       });
       return;

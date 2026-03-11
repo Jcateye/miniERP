@@ -21,10 +21,16 @@ export class CustomerService {
     private readonly repository: CustomerRepository,
   ) {}
 
-  async create(tenantId: string, command: CreateCustomerCommand): Promise<CustomerEntity> {
+  async create(
+    tenantId: string,
+    command: CreateCustomerCommand,
+  ): Promise<CustomerEntity> {
     this.validateCreateCommand(command);
 
-    const codeExists = await this.repository.existsByCode(tenantId, command.code);
+    const codeExists = await this.repository.existsByCode(
+      tenantId,
+      command.code,
+    );
     if (codeExists) {
       throw new CustomerCodeDuplicateError(command.code);
     }
@@ -55,7 +61,10 @@ export class CustomerService {
     return entity;
   }
 
-  async findByCode(tenantId: string, code: string): Promise<CustomerEntity | null> {
+  async findByCode(
+    tenantId: string,
+    code: string,
+  ): Promise<CustomerEntity | null> {
     return this.repository.findByCode(tenantId, code);
   }
 

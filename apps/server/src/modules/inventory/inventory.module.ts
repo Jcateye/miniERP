@@ -21,7 +21,10 @@ import { InventoryController } from './controllers/inventory.controller';
         (process.env.NODE_ENV ?? 'development') === 'test'
           ? inMemoryStore
           : prismaStore,
-      inject: [InMemoryInventoryConsistencyStore, PrismaInventoryConsistencyStore],
+      inject: [
+        InMemoryInventoryConsistencyStore,
+        PrismaInventoryConsistencyStore,
+      ],
     },
   ],
   exports: [InventoryPostingService],

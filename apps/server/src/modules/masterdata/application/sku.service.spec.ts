@@ -110,9 +110,9 @@ describe('SkuService', () => {
     });
 
     it('throws when not found', async () => {
-      await expect(service.findById(tenantId, 'nonexistent')).rejects.toBeInstanceOf(
-        SkuNotFoundError,
-      );
+      await expect(
+        service.findById(tenantId, 'nonexistent'),
+      ).rejects.toBeInstanceOf(SkuNotFoundError);
     });
   });
 
@@ -178,7 +178,7 @@ describe('SkuService', () => {
     });
 
     it('filters by isActive', async () => {
-      await service.update(tenantId, (await service.findAll(tenantId))[0]!.id, {
+      await service.update(tenantId, (await service.findAll(tenantId))[0].id, {
         isActive: false,
       });
       const results = await service.findAll(tenantId, { isActive: true });
@@ -194,7 +194,9 @@ describe('SkuService', () => {
         baseUnit: 'PCS',
       });
 
-      const updated = await service.update(tenantId, created.id, { name: 'Updated' });
+      const updated = await service.update(tenantId, created.id, {
+        name: 'Updated',
+      });
       expect(updated?.name).toBe('Updated');
     });
 
@@ -205,7 +207,9 @@ describe('SkuService', () => {
         baseUnit: 'PCS',
       });
 
-      const updated = await service.update(tenantId, created.id, { isActive: false });
+      const updated = await service.update(tenantId, created.id, {
+        isActive: false,
+      });
       expect(updated?.isActive).toBe(false);
     });
 
@@ -239,15 +243,15 @@ describe('SkuService', () => {
       const result = await service.delete(tenantId, created.id);
       expect(result).toBe(true);
 
-      await expect(service.findById(tenantId, created.id)).rejects.toBeInstanceOf(
-        SkuNotFoundError,
-      );
+      await expect(
+        service.findById(tenantId, created.id),
+      ).rejects.toBeInstanceOf(SkuNotFoundError);
     });
 
     it('throws when not found', async () => {
-      await expect(service.delete(tenantId, 'nonexistent')).rejects.toBeInstanceOf(
-        SkuNotFoundError,
-      );
+      await expect(
+        service.delete(tenantId, 'nonexistent'),
+      ).rejects.toBeInstanceOf(SkuNotFoundError);
     });
   });
 

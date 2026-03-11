@@ -61,7 +61,9 @@ function parseCreateDocumentPayload(
 
     const row = line as Record<string, unknown>;
     const skuId = toStringValue(row.skuId ?? row.sku ?? row.code).trim();
-    const qty = toStringValue(row.qty ?? row.quantity ?? row.expected ?? row.actual ?? row.diff).trim();
+    const qty = toStringValue(
+      row.qty ?? row.quantity ?? row.expected ?? row.actual ?? row.diff,
+    ).trim();
     const unitPrice = toStringValue(row.unitPrice ?? row.price).trim();
 
     if (!isNonEmptyString(skuId)) {
@@ -82,7 +84,9 @@ function parseCreateDocumentPayload(
   return {
     docType,
     input: {
-      docDate: isNonEmptyString(candidate.docDate) ? candidate.docDate.trim() : undefined,
+      docDate: isNonEmptyString(candidate.docDate)
+        ? candidate.docDate.trim()
+        : undefined,
       remarks: isNonEmptyString(candidate.remarks)
         ? candidate.remarks.trim()
         : undefined,
@@ -121,18 +125,18 @@ export class DocumentsController {
     const normalizedPage = this.normalizePositiveInt(page, 'page');
     const normalizedPageSize = this.normalizePositiveInt(pageSize, 'pageSize');
 
-    return this.documentsService.list({
-      docType: normalizedDocType,
-      page: normalizedPage,
-      pageSize: normalizedPageSize,
-    }, ctx.tenantId);
+    return this.documentsService.list(
+      {
+        docType: normalizedDocType,
+        page: normalizedPage,
+        pageSize: normalizedPageSize,
+      },
+      ctx.tenantId,
+    );
   }
 
   @Get(':docType/:id')
-  async getDetail(
-    @Param('docType') docType: string,
-    @Param('id') id: string,
-  ) {
+  async getDetail(@Param('docType') docType: string, @Param('id') id: string) {
     const ctx = this.tenantContextService.getRequiredContext();
     const normalizedDocType = this.normalizeDocType(docType);
 

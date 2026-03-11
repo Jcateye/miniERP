@@ -1,11 +1,18 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 /**
  * Warehouse 编码重复
  */
 export class WarehouseCodeDuplicateError extends ConflictException {
   constructor(code: string) {
-    super(`Warehouse with code "${code}" already exists`, 'MASTERDATA_WAREHOUSE_CODE_DUPLICATE');
+    super(
+      `Warehouse with code "${code}" already exists`,
+      'MASTERDATA_WAREHOUSE_CODE_DUPLICATE',
+    );
   }
 }
 
@@ -14,7 +21,10 @@ export class WarehouseCodeDuplicateError extends ConflictException {
  */
 export class WarehouseNotFoundError extends NotFoundException {
   constructor(id: string) {
-    super(`Warehouse with id "${id}" not found`, 'MASTERDATA_WAREHOUSE_NOT_FOUND');
+    super(
+      `Warehouse with id "${id}" not found`,
+      'MASTERDATA_WAREHOUSE_NOT_FOUND',
+    );
   }
 }
 

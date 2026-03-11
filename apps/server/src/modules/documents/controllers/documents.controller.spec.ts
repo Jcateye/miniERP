@@ -46,7 +46,8 @@ describe('DocumentsController', () => {
 
     controller = module.get<DocumentsController>(DocumentsController);
     service = module.get<DocumentsService>(DocumentsService);
-    tenantContextService = module.get<TenantContextService>(TenantContextService);
+    tenantContextService =
+      module.get<TenantContextService>(TenantContextService);
   });
 
   afterEach(() => {
@@ -89,7 +90,13 @@ describe('DocumentsController', () => {
     });
 
     it('should support ADJ docType list', async () => {
-      mockDocumentsService.list.mockResolvedValue({ data: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
+      mockDocumentsService.list.mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 0,
+      });
 
       await controller.list('ADJ');
 
@@ -133,7 +140,13 @@ describe('DocumentsController', () => {
 
   describe('executeAction', () => {
     it('should return error when Idempotency-Key is missing', async () => {
-      const result = await controller.executeAction('PO', '2001', 'confirm', '', {});
+      const result = await controller.executeAction(
+        'PO',
+        '2001',
+        'confirm',
+        '',
+        {},
+      );
 
       expect(result).toEqual({
         error: {
@@ -221,7 +234,9 @@ describe('DocumentsController', () => {
 
     it('should return semantic stock conflict for outbound post', async () => {
       mockDocumentsService.executeAction.mockRejectedValue(
-        new OutboundStockInsufficientError('Insufficient stock for outbound posting'),
+        new OutboundStockInsufficientError(
+          'Insufficient stock for outbound posting',
+        ),
       );
 
       const result = await controller.executeAction(

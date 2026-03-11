@@ -34,7 +34,8 @@ describe('applyAppRuntimeConfig', () => {
     expect(typeof tenantMiddleware).toBe('function');
 
     expect(app.useGlobalPipes).toHaveBeenCalledTimes(1);
-    const validationPipe = app.useGlobalPipes.mock.calls[0]?.[0] as ValidationPipe;
+    const validationPipe = app.useGlobalPipes.mock
+      .calls[0]?.[0] as ValidationPipe;
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
     expect(validationPipe).toEqual(
       expect.objectContaining({

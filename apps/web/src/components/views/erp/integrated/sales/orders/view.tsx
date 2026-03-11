@@ -4,8 +4,9 @@ import * as React from 'react';
 import { ArrowDown, ArrowUp, Search } from 'lucide-react';
 
 import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
+import { useSalesOrders } from '@/lib/hooks/use-sales-orders';
+import type { SalesOrderListItem } from '@/lib/mocks/erp-list-fixtures';
 
-const PAGE_SIZE = 4;
 const DEFAULT_PARAMS = {
   order: 'desc',
   page: '1',
@@ -14,59 +15,33 @@ const DEFAULT_PARAMS = {
   status: '',
 };
 
-const SALES_ORDER_ROWS = [
-  { so: 'SO-20260216-088', customer: '海外极客电子', date: '2026-02-16', amount: 26500, skuCount: 62, status: '待发货' },
-  { so: 'SO-20260215-021', customer: '武汉星光网咖', date: '2026-02-15', amount: 7020, skuCount: 25, status: '已发货' },
-  { so: 'SO-20260214-017', customer: '南京云帆科技', date: '2026-02-14', amount: 19800, skuCount: 14, status: '草稿' },
-  { so: 'SO-20260213-006', customer: '深湾智能设备', date: '2026-02-13', amount: 12500, skuCount: 8, status: '待发货' },
-  { so: 'SO-20260212-002', customer: '青鸟数字贸易', date: '2026-02-12', amount: 45800, skuCount: 30, status: '已发货' },
-  { so: 'SO-20260211-112', customer: '东海数据网络', date: '2026-02-11', amount: 8900, skuCount: 6, status: '草稿' },
-] as const;
-
-type SalesOrderRow = (typeof SALES_ORDER_ROWS)[number];
 type SalesOrderSortField = 'amount' | 'customer' | 'date' | 'skuCount' | 'so';
 
 export default function SoList() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
+  const { data, error, loading, pagination, reload } = useSalesOrders();
   const [draftQuery, setDraftQuery] = React.useState(params.q);
 
   React.useEffect(() => {
     setDraftQuery(params.q);
   }, [params.q]);
 
-  const filteredRows = React.useMemo(() => {
-    const keyword = params.q.trim().toLowerCase();
-    const sortField = (params.sort as SalesOrderSortField) || 'date';
-    const sortOrder = params.order === 'asc' ? 'asc' : 'desc';
-
-    return SALES_ORDER_ROWS.filter((row) => {
-      if (params.status && row.status !== params.status) {
-        return false;
-      }
-
-      if (!keyword) {
-        return true;
-      }
-
-      return [row.so, row.customer].some((value) => value.toLowerCase().includes(keyword));
-    }).toSorted((left, right) => compareSalesOrders(left, right, sortField, sortOrder));
-  }, [params.order, params.q, params.sort, params.status]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(parsePageParam(params.page), totalPages);
-
   React.useEffect(() => {
-    const rawPage = parsePageParam(params.page);
-
-    if (rawPage !== currentPage) {
-      updateParams({ page: String(currentPage) }, { replace: true });
+    if (loading) {
+      return;
     }
-  }, [currentPage, params.page, updateParams]);
 
-  const pageRows = React.useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredRows.slice(start, start + PAGE_SIZE);
-  }, [currentPage, filteredRows]);
+    const rawPage = parsePageParam(params.page);
+    if (rawPage !== pagination.page) {
+      updateParams({ page: String(pagination.page) }, { replace: true });
+    }
+  }, [loading, pagination.page, params.page, updateParams]);
+
+  const currentPage = pagination.page;
+  const totalPages = Math.max(1, pagination.totalPages);
+  const pageNumbers = buildPagination(currentPage, totalPages);
+  const rangeStart = pagination.total === 0 ? 0 : (currentPage - 1) * pagination.pageSize + 1;
+  const rangeEnd = pagination.total === 0 ? 0 : rangeStart + data.length - 1;
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -79,10 +54,6 @@ export default function SoList() {
 
     updateParams({ order: nextOrder, sort: field });
   };
-
-  const pageNumbers = buildPagination(currentPage, totalPages);
-  const rangeStart = filteredRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = filteredRows.length === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, filteredRows.length);
 
   return (
     <div className="p-8 pb-20 sm:p-10 flex flex-col gap-6 h-full overflow-y-auto relative w-full">
@@ -145,7 +116,7 @@ export default function SoList() {
           ))}
         </div>
         <div className="text-xs text-muted flex items-center gap-2">
-          共 {filteredRows.length} 个 SO · 显示 {rangeStart}-{rangeEnd}
+          共 {pagination.total} 个 SO · 显示 {rangeStart}-{rangeEnd}
         </div>
       </div>
 
@@ -171,10 +142,21 @@ export default function SoList() {
         </div>
 
         <div className="flex flex-col text-sm bg-white overflow-y-auto">
-          {pageRows.map((row) => (
-            <TableRow key={row.so} row={row} />
+          {loading ? (
+            <div className="px-6 py-8 text-center text-sm text-muted">加载销售订单中...</div>
+          ) : null}
+          {!loading && error ? (
+            <div className="px-6 py-8 text-center text-sm text-primary">
+              <p>销售订单加载失败：{error.message}</p>
+              <button className="mt-3 text-sm font-medium underline underline-offset-4" onClick={reload} type="button">
+                重试
+              </button>
+            </div>
+          ) : null}
+          {!loading && !error && data.map((row) => (
+            <SalesOrderTableRow key={row.so} row={row} />
           ))}
-          {pageRows.length === 0 ? (
+          {!loading && !error && data.length === 0 ? (
             <div className="px-6 py-8 text-center text-sm text-muted">没有匹配的销售订单。</div>
           ) : null}
         </div>
@@ -219,21 +201,6 @@ export default function SoList() {
       </div>
     </div>
   );
-}
-
-function compareSalesOrders(
-  left: SalesOrderRow,
-  right: SalesOrderRow,
-  field: SalesOrderSortField,
-  order: 'asc' | 'desc',
-) {
-  const direction = order === 'asc' ? 1 : -1;
-
-  if (field === 'amount' || field === 'skuCount') {
-    return (left[field] - right[field]) * direction;
-  }
-
-  return String(left[field]).localeCompare(String(right[field]), 'zh-CN') * direction;
 }
 
 function getSortLabel(field: SalesOrderSortField) {
@@ -284,7 +251,7 @@ function SortButton({
   );
 }
 
-function TableRow({ row }: { row: SalesOrderRow }) {
+function SalesOrderTableRow({ row }: { row: SalesOrderListItem }) {
   const statusType =
     row.status === '已发货' ? 'success' : row.status === '待发货' ? 'warning' : 'default';
 

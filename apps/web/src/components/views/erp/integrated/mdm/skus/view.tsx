@@ -13,8 +13,9 @@ import {
 } from 'lucide-react';
 
 import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
+import { useSkuList } from '@/lib/hooks/use-sku-list';
+import { skuViewMetaByCode, type SkuActivity } from '@/lib/mocks/erp-list-fixtures';
 
-const PAGE_SIZE = 5;
 const DEFAULT_PARAMS = {
   category: '',
   lowStock: '',
@@ -27,198 +28,70 @@ const DEFAULT_PARAMS = {
   warehouse: '',
 };
 
-const SKU_ROWS = [
-  {
-    code: 'CAB-HDMI-2M',
-    name: 'HDMI 高清视频线 2米',
-    desc: '2.0 / 编织外被 / 镀金',
-    cat: '线材',
-    supp: '金源科技',
-    warehouse: '深圳 A 仓',
-    stock: 342,
-    threshold: 50,
-    status: '正常',
-    supplierSku: 'JY-HDMI-2M',
-    activities: [
-      { color: 'bg-[#549363]', label: '入库 +20 (GRN-2026-0140)', time: '2026-02-27 16:30' },
-      { color: 'bg-primary', label: '出库 -5 (OUT-2026-0089)', time: '2026-02-25 10:15' },
-    ],
-  },
-  {
-    code: 'CON-RJ45-CAT6',
-    name: 'RJ45 水晶头 CAT6',
-    desc: '超六类 / 纯铜 / 50个一包',
-    cat: '连接器',
-    supp: '宏发制造',
-    warehouse: '青岛 B 仓',
-    stock: 12,
-    threshold: 100,
-    status: '补货',
-    supplierSku: 'HF-RJ45-6',
-    activities: [
-      { color: 'bg-primary', label: '安全库存告警触发', time: '2026-03-01 09:00' },
-      { color: 'bg-[#548093]', label: '调拨 +10 (TRF-2026-011)', time: '2026-02-28 11:20' },
-    ],
-  },
-  {
-    code: 'ADP-USBC-VGA',
-    name: 'USB-C 转 VGA 转换器',
-    desc: '1080P / 铝合金 / 15cm',
-    cat: '转换器',
-    supp: '鸿鹏电子',
-    warehouse: '深圳 A 仓',
-    stock: 80,
-    threshold: 30,
-    status: '正常',
-    supplierSku: 'SZ-VGA-80A',
-    activities: [
-      { color: 'bg-[#549363]', label: '入库 +20 (GRN-2026-0140)', time: '2026-02-27 16:30' },
-      { color: 'bg-primary', label: '出库 -5 (OUT-2026-0089)', time: '2026-02-25 10:15' },
-      { color: 'bg-[#548093]', label: '盘点 +2 (ST-2026-0012)', time: '2026-01-15 09:00' },
-    ],
-  },
-  {
-    code: 'PWR-65W-PD',
-    name: '65W PD 快充电源适配器',
-    desc: '氮化镓 / 2C1A / 白色中规',
-    cat: '电源',
-    supp: '立讯精密',
-    warehouse: '深圳 A 仓',
-    stock: 560,
-    threshold: 120,
-    status: '正常',
-    supplierSku: 'LX-PD-65W',
-    activities: [{ color: 'bg-[#549363]', label: '补货完成 +120', time: '2026-02-22 18:10' }],
-  },
-  {
-    code: 'HUB-USB3-7P',
-    name: 'USB 3.0 七口集线器',
-    desc: '带独立开关 / 12V电源 / 铝壳',
-    cat: '扩展坞',
-    supp: '未知供应',
-    warehouse: '苏州 周转仓',
-    stock: 0,
-    threshold: 20,
-    status: '下架',
-    supplierSku: 'N/A',
-    activities: [{ color: 'bg-muted', label: '状态变更为下架', time: '2026-02-20 14:08' }],
-  },
-  {
-    code: 'CBL-DP-1M',
-    name: 'DisplayPort 视频线 1米',
-    desc: '8K / 镀金 / 黑色',
-    cat: '线材',
-    supp: '金源科技',
-    warehouse: '青岛 B 仓',
-    stock: 46,
-    threshold: 40,
-    status: '正常',
-    supplierSku: 'JY-DP-1M',
-    activities: [{ color: 'bg-[#549363]', label: '入库 +12 (GRN-2026-0091)', time: '2026-02-19 09:22' }],
-  },
-  {
-    code: 'BAT-AA-4P',
-    name: 'AA 碱性电池 4 节装',
-    desc: '1.5V / 长效版',
-    cat: '电源',
-    supp: '宏发制造',
-    warehouse: '深圳 A 仓',
-    stock: 25,
-    threshold: 60,
-    status: '补货',
-    supplierSku: 'HF-AA-4P',
-    activities: [{ color: 'bg-primary', label: '低库存预警', time: '2026-02-18 07:50' }],
-  },
-  {
-    code: 'DOCK-TB4-MINI',
-    name: 'Thunderbolt 4 扩展坞',
-    desc: '双 4K / 千兆网口 / 90W 回充',
-    cat: '扩展坞',
-    supp: '鸿鹏电子',
-    warehouse: '苏州 周转仓',
-    stock: 18,
-    threshold: 15,
-    status: '正常',
-    supplierSku: 'HP-TB4-M',
-    activities: [{ color: 'bg-[#548093]', label: '调拨入库 +8', time: '2026-02-17 13:10' }],
-  },
-] as const;
-
-type SkuRow = (typeof SKU_ROWS)[number];
+type SkuRow = {
+  activities: readonly SkuActivity[];
+  cat: string;
+  code: string;
+  desc: string;
+  name: string;
+  status: string;
+  stock: number;
+  supp: string;
+  supplierSku: string;
+  threshold: number;
+  warehouse: string;
+};
 type SkuSortField = 'cat' | 'code' | 'name' | 'status' | 'stock' | 'supp' | 'threshold';
 
 export default function SkuList() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
+  const { data, error, loading, pagination } = useSkuList();
   const [draftQuery, setDraftQuery] = React.useState(params.q);
-  const [selectedCode, setSelectedCode] = React.useState('ADP-USBC-VGA');
+  const [selectedCode, setSelectedCode] = React.useState('');
 
   React.useEffect(() => {
     setDraftQuery(params.q);
   }, [params.q]);
 
-  const filteredRows = React.useMemo(() => {
-    const keyword = params.q.trim().toLowerCase();
-    const sortField = (params.sort as SkuSortField) || 'code';
-    const sortOrder = params.order === 'desc' ? 'desc' : 'asc';
+  const pageRows = React.useMemo<SkuRow[]>(
+    () =>
+      data.flatMap((item) => {
+        const meta = skuViewMetaByCode[item.code];
+        if (!meta) {
+          return [];
+        }
 
-    return SKU_ROWS.filter((row) => {
-      if (params.category && row.cat !== params.category) {
-        return false;
-      }
-
-      if (params.status && row.status !== params.status) {
-        return false;
-      }
-
-      if (params.warehouse && row.warehouse !== params.warehouse) {
-        return false;
-      }
-
-      if (params.supplier && row.supp !== params.supplier) {
-        return false;
-      }
-
-      if (params.lowStock === '1' && row.stock > row.threshold) {
-        return false;
-      }
-
-      if (!keyword) {
-        return true;
-      }
-
-      return [row.code, row.name, row.desc, row.cat, row.supp].some((value) =>
-        value.toLowerCase().includes(keyword),
-      );
-    }).toSorted((left, right) => compareSkus(left, right, sortField, sortOrder));
-  }, [
-    params.category,
-    params.lowStock,
-    params.order,
-    params.q,
-    params.sort,
-    params.status,
-    params.supplier,
-    params.warehouse,
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const currentPage = Math.min(parsePageParam(params.page), totalPages);
+        return [{
+          activities: meta.activities,
+          cat: meta.categoryLabel,
+          code: item.code,
+          desc: item.specification ?? '-',
+          name: item.name,
+          status: getSkuStatusLabel(item.status),
+          stock: meta.stock,
+          supp: meta.supplierName,
+          supplierSku: meta.supplierSku,
+          threshold: meta.threshold,
+          warehouse: meta.warehouseLabel,
+        }];
+      }),
+    [data],
+  );
 
   React.useEffect(() => {
-    const rawPage = parsePageParam(params.page);
-
-    if (rawPage !== currentPage) {
-      updateParams({ page: String(currentPage) }, { replace: true });
+    if (loading) {
+      return;
     }
-  }, [currentPage, params.page, updateParams]);
 
-  const pageRows = React.useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredRows.slice(start, start + PAGE_SIZE);
-  }, [currentPage, filteredRows]);
+    const rawPage = parsePageParam(params.page);
+    if (rawPage !== pagination.page) {
+      updateParams({ page: String(pagination.page) }, { replace: true });
+    }
+  }, [loading, pagination.page, params.page, updateParams]);
 
   React.useEffect(() => {
     if (!pageRows.length) {
+      setSelectedCode('');
       return;
     }
 
@@ -227,8 +100,8 @@ export default function SkuList() {
     }
   }, [pageRows, selectedCode]);
 
-  const selectedSku =
-    pageRows.find((row) => row.code === selectedCode) ?? pageRows[0] ?? filteredRows[0] ?? SKU_ROWS[0];
+  const selectedSku = pageRows.find((row) => row.code === selectedCode) ?? pageRows[0];
+  const isEmpty = !loading && !error && pagination.total === 0;
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -242,9 +115,23 @@ export default function SkuList() {
     updateParams({ order: nextOrder, sort: field });
   };
 
-  const pageNumbers = buildPagination(currentPage, totalPages);
-  const rangeStart = filteredRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = filteredRows.length === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, filteredRows.length);
+  const clearFilters = () => {
+    setDraftQuery('');
+    updateParams({
+      category: '',
+      lowStock: '',
+      page: '1',
+      q: '',
+      status: '',
+      supplier: '',
+      warehouse: '',
+    });
+  };
+
+  const totalPages = Math.max(1, pagination.totalPages);
+  const pageNumbers = buildPagination(pagination.page, totalPages);
+  const rangeStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const rangeEnd = pagination.total === 0 ? 0 : rangeStart + pageRows.length - 1;
 
   return (
     <div className="p-8 pb-20 sm:p-10 flex flex-col gap-5 h-full">
@@ -344,17 +231,7 @@ export default function SkuList() {
             {hasFilters(params) ? (
               <button
                 className="text-primary text-sm font-medium ml-2 flex items-center"
-                onClick={() =>
-                  updateParams({
-                    category: '',
-                    lowStock: '',
-                    page: '1',
-                    q: '',
-                    status: '',
-                    supplier: '',
-                    warehouse: '',
-                  })
-                }
+                onClick={clearFilters}
                 type="button"
               >
                 清除筛选
@@ -364,11 +241,23 @@ export default function SkuList() {
         </div>
       </div>
 
+      {isEmpty ? (
+        <div className="flex-1 flex items-center justify-center border border-border bg-white rounded-sm mt-2">
+          <div className="text-center px-6 py-12">
+            <p className="text-muted text-sm">没有找到匹配的 SKU</p>
+            <button className="mt-3 text-primary text-sm font-medium" onClick={clearFilters} type="button">
+              清除筛选
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!isEmpty ? (
       <div className="flex gap-6 mt-2 h-full min-h-0">
         <div className="flex-1 bg-white border border-border flex flex-col h-full rounded-sm overflow-hidden min-w-[700px]">
           <div className="px-4 py-3 border-b border-border flex justify-between items-center bg-[#FDFCFB]">
             <div className="flex gap-2 items-center">
-              <span className="text-sm font-medium">共 {filteredRows.length.toLocaleString('zh-CN')} 个 SKU</span>
+              <span className="text-sm font-medium">共 {pagination.total.toLocaleString('zh-CN')} 个 SKU</span>
               <span className="text-xs text-muted">
                 显示 {rangeStart}-{rangeEnd}
               </span>
@@ -392,26 +281,29 @@ export default function SkuList() {
           </div>
 
           <div className="overflow-y-auto flex-1 text-sm">
-            {pageRows.map((row) => (
+            {loading ? (
+              <div className="px-4 py-8 text-center text-sm text-muted">加载中...</div>
+            ) : null}
+            {!loading && error ? (
+              <div className="px-4 py-8 text-center text-sm text-red-600">错误: {error.message}</div>
+            ) : null}
+            {!loading && !error ? pageRows.map((row) => (
               <TableRow
                 key={row.code}
-                isActive={row.code === selectedSku.code}
+                isActive={row.code === selectedSku?.code}
                 onClick={() => setSelectedCode(row.code)}
                 row={row}
               />
-            ))}
-            {pageRows.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted">没有匹配的 SKU 记录。</div>
-            ) : null}
+            )) : null}
           </div>
 
           <div className="p-3 border-t border-border flex justify-between items-center">
-            <span className="text-sm text-muted">显示 {rangeStart} 到 {rangeEnd} / 共 {filteredRows.length} 条</span>
+            <span className="text-sm text-muted">显示 {rangeStart} 到 {rangeEnd} / 共 {pagination.total} 条</span>
             <div className="flex gap-1">
               <button
                 className="px-3 h-8 border border-border flex items-center justify-center bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={currentPage === 1}
-                onClick={() => updateParams({ page: String(currentPage - 1) })}
+                disabled={pagination.page === 1 || loading}
+                onClick={() => updateParams({ page: String(pagination.page - 1) })}
                 type="button"
               >
                 上一页
@@ -420,7 +312,7 @@ export default function SkuList() {
                 <button
                   key={page}
                   className={`w-8 h-8 border flex items-center justify-center text-xs ${
-                    page === currentPage
+                    page === pagination.page
                       ? 'border-[#1a1a1a] bg-[#1a1a1a] text-white'
                       : 'border-border bg-white'
                   }`}
@@ -432,8 +324,8 @@ export default function SkuList() {
               ))}
               <button
                 className="px-3 h-8 border border-border flex items-center justify-center bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={currentPage === totalPages}
-                onClick={() => updateParams({ page: String(currentPage + 1) })}
+                disabled={pagination.page === totalPages || loading}
+                onClick={() => updateParams({ page: String(pagination.page + 1) })}
                 type="button"
               >
                 下一页
@@ -442,90 +334,78 @@ export default function SkuList() {
           </div>
         </div>
 
-        <div className="w-[320px] bg-white border border-border flex flex-col">
-          <div className="p-4 border-b border-border flex justify-between items-center bg-[#FDFCFB]">
-            <h2 className="font-bold">快速预览</h2>
-            <span className="text-xs text-muted">本地状态</span>
-          </div>
-
-          <div className="p-5 flex flex-col gap-6 overflow-y-auto">
-            <div>
-              <h3 className="text-lg font-bold">{selectedSku.code}</h3>
-              <p className="text-sm mt-1 text-muted">{selectedSku.name}</p>
-              <div className="mt-2 flex gap-2 flex-wrap">
-                <span className="px-2 py-0.5 border border-border text-xs bg-[#FDFCFB]">{selectedSku.cat}</span>
-                <span className="px-2 py-0.5 border border-border text-xs bg-[#FDFCFB]">{selectedSku.warehouse}</span>
-              </div>
+        {selectedSku ? (
+          <div className="w-[320px] bg-white border border-border flex flex-col">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-[#FDFCFB]">
+              <h2 className="font-bold">快速预览</h2>
+              <span className="text-xs text-muted">BFF Mock</span>
             </div>
 
-            <div className="flex gap-2">
-              <span className="px-3 py-1 bg-gray-100 text-xs font-medium cursor-pointer">入库单</span>
-              <span className="px-3 py-1 bg-[#E8E4DC] border-b-2 border-primary text-xs font-medium cursor-pointer">最近动态</span>
-              <span className="px-3 py-1 bg-gray-100 text-xs font-medium cursor-pointer">出库单</span>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div className="font-bold text-sm mb-1">可用库存</div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100 text-sm">
-                <span className="text-muted">{selectedSku.warehouse}</span>
-                <span className="font-medium">{selectedSku.stock}</span>
+            <div className="p-5 flex flex-col gap-6 overflow-y-auto">
+              <div>
+                <h3 className="text-lg font-bold">{selectedSku.code}</h3>
+                <p className="text-sm mt-1 text-muted">{selectedSku.name}</p>
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 border border-border text-xs bg-[#FDFCFB]">{selectedSku.cat}</span>
+                  <span className="px-2 py-0.5 border border-border text-xs bg-[#FDFCFB]">{selectedSku.warehouse}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100 text-sm">
-                <span className="text-muted">安全库存</span>
-                <span className="font-medium">{selectedSku.threshold}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 text-sm bg-gray-50 px-2 font-bold">
-                <span>状态</span>
-                <span>{selectedSku.status}</span>
-              </div>
-            </div>
 
-            <div className="flex flex-col gap-3 mt-2">
-              <div className="text-xs text-muted">供应商货号/条码</div>
-              <div className="text-sm">{selectedSku.supplierSku}</div>
-
-              <div className="text-xs text-muted mt-2">快捷操作</div>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <button className="bg-[#1a1a1a] text-white py-2 text-sm font-medium">去补货</button>
-                <button className="border border-border bg-white py-2 text-sm hover:bg-gray-50 font-medium">去盘点</button>
-                <button className="border border-border bg-white py-2 text-sm hover:bg-gray-50 font-medium col-span-2">去详情页</button>
+              <div className="flex gap-2">
+                <span className="px-3 py-1 bg-gray-100 text-xs font-medium cursor-pointer">入库单</span>
+                <span className="px-3 py-1 bg-[#E8E4DC] border-b-2 border-primary text-xs font-medium cursor-pointer">最近动态</span>
+                <span className="px-3 py-1 bg-gray-100 text-xs font-medium cursor-pointer">出库单</span>
               </div>
-            </div>
 
-            <div className="mt-4">
-              <div className="text-xs text-muted mb-3">最近动态({selectedSku.activities.length}项)</div>
               <div className="flex flex-col gap-3">
-                {selectedSku.activities.map((item) => (
-                  <div key={`${selectedSku.code}-${item.label}`} className="flex gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-sm mt-1 ${item.color}`} />
-                    <div className="text-xs">
-                      <div className="font-medium mb-0.5">{item.label}</div>
-                      <div className="text-muted">{item.time}</div>
+                <div className="font-bold text-sm mb-1">可用库存</div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 text-sm">
+                  <span className="text-muted">{selectedSku.warehouse}</span>
+                  <span className="font-medium">{selectedSku.stock}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 text-sm">
+                  <span className="text-muted">安全库存</span>
+                  <span className="font-medium">{selectedSku.threshold}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 text-sm bg-gray-50 px-2 font-bold">
+                  <span>状态</span>
+                  <span>{selectedSku.status}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 mt-2">
+                <div className="text-xs text-muted">供应商货号/条码</div>
+                <div className="text-sm">{selectedSku.supplierSku}</div>
+
+                <div className="text-xs text-muted mt-2">快捷操作</div>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button className="bg-[#1a1a1a] text-white py-2 text-sm font-medium">去补货</button>
+                  <button className="border border-border bg-white py-2 text-sm hover:bg-gray-50 font-medium">去盘点</button>
+                  <button className="border border-border bg-white py-2 text-sm hover:bg-gray-50 font-medium col-span-2">去详情页</button>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="text-xs text-muted mb-3">最近动态({selectedSku.activities.length}项)</div>
+                <div className="flex flex-col gap-3">
+                  {selectedSku.activities.map((item) => (
+                    <div key={`${selectedSku.code}-${item.label}`} className="flex gap-2">
+                      <div className={`w-1.5 h-1.5 rounded-sm mt-1 ${item.color}`} />
+                      <div className="text-xs">
+                        <div className="font-medium mb-0.5">{item.label}</div>
+                        <div className="text-muted">{item.time}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </div>
+      ) : null}
     </div>
   );
-}
-
-function compareSkus(
-  left: SkuRow,
-  right: SkuRow,
-  field: SkuSortField,
-  order: 'asc' | 'desc',
-) {
-  const direction = order === 'asc' ? 1 : -1;
-
-  if (field === 'stock' || field === 'threshold') {
-    return (left[field] - right[field]) * direction;
-  }
-
-  return String(left[field]).localeCompare(String(right[field]), 'zh-CN') * direction;
 }
 
 function hasFilters(params: typeof DEFAULT_PARAMS) {
@@ -599,6 +479,17 @@ function SortButton({
       ) : null}
     </button>
   );
+}
+
+function getSkuStatusLabel(status: 'disabled' | 'normal' | 'warning') {
+  switch (status) {
+    case 'disabled':
+      return '下架';
+    case 'warning':
+      return '补货';
+    default:
+      return '正常';
+  }
 }
 
 function TableRow({

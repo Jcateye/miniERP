@@ -17,7 +17,9 @@ import {
 import { WarehouseService } from '../application/warehouse.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 
-function isOptionalNullableString(value: unknown): value is string | null | undefined {
+function isOptionalNullableString(
+  value: unknown,
+): value is string | null | undefined {
   return value === undefined || value === null || typeof value === 'string';
 }
 
@@ -25,7 +27,9 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function normalizeOptionalNullableString(value: string | null | undefined): string | null | undefined {
+function normalizeOptionalNullableString(
+  value: string | null | undefined,
+): string | null | undefined {
   if (value === undefined || value === null) {
     return value;
   }
@@ -128,7 +132,7 @@ function parseUpdateWarehouseCommand(payload: unknown): UpdateWarehouseCommand {
     address: normalizeOptionalNullableString(candidate.address),
     contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
     contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
-    isActive: candidate.isActive as boolean | undefined,
+    isActive: candidate.isActive,
   };
 }
 
