@@ -20,6 +20,38 @@ interface EnvSnapshot {
   readonly authContextSecret: string | undefined;
 }
 
+interface RootStatusBody {
+  readonly message: string;
+  readonly data: {
+    readonly service: string;
+    readonly status: string;
+  };
+}
+
+interface HealthStatusBody {
+  readonly message: string;
+  readonly data: {
+    readonly status: string;
+  };
+}
+
+interface HealthReadyBody {
+  readonly message: string;
+  readonly data: {
+    readonly status: string;
+    readonly dependencies: ReadonlyArray<{
+      readonly name: string;
+      readonly status: string;
+    }>;
+  };
+}
+
+interface ErrorCodeBody {
+  readonly error: {
+    readonly code: string;
+  };
+}
+
 const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
 
 function snapshotEnv(): EnvSnapshot {
@@ -71,7 +103,7 @@ function extractRejectedReasons(
     .filter(
       (result): result is PromiseRejectedResult => result.status === 'rejected',
     )
-    .map((result) => result.reason);
+    .map((result): unknown => result.reason);
 }
 
 function encodeAuthContext(payload: {
@@ -206,7 +238,7 @@ async function startProbePair(): Promise<{
 }
 
 async function createTestingApp(): Promise<{
-  readonly app: INestApplication<App>;
+  readonly app: INestApplication;
   readonly config: AppConfig;
 }> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -225,8 +257,12 @@ async function createTestingApp(): Promise<{
   };
 }
 
+function getRequestApp(app: INestApplication): App {
+  return app.getHttpServer() as App;
+}
+
 describe('Server foundation (e2e)', () => {
-  let app: INestApplication<App> | undefined;
+  let app: INestApplication | undefined;
   let appConfig: AppConfig;
   let databaseProbeServer: net.Server | undefined;
   let redisProbeServer: net.Server | undefined;
@@ -288,55 +324,45 @@ describe('Server foundation (e2e)', () => {
   });
 
   it('/ (GET) returns wrapped payload', () => {
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/', appConfig))
       .set(createRequestHeaders('req-e2e-root', appConfig))
       .expect(200)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            message: 'OK',
-            data: expect.objectContaining({
-              service: 'miniERP-server',
-              status: 'ok',
-            }),
-          }),
-        );
+        const body = response.body as RootStatusBody;
+
+        expect(body.message).toBe('OK');
+        expect(body.data.service).toBe('miniERP-server');
+        expect(body.data.status).toBe('ok');
       });
   });
 
   it('/health/live (GET) returns liveness', () => {
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/health/live', appConfig))
       .expect(200)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            message: 'Service is alive',
-            data: expect.objectContaining({
-              status: 'live',
-            }),
-          }),
-        );
+        const body = response.body as HealthStatusBody;
+
+        expect(body.message).toBe('Service is alive');
+        expect(body.data.status).toBe('live');
       });
   });
 
   it('/health/ready (GET) returns readiness', () => {
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/health/ready', appConfig))
       .expect(200)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            message: 'Service is ready',
-            data: expect.objectContaining({
-              status: 'ready',
-              dependencies: expect.arrayContaining([
-                expect.objectContaining({ name: 'database', status: 'up' }),
-                expect.objectContaining({ name: 'redis', status: 'up' }),
-              ]),
-            }),
-          }),
+        const body = response.body as HealthReadyBody;
+
+        expect(body.message).toBe('Service is ready');
+        expect(body.data.status).toBe('ready');
+        expect(body.data.dependencies).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ name: 'database', status: 'up' }),
+            expect.objectContaining({ name: 'redis', status: 'up' }),
+          ]),
         );
       });
   });
@@ -347,18 +373,14 @@ describe('Server foundation (e2e)', () => {
       [appConfig.tenantHeader]: '2002',
     };
 
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/', appConfig))
       .set(mismatchTenantHeaders)
       .expect(403)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            error: expect.objectContaining({
-              code: 'TENANT_MISMATCH',
-            }),
-          }),
-        );
+        const body = response.body as ErrorCodeBody;
+
+        expect(body.error.code).toBe('TENANT_MISMATCH');
       });
   });
 
@@ -371,25 +393,21 @@ describe('Server foundation (e2e)', () => {
       [appConfig.tenantHeader]: '2002',
     };
 
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/', appConfig))
       .set(platformAdminHeaders)
       .expect(200)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            message: 'OK',
-            data: expect.objectContaining({
-              service: 'miniERP-server',
-              status: 'ok',
-            }),
-          }),
-        );
+        const body = response.body as RootStatusBody;
+
+        expect(body.message).toBe('OK');
+        expect(body.data.service).toBe('miniERP-server');
+        expect(body.data.status).toBe('ok');
       });
   });
 
   it('/ (GET) returns 401 without auth context', () => {
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/', appConfig))
       .set({
         [appConfig.tenantHeader]: '1001',
@@ -397,13 +415,9 @@ describe('Server foundation (e2e)', () => {
       })
       .expect(401)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            error: expect.objectContaining({
-              code: 'AUTH_INVALID_CONTEXT',
-            }),
-          }),
-        );
+        const body = response.body as ErrorCodeBody;
+
+        expect(body.error.code).toBe('AUTH_INVALID_CONTEXT');
       });
   });
 
@@ -413,18 +427,14 @@ describe('Server foundation (e2e)', () => {
       'x-auth-context-signature': 'invalid-signature',
     };
 
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/', appConfig))
       .set(invalidSignatureHeaders)
       .expect(401)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            error: expect.objectContaining({
-              code: 'AUTH_INVALID_CONTEXT',
-            }),
-          }),
-        );
+        const body = response.body as ErrorCodeBody;
+
+        expect(body.error.code).toBe('AUTH_INVALID_CONTEXT');
       });
   });
 
@@ -434,18 +444,14 @@ describe('Server foundation (e2e)', () => {
       'x-auth-context': 'invalid-base64-payload',
     };
 
-    return request(app!.getHttpServer())
+    return request(getRequestApp(app!))
       .get(toApiPath('/', appConfig))
       .set(tamperedPayloadHeaders)
       .expect(401)
       .expect((response) => {
-        expect(response.body).toEqual(
-          expect.objectContaining({
-            error: expect.objectContaining({
-              code: 'AUTH_INVALID_CONTEXT',
-            }),
-          }),
-        );
+        const body = response.body as ErrorCodeBody;
+
+        expect(body.error.code).toBe('AUTH_INVALID_CONTEXT');
       });
   });
 });
