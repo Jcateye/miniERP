@@ -5,6 +5,8 @@ import type { AuthContext, AuthenticatedRequest } from './auth-context';
 const HEALTH_PATH_PATTERN = /\/health\/(live|ready)\/?$/u;
 const SWAGGER_PATH_PATTERN = /\/docs(?:\/.*)?$|\/docs-(json|yaml)$/u;
 const DEV_AUTHORIZATION_HEADER = 'Bearer dev-token';
+const DEV_AUTH_TENANT_ID = '1';
+const DEV_AUTH_ACTOR_ID = 'dev-user';
 const DEV_AUTH_PERMISSIONS = [
   'evidence:*',
   'masterdata.customer.read',
@@ -132,9 +134,10 @@ function tryAttachDevelopmentAuthContext(
 
   const authenticatedRequest = request as Request & AuthenticatedRequest;
   Object.assign(authenticatedRequest, {
+    // 开发环境认证绕过固定到测试租户/用户，避免依赖可变 tenant header 配置。
     authContext: {
-      tenantId: readHeaderValue(request, 'x-tenant-id') ?? '1',
-      actorId: 'dev-user',
+      tenantId: DEV_AUTH_TENANT_ID,
+      actorId: DEV_AUTH_ACTOR_ID,
       permissions: [...DEV_AUTH_PERMISSIONS],
       role: 'tenant_admin' as const,
     },

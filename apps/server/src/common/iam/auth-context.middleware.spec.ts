@@ -135,7 +135,7 @@ describe('authContextMiddleware', () => {
     expect(next).toHaveBeenCalled();
     expect(status).not.toHaveBeenCalled();
     expect(request.authContext).toEqual({
-      tenantId: '2002',
+      tenantId: '1',
       actorId: 'dev-user',
       permissions: [
         'evidence:*',
@@ -159,7 +159,6 @@ describe('authContextMiddleware', () => {
     });
     const request = createRequest({
       authorization: 'Bearer dev-token',
-      'x-tenant-id': '2002',
     });
     const { response, status, json } = createResponse();
     const next = jest.fn() as NextFunction;
