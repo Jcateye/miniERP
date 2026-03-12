@@ -7,8 +7,6 @@ import { InventoryInsufficientStockError } from '../../inventory/domain/inventor
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
-  let auditService: AuditService;
-  let inventoryPostingService: InventoryPostingService;
 
   const mockAuditService = {
     recordAuthorization: jest.fn(),
@@ -37,10 +35,6 @@ describe('DocumentsService', () => {
     }).compile();
 
     service = module.get<DocumentsService>(DocumentsService);
-    auditService = module.get<AuditService>(AuditService);
-    inventoryPostingService = module.get<InventoryPostingService>(
-      InventoryPostingService,
-    );
   });
 
   afterEach(() => {
@@ -198,7 +192,7 @@ describe('DocumentsService', () => {
         'req-001',
       );
 
-      expect(inventoryPostingService.post).toHaveBeenCalled();
+      expect(mockInventoryPostingService.post).toHaveBeenCalled();
       expect(result.inventoryPosted).toBe(true);
       expect(result.ledgerEntryIds).toContain('ledger-001');
     });
@@ -231,7 +225,7 @@ describe('DocumentsService', () => {
         'req-001',
       );
 
-      expect(inventoryPostingService.post).toHaveBeenCalled();
+      expect(mockInventoryPostingService.post).toHaveBeenCalled();
       expect(result.inventoryPosted).toBe(true);
     });
 
@@ -261,7 +255,7 @@ describe('DocumentsService', () => {
         'req-001',
       );
 
-      expect(inventoryPostingService.post).toHaveBeenCalledWith(
+      expect(mockInventoryPostingService.post).toHaveBeenCalledWith(
         '1001',
         expect.objectContaining({
           referenceType: 'ADJUSTMENT',
@@ -284,7 +278,7 @@ describe('DocumentsService', () => {
         'req-001',
       );
 
-      expect(auditService.recordAuthorization).toHaveBeenCalledWith(
+      expect(mockAuditService.recordAuthorization).toHaveBeenCalledWith(
         expect.objectContaining({
           result: 'success',
           action: 'document.confirm',
@@ -307,7 +301,7 @@ describe('DocumentsService', () => {
         // expected
       }
 
-      expect(auditService.recordAuthorization).toHaveBeenCalledWith(
+      expect(mockAuditService.recordAuthorization).toHaveBeenCalledWith(
         expect.objectContaining({
           result: 'deny',
           reason: 'INVALID_STATUS_TRANSITION',
@@ -327,7 +321,7 @@ describe('DocumentsService', () => {
       );
 
       mockInventoryPostingService.post.mockImplementation(
-        async () =>
+        () =>
           new Promise((resolve) => {
             setTimeout(() => {
               resolve({
@@ -450,8 +444,8 @@ describe('DocumentsService', () => {
         id: BigInt(1),
       });
       mockSalesOutboundPrisma.$transaction.mockImplementation(
-        async (work: (tx: typeof mockSalesOutboundPrisma) => unknown) =>
-          work(mockSalesOutboundPrisma),
+        (work: (tx: typeof mockSalesOutboundPrisma) => unknown) =>
+          Promise.resolve(work(mockSalesOutboundPrisma)),
       );
     });
 
@@ -572,7 +566,8 @@ describe('DocumentsService', () => {
       mockPrisma.stateTransitionLog.create.mockResolvedValue({ id: BigInt(1) });
       mockPrisma.outboxEvent.create.mockResolvedValue({ id: BigInt(1) });
       mockPrisma.$transaction.mockImplementation(
-        async (work: (tx: typeof mockPrisma) => unknown) => work(mockPrisma),
+        (work: (tx: typeof mockPrisma) => unknown) =>
+          Promise.resolve(work(mockPrisma)),
       );
       mockInventoryPostingService.postInTransaction.mockResolvedValue({
         ledgerEntries: [{ id: 'ledger-001' }],
@@ -664,12 +659,23 @@ describe('DocumentsService', () => {
       expect(result.success).toBe(true);
       expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalled();
       expect(mockPrisma.stateTransitionLog.create).toHaveBeenCalled();
-      expect(mockPrisma.outboxEvent.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          aggregateType: 'document',
-          aggregateId: '3001',
-          eventType: 'document.grn.posted',
-        }),
+      const outboxCreateCalls = mockPrisma.outboxEvent.create.mock
+        .calls as ReadonlyArray<
+        [
+          {
+            data: {
+              aggregateType: string;
+              aggregateId: string;
+              eventType: string;
+            };
+          },
+        ]
+      >;
+      const outboxEvent = outboxCreateCalls.at(-1)?.[0];
+      expect(outboxEvent?.data).toMatchObject({
+        aggregateType: 'document',
+        aggregateId: '3001',
+        eventType: 'document.grn.posted',
       });
     });
   });

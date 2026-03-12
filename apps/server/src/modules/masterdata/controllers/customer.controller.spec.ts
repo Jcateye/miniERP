@@ -8,7 +8,6 @@ import { PlatformAccessService } from '../../../platform/application/platform-ac
 
 describe('CustomerController', () => {
   let controller: CustomerController;
-  let customerService: CustomerService;
 
   const mockTenantContext = {
     tenantId: '1001',
@@ -56,7 +55,6 @@ describe('CustomerController', () => {
     }).compile();
 
     controller = module.get<CustomerController>(CustomerController);
-    customerService = module.get<CustomerService>(CustomerService);
   });
 
   afterEach(() => {
@@ -102,7 +100,7 @@ describe('CustomerController', () => {
 
     const result = await controller.list(undefined, undefined, 'true');
 
-    expect(customerService.findAll).toHaveBeenCalledWith('1001', {
+    expect(mockCustomerService.findAll).toHaveBeenCalledWith('1001', {
       code: undefined,
       name: undefined,
       isActive: true,
@@ -133,7 +131,7 @@ describe('CustomerController', () => {
       contactPerson: ' ',
     });
 
-    expect(customerService.create).toHaveBeenCalledWith('1001', {
+    expect(mockCustomerService.create).toHaveBeenCalledWith('1001', {
       code: 'CUST-B',
       name: '客户B',
       contactPerson: null,
@@ -166,14 +164,18 @@ describe('CustomerController', () => {
       isActive: true,
     });
 
-    expect(customerService.update).toHaveBeenCalledWith('1001', 'cust_001', {
-      name: '客户A(更新)',
-      contactPerson: undefined,
-      contactPhone: undefined,
-      email: undefined,
-      address: undefined,
-      isActive: true,
-    });
+    expect(mockCustomerService.update).toHaveBeenCalledWith(
+      '1001',
+      'cust_001',
+      {
+        name: '客户A(更新)',
+        contactPerson: undefined,
+        contactPhone: undefined,
+        email: undefined,
+        address: undefined,
+        isActive: true,
+      },
+    );
     expect(result).toEqual(updated);
   });
 
@@ -196,7 +198,10 @@ describe('CustomerController', () => {
 
     const result = await controller.getById('cust_001');
 
-    expect(customerService.findById).toHaveBeenCalledWith('1001', 'cust_001');
+    expect(mockCustomerService.findById).toHaveBeenCalledWith(
+      '1001',
+      'cust_001',
+    );
     expect(result).toEqual(entity);
   });
 
@@ -205,7 +210,7 @@ describe('CustomerController', () => {
 
     const result = await controller.remove('cust_001');
 
-    expect(customerService.delete).toHaveBeenCalledWith('1001', 'cust_001');
+    expect(mockCustomerService.delete).toHaveBeenCalledWith('1001', 'cust_001');
     expect(result).toEqual({ id: 'cust_001', deleted: true });
   });
 });

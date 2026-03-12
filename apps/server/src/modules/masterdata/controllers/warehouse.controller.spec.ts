@@ -8,7 +8,6 @@ import { PlatformAccessService } from '../../../platform/application/platform-ac
 
 describe('WarehouseController', () => {
   let controller: WarehouseController;
-  let warehouseService: WarehouseService;
 
   const mockTenantContext = {
     tenantId: '1001',
@@ -56,7 +55,6 @@ describe('WarehouseController', () => {
     }).compile();
 
     controller = module.get<WarehouseController>(WarehouseController);
-    warehouseService = module.get<WarehouseService>(WarehouseService);
   });
 
   afterEach(() => {
@@ -101,7 +99,7 @@ describe('WarehouseController', () => {
 
     const result = await controller.list(undefined, undefined, 'true');
 
-    expect(warehouseService.findAll).toHaveBeenCalledWith('1001', {
+    expect(mockWarehouseService.findAll).toHaveBeenCalledWith('1001', {
       code: undefined,
       name: undefined,
       isActive: true,
@@ -131,7 +129,7 @@ describe('WarehouseController', () => {
       address: ' ',
     });
 
-    expect(warehouseService.create).toHaveBeenCalledWith('1001', {
+    expect(mockWarehouseService.create).toHaveBeenCalledWith('1001', {
       code: 'WH-B',
       name: '备仓',
       address: null,
@@ -162,7 +160,7 @@ describe('WarehouseController', () => {
       isActive: true,
     });
 
-    expect(warehouseService.update).toHaveBeenCalledWith('1001', 'wh_001', {
+    expect(mockWarehouseService.update).toHaveBeenCalledWith('1001', 'wh_001', {
       name: '主仓(更新)',
       address: undefined,
       contactPerson: undefined,
@@ -190,7 +188,10 @@ describe('WarehouseController', () => {
 
     const result = await controller.getById('wh_001');
 
-    expect(warehouseService.findById).toHaveBeenCalledWith('1001', 'wh_001');
+    expect(mockWarehouseService.findById).toHaveBeenCalledWith(
+      '1001',
+      'wh_001',
+    );
     expect(result).toEqual(entity);
   });
 
@@ -199,7 +200,7 @@ describe('WarehouseController', () => {
 
     const result = await controller.remove('wh_001');
 
-    expect(warehouseService.delete).toHaveBeenCalledWith('1001', 'wh_001');
+    expect(mockWarehouseService.delete).toHaveBeenCalledWith('1001', 'wh_001');
     expect(result).toEqual({ id: 'wh_001', deleted: true });
   });
 });

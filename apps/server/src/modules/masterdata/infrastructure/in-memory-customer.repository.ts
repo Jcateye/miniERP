@@ -19,25 +19,22 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     return tenantStore;
   }
 
-  async findById(tenantId: string, id: string): Promise<CustomerEntity | null> {
+  findById(tenantId: string, id: string): Promise<CustomerEntity | null> {
     const tenantStore = this.getTenantStore(tenantId);
-    return tenantStore.get(id) ?? null;
+    return Promise.resolve(tenantStore.get(id) ?? null);
   }
 
-  async findByCode(
-    tenantId: string,
-    code: string,
-  ): Promise<CustomerEntity | null> {
+  findByCode(tenantId: string, code: string): Promise<CustomerEntity | null> {
     const tenantStore = this.getTenantStore(tenantId);
     for (const entity of tenantStore.values()) {
       if (entity.code === code) {
-        return entity;
+        return Promise.resolve(entity);
       }
     }
-    return null;
+    return Promise.resolve(null);
   }
 
-  async findAll(
+  findAll(
     tenantId: string,
     filter?: CustomerQueryFilter,
   ): Promise<readonly CustomerEntity[]> {
@@ -56,20 +53,22 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       }
     }
 
-    return results.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return Promise.resolve(
+      results.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    );
   }
 
-  async save(
+  save(
     tenantId: string,
     entity: Omit<CustomerEntity, 'tenantId'>,
   ): Promise<CustomerEntity> {
     const tenantStore = this.getTenantStore(tenantId);
     const fullEntity: CustomerEntity = { ...entity, tenantId };
     tenantStore.set(entity.id, fullEntity);
-    return fullEntity;
+    return Promise.resolve(fullEntity);
   }
 
-  async update(
+  update(
     tenantId: string,
     id: string,
     updates: UpdateCustomerCommand,
@@ -77,7 +76,7 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     const tenantStore = this.getTenantStore(tenantId);
     const existing = tenantStore.get(id);
     if (!existing) {
-      return null;
+      return Promise.resolve(null);
     }
 
     const updated: CustomerEntity = {
@@ -86,12 +85,12 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       updatedAt: new Date().toISOString(),
     };
     tenantStore.set(id, updated);
-    return updated;
+    return Promise.resolve(updated);
   }
 
-  async delete(tenantId: string, id: string): Promise<boolean> {
+  delete(tenantId: string, id: string): Promise<boolean> {
     const tenantStore = this.getTenantStore(tenantId);
-    return tenantStore.delete(id);
+    return Promise.resolve(tenantStore.delete(id));
   }
 
   async existsByCode(tenantId: string, code: string): Promise<boolean> {
