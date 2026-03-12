@@ -10,8 +10,6 @@ import { TenantContextService } from '../../../common/tenant/tenant-context.serv
 
 describe('DocumentsController', () => {
   let controller: DocumentsController;
-  // Keep service reference to satisfy NestJS provider wiring checks in tests
-  let service: DocumentsService;
 
   const mockTenantContext = {
     tenantId: '1001',
@@ -45,10 +43,6 @@ describe('DocumentsController', () => {
     }).compile();
 
     controller = module.get<DocumentsController>(DocumentsController);
-<<<<<<< HEAD
-=======
-    service = module.get<DocumentsService>(DocumentsService);
->>>>>>> d5049c3 (fix(server): unblock lint gate for PR37)
   });
 
   afterEach(() => {
@@ -145,13 +139,7 @@ describe('DocumentsController', () => {
 
   describe('executeAction', () => {
     it('should return error when Idempotency-Key is missing', async () => {
-      const result = await controller.executeAction(
-        'PO',
-        '2001',
-        'confirm',
-        '',
-        {},
-      );
+      const result = await controller.executeAction('PO', '2001', 'confirm', '', {});
 
       expect(result).toEqual({
         error: {
@@ -239,9 +227,7 @@ describe('DocumentsController', () => {
 
     it('should return semantic stock conflict for outbound post', async () => {
       mockDocumentsService.executeAction.mockRejectedValue(
-        new OutboundStockInsufficientError(
-          'Insufficient stock for outbound posting',
-        ),
+        new OutboundStockInsufficientError('Insufficient stock for outbound posting'),
       );
 
       const result = await controller.executeAction(
