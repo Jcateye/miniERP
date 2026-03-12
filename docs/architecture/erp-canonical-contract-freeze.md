@@ -210,3 +210,23 @@ ext
 1. 删除旧主定义
 2. 删除仅为兼容存在的重复常量
 3. 删除旧路由的主写路径
+
+## 10. Prisma Phase 1 兼容策略
+
+本轮 Prisma 迁移采用 additive rollout：
+
+1. 新增 canonical 表：`company`、`org_unit`、`uom`、`tax_code`、`warehouse_bin`、`inventory_txn`、`inventory_txn_line`、`item`、`goods_receipt`、`goods_receipt_line`、`shipment`、`shipment_line`
+2. 保留 legacy 表：`sku`、`grn`、`grn_line`、`outbound`、`outbound_line`
+3. 现有 legacy 表只补字段，不直接 rename，不直接删列
+
+原因：
+
+1. 当前远程库仍服务于现有 server Prisma client 调用
+2. 直接 rename 会打断 `prisma.sku / prisma.grn / prisma.outbound` 现有路径
+3. 先 additive，再切主写路径，最后删旧名，风险最低
+
+补充规则：
+
+1. 现有 `inventory_ledger` 与 `inventory_balance` 本轮只补扩展字段，不强制把 `Int` 改成 `Decimal`
+2. decimal 口径先落在新的 `inventory_txn / inventory_txn_line` 事务层
+3. 远程库迁移必须先完成 SQL 审查，再执行 `migrate deploy`

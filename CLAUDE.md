@@ -142,6 +142,8 @@ ERP 正式页面只允许处于以下五种状态之一：
 - `packages/shared/src/types/erp/*` 成为主数据、交易、库存、财务共享契约的唯一新增入口
 - `document.ts` / `documents.ts` 仅允许继续作为兼容导出层，不得新增第二套状态源
 - `sku / grn / outbound` 继续兼容，但今后新增主定义统一使用 `item / goods_receipt / shipment`
+- Prisma canonical phase 1 已采用 additive rollout 落到远程库，目标库为 `192.168.1.68:5432/minierp`
+- server 已新增 trading catalog，交易边界状态源统一复用 shared canonical types
 
 ## 5. 架构决策记录（ADR）
 

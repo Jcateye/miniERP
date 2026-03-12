@@ -14,6 +14,7 @@ import { IamGuard } from './common/iam/iam.guard';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { EvidenceModule } from './modules/evidence/evidence.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { TradingModule } from './modules/trading';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
     AuditModule,
     TenantModule,
     PlatformModule,
+    TradingModule,
     DocumentsModule,
     EvidenceModule,
     InventoryModule,

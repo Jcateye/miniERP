@@ -81,3 +81,40 @@ miniERP 当前存在一组已经写进设计蓝图、但尚未沉淀为代码契
 - `company/org` 的正式 shared DTO 是否在下一轮与 Prisma 迁移一起落地，还是先只冻结字段名。
 - `documents` 聚合读模型何时拆成 `trading` 正式模块。
 - BFF fixture fallback 的完全收敛，是分路由推进还是作为独立变更推进。
+
+## Phase 2 Decisions
+
+### 5. Prisma canonical phase 1 采用 additive rollout
+
+本轮 Prisma 不直接重命名 `sku/grn/outbound` 模型，也不强制改写现有 Prisma client 调用路径，而是：
+
+- 新增 canonical `item / goods_receipt / shipment` 表
+- 保留 legacy `sku / grn / outbound` 表
+- 在 legacy 表上补 `company_id / org_id / status / ext` 与 canonical 扩展字段
+
+原因：
+
+- 远程数据库当前正在被现有服务使用，直接 rename 会让 `this.prisma.sku`、`this.prisma.grn`、`this.prisma.outbound` 全面失效。
+- additive rollout 可以先冻结持久层目标，再逐步切 server/BFF/web 主写路径。
+
+### 6. Inventory decimal 目标继续保留，但本轮不强切现有 ledger/balance 数值类型
+
+canonical contract 仍以 decimal 为目标口径，但本轮仅新增 `inventory_txn / inventory_txn_line` 的 decimal 事务层，不立刻把现有 `inventory_ledger.quantity_delta` 与 `inventory_balance.on_hand` 从 `Int` 改成 `Decimal`。
+
+原因：
+
+- inventory server 代码和 BFF 目前仍大量以 `number` 为运行事实。
+- 先把事务层和扩展字段加进去，可以避免一次 schema 改动把库存链路全部打断。
+
+### 7. Server trading baseline 先统一 catalog，再拆主写路径
+
+本轮 server trading 不直接移除 `DocumentsService`，而是先新增独立 trading catalog：
+
+- canonical/legacy document type mapping
+- canonical status source
+- boundary 可复用的 status membership 判断
+
+原因：
+
+- 现有 purchase / sales / inbound / outbound boundary 各自定义联合类型，虽然内容接近，但没有被 shared canonical source 约束。
+- 先统一 catalog，后续再拆 `DocumentsService` 时边界不会继续分叉。

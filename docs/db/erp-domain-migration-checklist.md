@@ -147,6 +147,31 @@ supplier -> 补结算与收款字段
 - 新页面和新接口以 `item` 为主路径
 - 旧 `sku` 路径仅做兼容
 
+### Phase 2A. Additive canonical rollout（当前执行口径）
+
+### 目标
+
+在不打断现有远程库运行路径的前提下，把 canonical 主数据与单据表先落库。
+
+### 动作
+
+1. 新建 `item / goods_receipt / shipment` 及其行表
+2. 保留 `sku / grn / outbound` 作为 compatibility tables
+3. 现有业务表补 `company_id / org_id / status / ext`
+4. 采购、销售、收货、发运头行表补 canonical 扩展字段
+5. 新增 `uom / tax_code / warehouse_bin / inventory_txn / inventory_txn_line`
+
+### 风险
+
+- canonical 新表已存在，但 server 主写路径尚未切过去
+- 数据在一段时间内会同时存在 legacy 表和 canonical 表两套目标模型
+
+### 验收
+
+- 远程库可安全 apply additive migration
+- 现有 Prisma client 访问 `sku/grn/outbound` 不会失效
+- 新 server 模块可以开始面向 canonical 表扩展
+
 ---
 
 ## Phase 3. 库存事务层补齐

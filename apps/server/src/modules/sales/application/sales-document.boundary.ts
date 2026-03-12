@@ -3,8 +3,9 @@ import {
   getDocumentModuleBoundary,
   type DocumentModuleBoundary,
 } from '../../core-document/domain/status-transition';
+import type { SalesOrderLifecycleStatus } from '../../trading/domain/trading-document.catalog';
 
-export type SalesOrderStatus = 'draft' | 'confirmed' | 'closed' | 'cancelled';
+export type SalesOrderStatus = SalesOrderLifecycleStatus;
 
 export interface SalesOrderTransitionAttempt {
   entityId: string;

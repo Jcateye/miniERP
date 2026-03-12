@@ -75,6 +75,8 @@ bun run --filter server test:e2e
 - 根 `db:*` 依赖 server Prisma 脚本。
 - 本地中间件与访问方式以 `docs/Macmini-infra.md` 为准。
 - 2026-03-13 起，canonical ERP shared contract 统一从 `packages/shared/src/types/erp/*` 新增。
+- 2026-03-13 已完成 Prisma canonical phase 1 additive migration，并已应用到远程 `192.168.1.68:5432/minierp`。
+- server 交易状态口径统一由 shared canonical types + trading catalog 提供。
 
 ---
 
