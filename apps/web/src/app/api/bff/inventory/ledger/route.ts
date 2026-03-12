@@ -17,6 +17,7 @@ import {
   inventoryLedgerListFixtures,
   type InventoryLedgerListItem,
 } from '@/lib/mocks/erp-list-fixtures';
+import { applyInventoryBalanceDelta } from '../balance/_store';
 import { mergeInventoryLedgerItems, upsertInventoryLedgerDraft } from './_store';
 import {
   fetchBackendArray,
@@ -33,9 +34,9 @@ const INVENTORY_TYPE_LABELS: Record<string, InventoryLedgerListItem['type']> = {
 };
 
 const WAREHOUSE_LABELS: Record<string, string> = {
-  'WH-001': '深圳总仓',
+  'WH-001': '深圳 A 仓',
   'WH-002': '青岛 B 仓',
-  'WH-003': '苏州周转仓',
+  'WH-003': '苏州 周转仓',
 };
 
 function formatDateTime(value: string) {
@@ -178,6 +179,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error('payload must be an object');
+    }
+
     const candidate = payload as Record<string, unknown>;
 
     if (typeof candidate.skuId !== 'string' || candidate.skuId.trim() === '') {
@@ -197,15 +202,39 @@ export async function POST(request: NextRequest) {
       throw new Error('quantity must be a valid number');
     }
 
+    if (quantity <= 0) {
+      throw new Error('quantity must be greater than 0');
+    }
+
+    if (Math.abs(quantity) > 1_000_000) {
+      throw new Error('quantity is too large');
+    }
+
+    const skuId = candidate.skuId.trim();
+    const warehouseId = candidate.warehouseId.trim();
+    const normalizedType = candidate.type.trim() as '入库' | '出库' | '调整';
+
+    if (!['入库', '出库', '调整'].includes(normalizedType)) {
+      throw new Error('type must be one of 入库/出库/调整');
+    }
+
+    const quantityDelta = normalizedType === '出库' ? -Math.abs(quantity) : Math.abs(quantity);
+
+    applyInventoryBalanceDelta({
+      quantityDelta,
+      skuId,
+      warehouseId,
+    });
+
     const id = upsertInventoryLedgerDraft({
-      quantity: candidate.type.trim() === '出库' ? -Math.abs(quantity) : Math.abs(quantity),
+      quantity: quantityDelta,
       reason:
         typeof candidate.reason === 'string'
           ? candidate.reason.trim()
           : '',
-      skuId: candidate.skuId.trim(),
-      type: candidate.type.trim() as '入库' | '出库' | '调整',
-      warehouseId: candidate.warehouseId.trim(),
+      skuId,
+      type: normalizedType,
+      warehouseId,
     });
 
     return Response.json(

@@ -1,4 +1,7 @@
-import type { InventoryBalanceListItem } from '@/lib/mocks/erp-list-fixtures';
+import {
+  inventoryBalanceListFixtures,
+  type InventoryBalanceListItem,
+} from '@/lib/mocks/erp-list-fixtures';
 
 export interface InventoryBalanceDraft {
   readonly id: string;
@@ -78,12 +81,16 @@ export function mergeInventoryBalanceItems(
   const merged = new Map<string, InventoryBalanceListItem>();
 
   for (const item of source) {
-    const id = createInventoryBalanceId(item.sku, item.warehouse);
+    const normalizedWarehouseId = normalizeWarehouseForBalance(item.warehouse);
+    const id = createInventoryBalanceId(item.sku, normalizedWarehouseId);
     if (store.deleted.has(id)) {
       continue;
     }
 
-    merged.set(id, item);
+    merged.set(id, {
+      ...item,
+      warehouse: normalizedWarehouseId,
+    });
   }
 
   for (const draft of store.upserts.values()) {
@@ -93,8 +100,60 @@ export function mergeInventoryBalanceItems(
   return [...merged.values()];
 }
 
+export function applyInventoryBalanceDelta(input: {
+  quantityDelta: number;
+  skuId: string;
+  warehouseId: string;
+}) {
+  const normalizedWarehouseId = normalizeWarehouseForBalance(input.warehouseId);
+  const store = getStore();
+  const existingId = createInventoryBalanceId(input.skuId, normalizedWarehouseId);
+  const existingDraft = store.upserts.get(existingId);
+  const fixture = inventoryBalanceListFixtures.find(
+    (candidate) => candidate.sku === input.skuId && candidate.warehouse === normalizedWarehouseId,
+  );
+
+  const baselineQuantity = existingDraft?.quantity ?? fixture?.balance ?? 0;
+  const baselineThreshold = existingDraft?.threshold ?? fixture?.safe ?? 0;
+  const baselineName = existingDraft?.name ?? fixture?.name;
+  const baselineReserved = existingDraft?.reserved ?? fixture?.reserved ?? 0;
+
+  const nextQuantity = Math.max(0, baselineQuantity + input.quantityDelta);
+
+  return upsertInventoryBalanceDraft({
+    name: baselineName,
+    reserved: baselineReserved,
+    quantity: nextQuantity,
+    skuId: input.skuId,
+    threshold: baselineThreshold,
+    warehouseId: normalizedWarehouseId,
+  });
+}
+
 export function resetInventoryBalanceStore() {
   const store = getStore();
   store.deleted.clear();
   store.upserts.clear();
+}
+
+function normalizeWarehouseForBalance(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const normalized = trimmed.replaceAll(' ', '');
+  if (normalized === 'WH-001' || normalized === '深圳总仓' || normalized === '深圳A仓') {
+    return '深圳 A 仓';
+  }
+
+  if (normalized === 'WH-002' || normalized === '青岛B仓') {
+    return '青岛 B 仓';
+  }
+
+  if (normalized === 'WH-003' || normalized === '苏州周转仓') {
+    return '苏州 周转仓';
+  }
+
+  return trimmed;
 }
