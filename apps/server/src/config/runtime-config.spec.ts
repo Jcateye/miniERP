@@ -1,13 +1,17 @@
-import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import type { AppConfig } from './app.config';
 import { applyAppRuntimeConfig } from './runtime-config';
 
-type RuntimeConfigAppMock = Pick<
-  INestApplication,
-  'use' | 'useGlobalPipes' | 'setGlobalPrefix'
->;
-
 describe('applyAppRuntimeConfig', () => {
+  type AppMock = {
+    readonly middlewares: unknown[];
+    readonly pipes: ValidationPipe[];
+    readonly prefixes: string[];
+    use(handler: unknown): void;
+    useGlobalPipes(pipe: ValidationPipe): void;
+    setGlobalPrefix(prefix: string): void;
+  };
+
   const baseConfig: AppConfig = {
     nodeEnv: 'test',
     port: 3000,
@@ -19,11 +23,20 @@ describe('applyAppRuntimeConfig', () => {
     authContextSecret: 'test-secret',
   };
 
-  function createAppMock(): jest.Mocked<RuntimeConfigAppMock> {
+  function createAppMock(): AppMock {
     return {
-      use: jest.fn(),
-      useGlobalPipes: jest.fn(),
-      setGlobalPrefix: jest.fn(),
+      middlewares: [],
+      pipes: [],
+      prefixes: [],
+      use(this: AppMock, handler) {
+        this.middlewares.push(handler);
+      },
+      useGlobalPipes(this: AppMock, pipe) {
+        this.pipes.push(pipe);
+      },
+      setGlobalPrefix(this: AppMock, prefix) {
+        this.prefixes.push(prefix);
+      },
     };
   }
 
@@ -32,33 +45,24 @@ describe('applyAppRuntimeConfig', () => {
 
     applyAppRuntimeConfig(app, baseConfig);
 
-    expect(app.use).toHaveBeenCalledTimes(2);
-    const useCalls = app.use.mock.calls as ReadonlyArray<[unknown]>;
-    const authMiddleware = useCalls[0]?.[0];
-    const tenantMiddleware = useCalls[1]?.[0];
+    expect(app.middlewares).toHaveLength(2);
+    const authMiddleware = app.middlewares[0];
+    const tenantMiddleware = app.middlewares[1];
     expect(typeof authMiddleware).toBe('function');
     expect(typeof tenantMiddleware).toBe('function');
 
-    expect(app.useGlobalPipes).toHaveBeenCalledTimes(1);
-    const globalPipeCalls = app.useGlobalPipes.mock.calls as ReadonlyArray<
-      [ValidationPipe]
-    >;
-    const validationPipe = globalPipeCalls[0]?.[0];
+    expect(app.pipes).toHaveLength(1);
+    const validationPipe = app.pipes[0];
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
-    const validationPipeState = validationPipe as ValidationPipe & {
-      isTransformEnabled: boolean;
+    expect(validationPipe).toMatchObject({
+      isTransformEnabled: true,
       validatorOptions: {
-        whitelist: boolean;
-        forbidNonWhitelisted: boolean;
-      };
-    };
-    expect(validationPipeState.isTransformEnabled).toBe(true);
-    expect(validationPipeState.validatorOptions.whitelist).toBe(true);
-    expect(validationPipeState.validatorOptions.forbidNonWhitelisted).toBe(
-      true,
-    );
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      },
+    });
 
-    expect(app.setGlobalPrefix).toHaveBeenCalledWith('api');
+    expect(app.prefixes).toEqual(['api']);
   });
 
   it('does not set global prefix when prefix is empty', () => {
@@ -69,6 +73,6 @@ describe('applyAppRuntimeConfig', () => {
       globalPrefix: '',
     });
 
-    expect(app.setGlobalPrefix).not.toHaveBeenCalled();
+    expect(app.prefixes).toEqual([]);
   });
 });
