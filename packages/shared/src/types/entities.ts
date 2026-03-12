@@ -1,5 +1,6 @@
 import type { DecimalString } from './api';
 import type { Family, OrderStatus, Status } from './enums';
+import type { CustomerRecord, ItemRecord, SupplierRecord, WarehouseRecord } from './erp';
 
 /**
  * 共享实体的最小审计字段。
@@ -90,3 +91,11 @@ export interface InventoryBalance extends AuditedEntity {
   readonly availableQuantity: DecimalString;
   readonly lastTransactionAt: string | null;
 }
+
+/**
+ * Canonical ERP aliases for gradual migration.
+ */
+export type CanonicalItem = ItemRecord;
+export type CanonicalCustomer = CustomerRecord;
+export type CanonicalSupplier = SupplierRecord;
+export type CanonicalWarehouse = WarehouseRecord;

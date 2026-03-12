@@ -25,6 +25,22 @@ import {
 
 type SortField = 'amount' | 'date' | 'po' | 'skuCount' | 'supplier';
 
+type PurchaseOrderDraftStatusCode =
+  | 'draft'
+  | 'validating'
+  | 'confirmed'
+  | 'closed';
+
+const PURCHASE_ORDER_STATUS_LABEL_BY_CODE: Record<
+  PurchaseOrderDraftStatusCode,
+  PurchaseOrderListItem['status']
+> = {
+  closed: '已完成',
+  confirmed: '待收货',
+  draft: '草稿',
+  validating: '待审批',
+};
+
 function mapPurchaseOrderStatus(
   status: DocumentListItemDto['status'],
 ): PurchaseOrderListItem['status'] {
@@ -157,6 +173,15 @@ export async function POST(request: NextRequest) {
       throw new Error('status is required');
     }
 
+    if (
+      candidate.status !== 'draft' &&
+      candidate.status !== 'validating' &&
+      candidate.status !== 'confirmed' &&
+      candidate.status !== 'closed'
+    ) {
+      throw new Error('status must be draft, validating, confirmed, or closed');
+    }
+
     const amount = Number(candidate.amount);
     if (!Number.isFinite(amount)) {
       throw new Error('amount must be a valid number');
@@ -166,7 +191,10 @@ export async function POST(request: NextRequest) {
       amount,
       orderDate: candidate.orderDate.trim(),
       orderNo: candidate.orderNo.trim(),
-      status: candidate.status.trim() as PurchaseOrderListItem['status'],
+      status:
+        PURCHASE_ORDER_STATUS_LABEL_BY_CODE[
+          candidate.status as PurchaseOrderDraftStatusCode
+        ],
       supplierId: candidate.supplierId.trim(),
     });
 

@@ -1,15 +1,29 @@
-export const DOCUMENT_STATUSES = [
-  'draft',
-  'pending',
-  'approved',
-  'rejected',
-  'completed',
-  'cancelled',
-] as const;
-export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
+import type {
+  DocumentStatusCode,
+  LegacyDocumentType,
+} from './erp';
+import {
+  DOCUMENT_STATUS_CODES,
+  LEGACY_DOCUMENT_TYPES,
+} from './erp';
 
-export const DOCUMENT_TYPES = ['PO', 'SO', 'GRN', 'OUT', 'ADJ', 'PAY', 'REC'] as const;
-export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+/**
+ * @deprecated Use `DocumentStatusCode` from `types/erp/trading`.
+ */
+export const DOCUMENT_STATUSES = DOCUMENT_STATUS_CODES;
+/**
+ * @deprecated Use `DocumentStatusCode` from `types/erp/trading`.
+ */
+export type DocumentStatus = DocumentStatusCode;
+
+/**
+ * @deprecated Use `LegacyDocumentType` or `CanonicalDocumentType` from `types/erp/trading`.
+ */
+export const DOCUMENT_TYPES = LEGACY_DOCUMENT_TYPES;
+/**
+ * @deprecated Use `LegacyDocumentType` or `CanonicalDocumentType` from `types/erp/trading`.
+ */
+export type DocumentType = LegacyDocumentType;
 
 // 基础单据
 export interface BaseDocument {

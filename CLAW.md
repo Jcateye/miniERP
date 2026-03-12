@@ -74,6 +74,7 @@ bun run --filter server test:e2e
 - `apps/web` 当前无 `test` script。
 - 根 `db:*` 依赖 server Prisma 脚本。
 - 本地中间件与访问方式以 `docs/Macmini-infra.md` 为准。
+- 2026-03-13 起，canonical ERP shared contract 统一从 `packages/shared/src/types/erp/*` 新增。
 
 ---
 
@@ -181,6 +182,15 @@ PR 或合并前必须检查：
 1. 先产出冻结清单，再拆 route 任务。
 2. 冻结后若需改动，先改文档，再通知相关 agent，最后改代码。
 3. 未冻结接口时，不要同时推进多个依赖它的页面任务。
+
+### Canonical Contract Freeze（2026-03-13）
+
+新增共享事实统一遵循 [erp-canonical-contract-freeze.md](/Users/haoqi/OnePersonCompany/miniERP/docs/architecture/erp-canonical-contract-freeze.md)：
+
+1. 正式域名使用 `item / goods_receipt / shipment / invoice / receipt / payment / journal_entry`
+2. `sku / grn / outbound` 仅保留兼容别名
+3. `document.ts` / `documents.ts` 不得继续维护独立状态源
+4. 所有新的 shared ERP 类型必须进入 `packages/shared/src/types/erp/*`
 
 ---
 

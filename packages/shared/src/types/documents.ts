@@ -3,67 +3,56 @@
  * 统一 Server/Web/BFF 三端的文档类型
  */
 
-import type { DecimalString, EntityAuditFields, PageResult } from './api';
+import type { DecimalString, PageResult } from './api';
+import type {
+  CanonicalDocumentDetail,
+  CanonicalDocumentHeader,
+  CanonicalDocumentLine,
+  CoreDocumentType,
+  DocumentStatusCode,
+} from './erp';
+import {
+  CORE_DOCUMENT_TYPES,
+  DOCUMENT_ACTION_TO_STATUS,
+  DOCUMENT_STATUS_CODES,
+} from './erp';
 
 // 重新导出数值类型供其他模块使用
 export type { DecimalString, BigIntString } from './api';
 
-// 核心单据类型
-export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT', 'ADJ'] as const;
-export type CoreDocumentType = (typeof CORE_DOCUMENT_TYPES)[number];
+// 核心单据类型与状态统一转发 canonical trading source
+export { CORE_DOCUMENT_TYPES, DOCUMENT_ACTION_TO_STATUS };
+export type { CoreDocumentType };
 
-// 核心单据状态
-export const CORE_DOCUMENT_STATUSES = [
-  'draft',
-  'confirmed',
-  'validating',
-  'posted',
-  'picking',
-  'closed',
-  'cancelled',
-] as const;
-export type CoreDocumentStatus = (typeof CORE_DOCUMENT_STATUSES)[number];
-
-// 动作到状态映射
-export const DOCUMENT_ACTION_TO_STATUS: Record<string, CoreDocumentStatus> = {
-  confirm: 'confirmed',
-  validate: 'validating',
-  post: 'posted',
-  pick: 'picking',
-  close: 'closed',
-  cancel: 'cancelled',
-} as const;
+export const CORE_DOCUMENT_STATUSES = DOCUMENT_STATUS_CODES;
+export type CoreDocumentStatus = DocumentStatusCode;
 
 // 审计字段
-export type DocumentAuditFields = EntityAuditFields;
+export type DocumentAuditFields = Omit<
+  CanonicalDocumentHeader,
+  'docType' | 'status'
+>;
 
 // 单据行 DTO
-export interface DocumentLineDto {
-  id: string;
-  docId: string;
-  lineNo: number;
+export interface DocumentLineDto
+  extends Omit<CanonicalDocumentLine, 'itemId' | 'uom'> {
   skuId: string;
-  qty: DecimalString;
   unitPrice: DecimalString;
   amount: DecimalString;
-  taxAmount?: DecimalString | null;
 }
 
 // 单据列表项 DTO
-export interface DocumentListItemDto extends DocumentAuditFields {
-  id: string;
-  docNo: string;
+export interface DocumentListItemDto
+  extends Omit<CanonicalDocumentHeader, 'docType' | 'status'> {
   docType: CoreDocumentType;
-  docDate: string;
   status: CoreDocumentStatus;
-  remarks?: string | null;
   lineCount: number;
-  totalQty: DecimalString;
-  totalAmount: DecimalString;
 }
 
 // 单据详情 DTO
-export interface DocumentDetailDto extends DocumentListItemDto {
+export interface DocumentDetailDto
+  extends Omit<CanonicalDocumentDetail, 'docType' | 'status' | 'lines'>,
+    DocumentListItemDto {
   lines: DocumentLineDto[];
 }
 

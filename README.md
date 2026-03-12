@@ -23,7 +23,7 @@ miniERP 是一个 **设计优先 + 可运行 monorepo**：
 4. 文档必须先于代码。
 5. 并行开发前必须冻结共享接口。
 
-## 项目健康度（2026-03-12）
+## 项目健康度（2026-03-13）
 
 | 维度     | 当前判断 | 说明                                                            |
 | -------- | -------- | --------------------------------------------------------------- |
@@ -31,7 +31,8 @@ miniERP 是一个 **设计优先 + 可运行 monorepo**：
 | 页面治理 | 进行中   | family 已回归骨架约束，新增 7 个 `page-view` 页面待补测试与审查 |
 | 完成口径 | 需收敛   | 历史上把“路由可访问”误算为完成，本轮改为五状态定义              |
 | 并行协作 | 需制度化 | 共享接口冻结机制已写入文档，执行仍需持续监督                    |
-| 前端验证 | 偏弱     | `apps/web` 仍无独立 `test` script，需要更稳定的验证闭环         |
+| 共享契约 | 进入冻结 | canonical ERP contract 已建立基础文档与 shared 入口            |
+| 前端验证 | 修复中   | `web build` 阻塞已进入收敛，需继续保持全量构建可用             |
 
 ## 2026-03-12 开发进度
 
@@ -61,6 +62,8 @@ miniERP 是一个 **设计优先 + 可运行 monorepo**：
 
 - 上述 7 个页面目前仍是 `page-view`，原因是测试与代码审查尚未完成
 - 只有补齐测试并完成代码审查后，才允许升级到 `verified` / `production`
+- 2026-03-13 起，`packages/shared/src/types/erp/*` 成为 canonical ERP contract 的唯一新增入口
+- `sku / grn / outbound` 仍保留兼容别名，但不再作为新增字段的主定义
 
 ## 页面状态定义
 
@@ -112,6 +115,7 @@ ERP 页面统一用以下五种状态表达进度：
 8. `designs/ui/miniERP_design_summary.md`
 9. `.claude/rules/erp-rules.md`
 10. `openspec/config.yaml`
+11. `docs/architecture/erp-canonical-contract-freeze.md`
 
 ## Monorepo 边界
 

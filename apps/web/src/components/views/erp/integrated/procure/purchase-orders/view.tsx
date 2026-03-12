@@ -400,9 +400,24 @@ function toPurchaseOrderFormData(row: PurchaseOrderRow): PurchaseOrderFormData {
     amount: String(row.amount),
     orderDate: row.date,
     orderNo: row.po,
-    status: row.status,
+    status: mapPurchaseOrderStatusToCode(row.status),
     supplierId: row.supplier,
   };
+}
+
+function mapPurchaseOrderStatusToCode(
+  status: PurchaseOrderListItem['status'],
+): PurchaseOrderFormData['status'] {
+  switch (status) {
+    case '待审批':
+      return 'validating';
+    case '待收货':
+      return 'confirmed';
+    case '已完成':
+      return 'closed';
+    default:
+      return 'draft';
+  }
 }
 
 function getSortLabel(field: PurchaseOrderSortField) {

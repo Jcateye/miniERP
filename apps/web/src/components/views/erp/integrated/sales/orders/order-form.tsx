@@ -2,14 +2,22 @@
 
 import * as React from 'react';
 
+import type { DocumentStatusCode } from '@minierp/shared';
+
 import { FormDialog } from '@/components/shared/form-dialog';
+
+const SALES_ORDER_STATUS_OPTIONS = [
+  { label: '草稿', value: 'draft' },
+  { label: '待发货', value: 'confirmed' },
+  { label: '已发货', value: 'posted' },
+] as const;
 
 export interface SalesOrderFormData {
   amount: string;
   customerId: string;
   orderDate: string;
   orderNo: string;
-  status: '待发货' | '已发货' | '草稿';
+  status: Extract<DocumentStatusCode, 'draft' | 'confirmed' | 'posted'>;
 }
 
 interface SalesOrderFormProps {
@@ -25,7 +33,7 @@ const EMPTY_FORM: SalesOrderFormData = {
   customerId: '',
   orderDate: '',
   orderNo: '',
-  status: '草稿',
+  status: 'draft',
 };
 
 export function SalesOrderForm({
@@ -173,9 +181,11 @@ export function SalesOrderForm({
             }
             value={formData.status}
           >
-            <option value="草稿">草稿</option>
-            <option value="待发货">待发货</option>
-            <option value="已发货">已发货</option>
+            {SALES_ORDER_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </Field>
       </div>

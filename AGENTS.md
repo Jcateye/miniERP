@@ -27,7 +27,7 @@ miniERP 是一个 **design-first + runnable monorepo**：
 2. 以 `apps/*` 当前实现作为运行事实
 3. 以四文档和 `.claude/rules/erp-rules.md` 判断能否继续实现
 
-### 2.1 当前项目信息（2026-03-12）
+### 2.1 当前项目信息（2026-03-13）
 
 - 页面状态台账当前统计：`production` 1 页、`verified` 3 页、`page-view` 7 页
 - 最新进入 `page-view` 的页面：
@@ -43,6 +43,10 @@ miniERP 是一个 **design-first + runnable monorepo**：
   - `#31` 列表页 URL 状态管理 + 核心类型定义
   - `#32` 7 个模块的 VM Hook + BFF 页面集成
   - `#33` 库存余额与工作台顶部搜索栏 UI 视觉精修 (Brutalist Style)
+- canonical contract 现状：
+  - `docs/architecture/erp-canonical-contract-freeze.md` 已建立
+  - `packages/shared/src/types/erp/*` 已作为 canonical ERP contract 新增入口
+  - `sku / grn / outbound` 仅允许兼容，不再作为新增主定义
 
 ---
 
@@ -60,6 +64,7 @@ miniERP 是一个 **design-first + runnable monorepo**：
 10. `openspec/config.yaml`
 11. `docs/commit.md`
 12. `docs/Macmini-infra.md`
+13. `docs/architecture/erp-canonical-contract-freeze.md`
 
 ---
 
@@ -150,6 +155,7 @@ ERP 页面只允许五种状态：
    - BFF DTO
    - shells / primitives 公开 props
    - 页面状态与完成口径
+   - canonical ERP contract 新增文件必须优先进入 `packages/shared/src/types/erp/*`
 3. 若接口未冻结，不要让页面 agent 并行落实现。
 
 ### C. 再实现

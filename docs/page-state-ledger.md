@@ -127,6 +127,12 @@
 
 ## 历史记录
 
+### 2026-03-13
+
+- ✅ 页面状态无变更；本次为共享契约与治理文档冻结，不涉及页面升降级。
+- ✅ 新增 canonical ERP contract freeze 文档：`docs/architecture/erp-canonical-contract-freeze.md`
+- ✅ `packages/shared/src/types/erp/*` 已建立为 canonical ERP contract 新增入口。
+
 ### 2026-03-12
 
 - ✅ **库存余额 UI 复刻**：完成按钮、搜索栏、配色严格对齐高保真设计（1VpfS/bitbz）。
@@ -167,4 +173,4 @@ bun run scripts/check-page-state.sh
 
 ---
 
-_此文件由 Zoe-miniERP 维护，最后更新：2026-03-12_
+_此文件由 Zoe-miniERP 维护，最后更新：2026-03-13_

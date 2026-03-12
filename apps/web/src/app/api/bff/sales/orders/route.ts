@@ -25,6 +25,17 @@ import {
 
 type SortField = 'amount' | 'customer' | 'date' | 'skuCount' | 'so';
 
+type SalesOrderDraftStatusCode = 'draft' | 'confirmed' | 'posted';
+
+const SALES_ORDER_STATUS_LABEL_BY_CODE: Record<
+  SalesOrderDraftStatusCode,
+  SalesOrderListItem['status']
+> = {
+  confirmed: '待发货',
+  draft: '草稿',
+  posted: '已发货',
+};
+
 function mapSalesOrderStatus(status: DocumentListItemDto['status']): SalesOrderListItem['status'] {
   switch (status) {
     case 'posted':
@@ -154,6 +165,14 @@ export async function POST(request: NextRequest) {
       throw new Error('status is required');
     }
 
+    if (
+      candidate.status !== 'draft' &&
+      candidate.status !== 'confirmed' &&
+      candidate.status !== 'posted'
+    ) {
+      throw new Error('status must be draft, confirmed, or posted');
+    }
+
     const amount = Number(candidate.amount);
     if (!Number.isFinite(amount)) {
       throw new Error('amount must be a valid number');
@@ -164,7 +183,7 @@ export async function POST(request: NextRequest) {
       customerId: candidate.customerId.trim(),
       orderDate: candidate.orderDate.trim(),
       orderNo: candidate.orderNo.trim(),
-      status: candidate.status.trim() as SalesOrderListItem['status'],
+      status: SALES_ORDER_STATUS_LABEL_BY_CODE[candidate.status as SalesOrderDraftStatusCode],
     });
 
     return Response.json(

@@ -136,6 +136,13 @@ ERP 正式页面只允许处于以下五种状态之一：
 - `#32` `feat(web): 数据联调 - VM Hook + BFF + 页面集成（7 个模块）`
 - `#33` `style(web): 库存余额与工作台顶部搜索栏 UI 视觉精修 (Brutalist Style)`
 
+2026-03-13 新增治理事实：
+
+- `docs/architecture/erp-canonical-contract-freeze.md` 成为 canonical ERP contract 冻结文档
+- `packages/shared/src/types/erp/*` 成为主数据、交易、库存、财务共享契约的唯一新增入口
+- `document.ts` / `documents.ts` 仅允许继续作为兼容导出层，不得新增第二套状态源
+- `sku / grn / outbound` 继续兼容，但今后新增主定义统一使用 `item / goods_receipt / shipment`
+
 ## 5. 架构决策记录（ADR）
 
 ### ADR-001 文档先于代码
@@ -181,6 +188,7 @@ ERP 正式页面只允许处于以下五种状态之一：
 | 接口冻结机制未制度化              | 并行开发时 shared/BFF 容易边改边用                      | 多 agent 冲突、页面返工  | 每轮并行任务先产出冻结清单                         |
 | web 验证链路偏弱                  | `apps/web` 无独立 test script                           | “看起来能用”替代验证     | 补足页面级验证脚本或稳定的手动门禁记录             |
 | fixture fallback 容易掩盖上游故障 | development/test 可回退 fixtures                        | 误判联调完成             | 在页面状态判断中显式区分“真实联调”与“fixture 降级” |
+| shared contract 源头分裂          | `document.ts` 与 `documents.ts` 状态与命名边界不一致    | 字段漂移、接口歧义       | canonical `types/erp/*` 成为唯一新增入口           |
 
 ## 7. 项目级架构事实
 

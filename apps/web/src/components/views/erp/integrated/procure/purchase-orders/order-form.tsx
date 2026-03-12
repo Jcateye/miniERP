@@ -2,13 +2,22 @@
 
 import * as React from 'react';
 
+import type { DocumentStatusCode } from '@minierp/shared';
+
 import { FormDialog } from '@/components/shared/form-dialog';
+
+const PURCHASE_ORDER_STATUS_OPTIONS = [
+  { label: '草稿', value: 'draft' },
+  { label: '待审批', value: 'validating' },
+  { label: '待收货', value: 'confirmed' },
+  { label: '已完成', value: 'closed' },
+] as const;
 
 export interface PurchaseOrderFormData {
   amount: string;
   orderDate: string;
   orderNo: string;
-  status: '待收货' | '已完成' | '待审批' | '草稿';
+  status: Extract<DocumentStatusCode, 'draft' | 'validating' | 'confirmed' | 'closed'>;
   supplierId: string;
 }
 
@@ -24,7 +33,7 @@ const EMPTY_FORM: PurchaseOrderFormData = {
   amount: '',
   orderDate: '',
   orderNo: '',
-  status: '草稿',
+  status: 'draft',
   supplierId: '',
 };
 
@@ -173,10 +182,11 @@ export function PurchaseOrderForm({
             }
             value={formData.status}
           >
-            <option value="草稿">草稿</option>
-            <option value="待审批">待审批</option>
-            <option value="待收货">待收货</option>
-            <option value="已完成">已完成</option>
+            {PURCHASE_ORDER_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </Field>
       </div>

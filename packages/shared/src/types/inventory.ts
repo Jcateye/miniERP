@@ -3,6 +3,12 @@
  * 统一 Server/Web/BFF 三端的库存类型
  */
 import type { PaginatedResponse } from './api';
+import type {
+  CanonicalInventoryBalancePage,
+  CanonicalInventoryLedgerPage,
+  InventoryBalanceRecord,
+  InventoryLedgerRecord,
+} from './erp';
 
 // 库存引用类型
 export const INVENTORY_REFERENCE_TYPES = [
@@ -105,3 +111,8 @@ export interface InventoryLedgerDto {
   balanceAfter: string;
   postedAt: string;
 }
+
+export type CanonicalInventoryLedger = InventoryLedgerRecord;
+export type CanonicalInventoryBalance = InventoryBalanceRecord;
+export type CanonicalInventoryLedgerList = CanonicalInventoryLedgerPage;
+export type CanonicalInventoryBalanceList = CanonicalInventoryBalancePage;

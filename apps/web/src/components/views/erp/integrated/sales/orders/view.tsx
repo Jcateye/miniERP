@@ -398,8 +398,21 @@ function toSalesOrderFormData(row: SalesOrderRow): SalesOrderFormData {
     customerId: row.customer,
     orderDate: row.date,
     orderNo: row.so,
-    status: row.status,
+    status: mapSalesOrderStatusToCode(row.status),
   };
+}
+
+function mapSalesOrderStatusToCode(
+  status: SalesOrderListItem['status'],
+): SalesOrderFormData['status'] {
+  switch (status) {
+    case '待发货':
+      return 'confirmed';
+    case '已发货':
+      return 'posted';
+    default:
+      return 'draft';
+  }
 }
 
 function getSortLabel(field: SalesOrderSortField) {

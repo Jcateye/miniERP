@@ -5,6 +5,15 @@
 
 import type { DecimalString } from './api';
 import type { MasterDataStatus } from './domain';
+import type {
+  CustomerRecord,
+  ItemRecord,
+  SupplierRecord,
+  TaxCodeRecord,
+  UomRecord,
+  WarehouseBinRecord,
+  WarehouseRecord,
+} from './erp';
 
 export interface OrganizationEntity {
   readonly id: string;
@@ -112,3 +121,11 @@ export interface CreateCustomerCommand {
   readonly email?: string | null;
   readonly address?: string | null;
 }
+
+export type CanonicalItemEntity = ItemRecord;
+export type CanonicalCustomerEntity = CustomerRecord;
+export type CanonicalSupplierEntity = SupplierRecord;
+export type CanonicalWarehouseEntity = WarehouseRecord;
+export type CanonicalWarehouseBinEntity = WarehouseBinRecord;
+export type CanonicalUomEntity = UomRecord;
+export type CanonicalTaxCodeEntity = TaxCodeRecord;

@@ -22,6 +22,13 @@ paths:
 - 使用 TypeScript 联合类型定义状态
 - 状态变更记录到审计日志
 
+### Canonical ERP Contract Freeze
+- `packages/shared/src/types/erp/*` 是 canonical ERP contract 的唯一新增入口。
+- 正式域名统一为：`item`、`goods_receipt`、`shipment`、`invoice`、`receipt`、`payment`、`journal_entry`。
+- `sku`、`grn`、`outbound` 仅允许作为兼容别名存在，不得继续承载新增主定义。
+- `document.ts` / `documents.ts` 只允许兼容导出，不得再维护第二套状态源。
+- 共享实体新增字段必须优先进入 canonical contract，再决定是否需要 compat alias。
+
 ## 页面治理
 
 ### 页面 family 治理（正式定义）
