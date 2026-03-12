@@ -19,7 +19,7 @@ export default function SkuDetail() {
                     </Link>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold font-['var(--font-space-grotesk)']">{id}</h1>
+                            <h1 className="text-[28px] font-bold font-['var(--font-space-grotesk)'] leading-none">{id}</h1>
                             <div className="bg-[#EAF3EB] text-[#549363] px-2 py-0.5 text-xs font-medium flex items-center gap-1.5">
                                 <div className="w-1.5 h-1.5 bg-[#549363] rounded-sm" />正常
                             </div>
@@ -29,20 +29,20 @@ export default function SkuDetail() {
                 </div>
 
                 <div className="flex gap-2">
-                    <button className="h-9 px-4 bg-[#1a1a1a] text-white flex items-center gap-2 hover:bg-opacity-90 font-medium text-sm">
+                    <button className="h-10 px-5 bg-[#1a1a1a] text-white flex items-center gap-2 hover:bg-opacity-90 font-medium text-sm">
                         <Edit className="w-4 h-4" /> 编辑
                     </button>
-                    <button className="h-9 px-4 border border-border bg-white flex items-center gap-2 hover:bg-gray-50 font-medium text-sm">
+                    <button className="h-10 px-5 border border-border bg-white flex items-center gap-2 hover:bg-gray-50 font-medium text-sm">
                         <Clock className="w-4 h-4" /> 查看历史
                     </button>
-                    <button className="h-9 px-4 border border-border bg-white flex items-center gap-2 hover:bg-gray-50 font-medium text-sm text-primary">
+                    <button className="h-10 px-5 border border-border bg-white flex items-center gap-2 hover:bg-gray-50 font-medium text-sm text-primary">
                         导出
                     </button>
                 </div>
             </div>
 
             {/* Top 3 Cards Area */}
-            <div className="grid grid-cols-[1fr_1fr_320px] gap-6 w-full">
+            <div className="grid grid-cols-[1fr_1fr_300px] gap-6 w-full">
                 {/* Basic Info */}
                 <div className="bg-white border border-border flex flex-col p-5 h-full">
                     <div className="flex justify-between items-center mb-4">

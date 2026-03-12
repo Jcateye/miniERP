@@ -87,8 +87,8 @@ function isNestedItemActive(pathname: string, item: NestedNavItem) {
 function nestedItemClass(pathname: string, item: NestedNavItem) {
   const active = isNestedItemActive(pathname, item);
 
-  return `px-3 py-2 text-sm rounded-sm transition-colors ${
-    active ? 'bg-sidebar-hover text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
+  return `px-4 py-[8px] text-sm rounded-sm transition-colors ${
+    active ? 'bg-sidebar-hover text-sidebar-foreground font-bold' : 'text-muted hover:text-sidebar-foreground'
   }`;
 }
 
@@ -112,7 +112,7 @@ export default function Sidebar({ className = '' }: { className?: string }) {
   }, [pathname]);
 
   return (
-    <aside className={`bg-sidebar text-sidebar-foreground h-full overflow-y-auto flex flex-col py-7 px-5 ${className}`}>
+    <aside className={`bg-sidebar text-sidebar-foreground border-r border-[#2a2a2a] min-h-full h-full overflow-y-auto flex flex-col w-[260px] shrink-0 py-7 px-5 ${className}`}>
       <div className="flex items-center gap-3 mb-8">
         <div className="w-2.5 h-2.5 bg-primary" />
         <span className="font-['var(--font-space-grotesk)'] font-bold text-base tracking-[2px]">
@@ -123,7 +123,7 @@ export default function Sidebar({ className = '' }: { className?: string }) {
       <nav className="flex-1 flex flex-col gap-1 px-2 pt-4">
         <Link
           href="/workspace"
-          className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-colors ${
+          className={`flex items-center gap-[14px] px-3 py-[10px] rounded-sm transition-colors ${
             pathname.startsWith('/workspace') ? 'bg-sidebar-hover text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
           }`}
         >
@@ -133,11 +133,11 @@ export default function Sidebar({ className = '' }: { className?: string }) {
 
         <Link
           href="/workflow/approval"
-          className={`flex items-center justify-between px-3 py-2 rounded-sm transition-colors ${
+          className={`flex items-center justify-between px-3 py-[10px] rounded-sm transition-colors ${
             pathname.startsWith('/workflow') ? 'bg-sidebar-hover text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-[14px]">
             <ClipboardCheck className="w-5 h-5" />
             <span className="font-bold">审批中心</span>
           </div>
@@ -149,11 +149,11 @@ export default function Sidebar({ className = '' }: { className?: string }) {
         <div>
           <button
             onClick={() => setIsMasterDataActive((current) => !current)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-sm transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-[10px] rounded-sm transition-colors ${
               isMasterDataActive ? 'bg-sidebar-hover/50 text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-[14px]">
               <ClipboardList className="w-5 h-5" />
               <span className="font-bold uppercase tracking-wider">主数据</span>
             </div>
@@ -174,11 +174,11 @@ export default function Sidebar({ className = '' }: { className?: string }) {
         <div>
           <button
             onClick={() => setIsPoActive((current) => !current)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-sm transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-[10px] rounded-sm transition-colors ${
               isPoActive ? 'bg-sidebar-hover/50 text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-[14px]">
               <ShoppingCart className="w-5 h-5" />
               <span className="font-bold uppercase tracking-wider">采购管理</span>
             </div>
@@ -199,11 +199,11 @@ export default function Sidebar({ className = '' }: { className?: string }) {
         <div>
           <button
             onClick={() => setIsSoActive((current) => !current)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-sm transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-[10px] rounded-sm transition-colors ${
               isSoActive ? 'bg-sidebar-hover/50 text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-[14px]">
               <Truck className="w-5 h-5" />
               <span className="font-bold uppercase tracking-wider">销售管理</span>
             </div>
@@ -224,11 +224,11 @@ export default function Sidebar({ className = '' }: { className?: string }) {
         <div>
           <button
             onClick={() => setIsInvActive((current) => !current)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-sm transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-[10px] rounded-sm transition-colors ${
               isInvActive ? 'bg-sidebar-hover/50 text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-[14px]">
               <Package className="w-5 h-5" />
               <span className="font-bold uppercase tracking-wider">库存中心</span>
             </div>
@@ -249,11 +249,11 @@ export default function Sidebar({ className = '' }: { className?: string }) {
         <div>
           <button
             onClick={() => setIsMfgActive((current) => !current)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-sm transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-[10px] rounded-sm transition-colors ${
               isMfgActive ? 'bg-sidebar-hover/50 text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-[14px]">
               <Factory className="w-5 h-5" />
               <span className="font-bold uppercase tracking-wider">制造管理</span>
             </div>
@@ -274,11 +274,11 @@ export default function Sidebar({ className = '' }: { className?: string }) {
         <div>
           <button
             onClick={() => setIsFinActive((current) => !current)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-sm transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-[10px] rounded-sm transition-colors ${
               isFinActive ? 'bg-sidebar-hover/50 text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-[14px]">
               <CircleDollarSign className="w-5 h-5" />
               <span className="font-bold uppercase tracking-wider">财务中心</span>
             </div>
@@ -298,7 +298,7 @@ export default function Sidebar({ className = '' }: { className?: string }) {
 
         <Link
           href="/reports"
-          className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-colors ${
+          className={`flex items-center gap-[14px] px-3 py-[10px] rounded-sm transition-colors ${
             pathname.startsWith('/reports') ? 'bg-sidebar-hover text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
           }`}
         >
@@ -311,13 +311,24 @@ export default function Sidebar({ className = '' }: { className?: string }) {
         <div className="h-[1px] bg-sidebar-border w-full my-2" />
         <Link
           href="/settings"
-          className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-colors ${
+          className={`flex items-center gap-[14px] px-3 py-[10px] rounded-sm transition-colors ${
             pathname.startsWith('/settings') ? 'bg-sidebar-hover text-sidebar-foreground' : 'text-muted hover:text-sidebar-foreground'
           }`}
         >
           <Settings className="w-5 h-5" />
           <span className="font-bold">系统设置</span>
         </Link>
+
+        {/* User Profile */}
+        <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-3 px-3">
+          <div className="w-8 h-8 rounded-full bg-[#343434] flex items-center justify-center text-xs font-bold text-white border border-white/10 ring-2 ring-white/5">
+            N
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-white">Next User</span>
+            <span className="text-[10px] text-muted">Admin Manager</span>
+          </div>
+        </div>
       </nav>
     </aside>
   );

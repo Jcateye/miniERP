@@ -143,9 +143,14 @@ export function WorkspaceHomePageScaffold({
         background: '#F5F3EF',
       }}
     >
-      <div data-testid="workspace-home-topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <PageHeader title={title} subtitle={summary} />
-        <SearchBar placeholder={searchPlaceholder} value="" onSearchChange={() => undefined} maxWidth={300} />
+      <div data-testid="workspace-home-topbar">
+        <PageHeader 
+          title={title} 
+          subtitle={summary} 
+          actions={
+            <SearchBar placeholder={searchPlaceholder} value="" onSearchChange={() => undefined} maxWidth={300} />
+          } 
+        />
       </div>
 
       <div data-testid="workspace-home-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 20 }}>

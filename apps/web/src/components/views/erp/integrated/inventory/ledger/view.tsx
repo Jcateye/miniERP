@@ -194,16 +194,16 @@ export default function InvLedgerList() {
       <div className="relative flex h-full w-full flex-col gap-6 overflow-y-auto p-8 pb-20 sm:p-10">
         <div className="flex w-full items-start justify-between">
           <div>
-            <h1 className="font-['var(--font-space-grotesk)'] text-2xl font-bold">库存流水</h1>
-            <p className="mt-1 text-sm text-muted">库存变动查询 · 入出库与盘点追踪</p>
+            <h1 className="font-['var(--font-space-grotesk)'] text-[28px] font-bold leading-none">库存流水</h1>
+            <p className="mt-2 text-[13px] text-muted">库存变动查询 · 入出库与盘点追踪</p>
           </div>
 
           <div className="flex gap-2">
-            <button className="flex h-9 items-center justify-center border border-border bg-white px-4 text-sm font-medium shadow-sm transition-colors hover:bg-gray-50">
+            <button className="flex h-10 items-center justify-center border border-border bg-white px-5 text-sm font-medium shadow-sm transition-colors hover:bg-gray-50">
               导出
             </button>
             <button
-              className="flex h-9 items-center justify-center gap-2 bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-opacity-90"
+              className="flex h-10 items-center justify-center gap-2 bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-opacity-90"
               onClick={() => setCreateDialogOpen(true)}
               type="button"
             >
@@ -267,7 +267,7 @@ export default function InvLedgerList() {
         </div>
 
         <div className="mt-2 flex min-w-[860px] flex-1 flex-col overflow-hidden rounded-sm border border-border bg-white shadow-sm">
-          <div className="grid grid-cols-[140px_120px_100px_90px_100px_160px_100px_160px] border-b border-border bg-[#FDFCFB] px-6 py-4 text-sm font-medium text-muted">
+          <div className="grid h-10 items-center grid-cols-[140px_120px_100px_90px_100px_160px_100px_160px] border-b border-border bg-[#FDFCFB] px-6 text-sm font-medium text-muted">
             <div>
               <SortButton active={params.sort === 'date'} direction={params.order} label="时间" onClick={() => handleSort('date')} />
             </div>
@@ -485,7 +485,7 @@ function InlineNotice({ message, tone }: { message: string; tone: Notice['tone']
 function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
-      className={active ? 'bg-[#1a1a1a] px-4 py-1.5 font-medium text-white shadow-sm' : 'border border-border bg-white px-4 py-1.5 text-foreground shadow-sm transition-colors hover:bg-gray-50'}
+      className={active ? 'bg-[#1a1a1a] px-4 h-9 font-medium text-white shadow-sm' : 'border border-border bg-white px-4 h-9 text-foreground shadow-sm transition-colors hover:bg-gray-50'}
       onClick={onClick}
       type="button"
     >

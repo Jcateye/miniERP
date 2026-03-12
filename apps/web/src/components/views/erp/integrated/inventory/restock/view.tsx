@@ -17,7 +17,7 @@ export default function RestockSuggestionsPage() {
     ];
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="p-8 pb-20 sm:p-10 flex flex-col gap-6 h-full overflow-y-auto w-full relative">
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>

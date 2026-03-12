@@ -8,21 +8,11 @@ export default function DashboardLayout({
 }) {
     return (
         <div
-            style={{
-                display: "flex",
-                minHeight: "100vh",
-                background: "#F5F3EF",
-            }}
+            className="flex h-screen overflow-hidden bg-[#F5F3EF]"
         >
             <Sidebar />
             <DashboardSecondaryNav />
-            <main
-                style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflowY: "auto",
-                }}
-            >
+            <main className="flex-1 min-w-0 overflow-y-auto">
                 {children}
             </main>
         </div>

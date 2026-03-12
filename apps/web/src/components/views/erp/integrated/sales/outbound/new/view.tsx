@@ -5,19 +5,18 @@ import { ArrowRight, Search, Check, AlertCircle, Trash2 } from 'lucide-react';
 
 export default function OutWorkflowStep2() {
     return (
-        <div className="p-8 pb-20 sm:p-10 flex flex-col gap-6 h-full overflow-y-auto">
+        <div className="flex h-full flex-col gap-6 p-8 pb-20 sm:p-10 overflow-y-auto">
             {/* Header */}
-            <div className="flex justify-between items-start w-full">
+            <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold font-['var(--font-space-grotesk)']">新建出库单 (OUT)</h1>
-                    <p className="text-muted mt-1 text-sm">销售出库 / 出库单流程</p>
+                    <h1 className="font-['var(--font-space-grotesk)'] text-[28px] font-bold leading-none">新建出库单 (OUT)</h1>
+                    <p className="mt-2 text-[13px] text-muted">销售出库 / 出库单流程</p>
                 </div>
-
-                <div className="flex gap-2">
-                    <button className="h-9 px-4 border border-border bg-white flex items-center justify-center hover:bg-gray-50 transition-colors text-sm font-medium">
+                <div className="flex gap-2 text-sm font-bold">
+                    <button className="h-10 px-5 border border-border bg-white flex items-center justify-center hover:bg-opacity-90 transition-opacity">
                         保存草稿
                     </button>
-                    <button className="h-9 px-4 border border-border bg-white text-primary flex items-center justify-center hover:bg-gray-50 transition-colors text-sm font-medium">
+                    <button className="h-10 px-5 border border-border bg-white text-primary flex items-center justify-center hover:bg-opacity-90 transition-opacity">
                         取消
                     </button>
                 </div>

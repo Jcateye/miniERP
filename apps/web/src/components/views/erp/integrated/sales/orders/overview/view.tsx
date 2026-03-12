@@ -1,101 +1,89 @@
 'use client';
 
 import * as React from 'react';
-import { AlertTriangle, FileBox, Send, ArrowRight } from 'lucide-react';
+import { AlertTriangle, FileBox, Send, ArrowRight, Plus } from 'lucide-react';
 
 export default function SoOverview() {
     return (
-        <div className="p-8 pb-20 sm:p-10 flex flex-col gap-6 h-full overflow-y-auto w-full relative">
+        <div className="flex h-full flex-col gap-6 p-8 pb-20 sm:p-10 overflow-y-auto">
             {/* Header */}
-            <div className="flex justify-between items-start w-full">
+            <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold font-['var(--font-space-grotesk)']">销售概览</h1>
-                    <p className="text-muted mt-1 text-sm">2026年度销售业绩看板</p>
+                    <h1 className="font-['var(--font-space-grotesk)'] text-[28px] font-bold leading-none">销售概览</h1>
+                    <p className="mt-2 text-[13px] text-muted">2026年度销售业绩看板 / 数据中心</p>
                 </div>
 
-                <div className="flex gap-2">
-                    <button className="h-9 px-4 bg-primary text-primary-foreground flex items-center justify-center hover:bg-opacity-90 transition-colors text-sm font-bold shadow-sm">
+                <div className="flex gap-2 text-sm font-bold">
+                    <button className="h-10 px-5 bg-primary text-primary-foreground flex items-center justify-center hover:bg-opacity-90 transition-opacity shadow-sm">
                         新建销售订单
                     </button>
                 </div>
             </div>
 
             {/* Top 4 KPI Cards */}
-            <div className="grid grid-cols-4 gap-6 w-full mt-2">
-                <div className="bg-white border border-border flex flex-col p-5 shadow-sm">
-                    <div className="text-muted text-sm font-medium mb-1">本月销售额</div>
-                    <div className="text-[32px] font-bold font-['var(--font-space-grotesk)'] leading-tight">¥1,285,600</div>
-                    <div className="text-xs text-[#549363] mt-2 flex items-center gap-1">
-                        同比上月 <span className="font-medium">+18.4%</span>
+            <div className="grid grid-cols-4 gap-0 border border-[#C05A3C] w-full overflow-hidden">
+                <div className="bg-[#FFF5F5] border-r border-[#C05A3C] p-6 h-[180px] flex flex-col justify-between relative group hover:bg-[#FFF0F0] transition-colors">
+                    <div className="border-l-[2px] border-[#E5484D] pl-3">
+                        <div className="text-muted text-[13px] font-medium uppercase tracking-wider">本月销售额</div>
                     </div>
+                    <div className="text-[36px] font-bold font-['var(--font-space-grotesk)'] text-[#E5484D] leading-none mb-2">¥1,285.6k</div>
+                    <div className="text-[#E5484D] text-[12px] font-bold uppercase tracking-tight opacity-70">同比上月 +18.4%</div>
                 </div>
 
-                <div className="bg-white border border-border flex flex-col p-5 shadow-sm">
-                    <div className="text-muted text-sm font-medium mb-1">待发货订单</div>
-                    <div className="text-[32px] font-bold font-['var(--font-space-grotesk)'] text-primary leading-tight">23</div>
-                    <div className="text-xs text-primary mt-2 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" /> 3 单超期
+                <div className="bg-[#F6FFF8] border-r border-[#C05A3C] p-6 h-[180px] flex flex-col justify-between relative group hover:bg-[#F0FFF4] transition-colors">
+                    <div className="border-l-[2px] border-[#22C55E] pl-3">
+                        <div className="text-muted text-[13px] font-medium uppercase tracking-wider">待发货订单</div>
                     </div>
+                    <div className="text-[36px] font-bold font-['var(--font-space-grotesk)'] text-[#22C55E] leading-none mb-2">23</div>
+                    <div className="text-[#22C55E] text-[12px] font-bold uppercase tracking-tight opacity-70">3 单超期须预警</div>
                 </div>
 
-                <div className="bg-white border border-border flex flex-col p-5 shadow-sm">
-                    <div className="text-muted text-sm font-medium mb-1 flex justify-between items-center w-full">
-                        活跃客户
+                <div className="bg-[#F0F9FF] border-r border-[#C05A3C] p-6 h-[180px] flex flex-col justify-between relative group hover:bg-[#E6F4FF] transition-colors">
+                    <div className="border-l-[2px] border-[#2D5BFF] pl-3">
+                        <div className="text-muted text-[13px] font-medium uppercase tracking-wider">活跃客户</div>
                     </div>
-                    <div className="text-[32px] font-bold font-['var(--font-space-grotesk)'] leading-tight">156</div>
-                    <div className="text-xs mt-2 text-muted flex items-center gap-1">
-                        本月新增 12 个
-                    </div>
+                    <div className="text-[36px] font-bold font-['var(--font-space-grotesk)'] text-[#2D5BFF] leading-none mb-2">156</div>
+                    <div className="text-[#2D5BFF] text-[12px] font-bold uppercase tracking-tight opacity-70">本月新增 12 个</div>
                 </div>
 
-                <div className="bg-[#1a1a1a] text-white flex flex-col p-5 shadow-sm">
-                    <div className="text-gray-400 text-sm font-medium mb-1">报价转化率</div>
-                    <div className="text-[32px] font-bold font-['var(--font-space-grotesk)'] leading-tight">67%</div>
-                    <div className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                        同比上升 3%
+                <div className="bg-[#1a1a1a] p-6 h-[180px] flex flex-col justify-between relative group hover:bg-black transition-colors">
+                    <div className="border-l-[2px] border-gray-500 pl-3">
+                        <div className="text-gray-400 text-[13px] font-medium uppercase tracking-wider">报价转化率</div>
                     </div>
+                    <div className="text-[36px] font-bold font-['var(--font-space-grotesk)'] text-white leading-none mb-2">67%</div>
+                    <div className="text-gray-400 text-[12px] font-bold uppercase tracking-tight opacity-70">同比上升 3%</div>
                 </div>
             </div>
 
-            <div className="flex gap-6 mt-2">
+            <div className="flex gap-6 mt-2 items-start">
                 {/* Left: To-do List */}
-                <div className="flex-[2] bg-white border border-border shadow-sm p-6 flex flex-col min-h-[400px]">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="font-bold text-lg">紧急待办</h2>
-                        <button className="bg-primary text-white text-xs px-3 py-1 font-bold">3 项待处理</button>
+                <div className="flex-[2] bg-white border border-border shadow-sm flex flex-col min-h-[450px]">
+                    <div className="p-6 border-b border-border">
+                        <h2 className="font-bold text-[15px] uppercase tracking-wider">紧急待办清单</h2>
                     </div>
 
                     <div className="flex flex-col">
-                        <div className="py-4 border-b border-border flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                                <AlertTriangle className="w-4 h-4 text-primary" />
-                                <span className="font-bold font-['var(--font-space-grotesk)'] text-primary text-sm">SO-20260215-022 超期未发货</span>
+                        <div className="p-6 border-b border-border group hover:bg-[#FFF8F6] transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2 mb-1">
+                                <AlertTriangle className="w-4 h-4 text-[#C05A3C]" />
+                                <span className="font-bold font-['var(--font-space-grotesk)'] text-[#C05A3C] text-[15px]">SO-20260215-022 超期未发货</span>
                             </div>
-                            <div className="text-muted text-sm pl-6 mt-1 flex justify-between">
-                                <span>客户[深圳科技]紧急催单，延期超过2天</span>
-                                <button className="border border-border bg-white hover:bg-gray-50 px-3 py-1 text-xs">去处理发运</button>
-                            </div>
-                        </div>
-
-                        <div className="py-4 border-b border-border flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                                <FileBox className="w-4 h-4 text-foreground" />
-                                <span className="font-bold text-foreground text-sm">6 个大额报价单待发出</span>
-                            </div>
-                            <div className="text-muted text-sm pl-6 flex justify-between mt-1">
-                                <span>平均停留时长 1 天，需业务跟进确认</span>
-                                <button className="border border-border bg-white hover:bg-gray-50 px-3 py-1 text-xs">查看报价</button>
+                            <div className="text-[14px] text-[#1a1a1a] font-medium ml-6">客户 [深圳科技] 紧急催单，延期超过 2 天</div>
+                            <div className="text-[12px] text-muted mt-2 ml-6 flex justify-between items-center">
+                                <span>销售二组 · 李明</span>
+                                <button className="h-8 px-4 border border-border bg-white text-xs font-bold hover:bg-gray-50 transition-colors">去处理发运</button>
                             </div>
                         </div>
 
-                        <div className="py-4 flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                                <AlertTriangle className="w-4 h-4 text-foreground" />
-                                <span className="font-bold font-['var(--font-space-grotesk)'] text-foreground text-sm">报价单 Q-20260215-099 即将过期</span>
+                        <div className="p-6 border-b border-border group hover:bg-[#F6FFF8] transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Send className="w-4 h-4 text-[#22C55E]" />
+                                <span className="font-bold text-[#1a1a1a] text-[15px]">6 个大额报价单待发出</span>
                             </div>
-                            <div className="text-muted text-sm pl-6 flex justify-between mt-1">
-                                <span>距离到期还有不到 48 小时</span>
-                                <button className="border border-border bg-white hover:bg-gray-50 px-3 py-1 text-xs">去催办</button>
+                            <div className="text-[14px] text-[#1a1a1a] font-medium ml-6">平均停留时长 1 天，需业务跟进确认</div>
+                            <div className="text-[12px] text-muted mt-2 ml-6 flex justify-between items-center">
+                                <span>销售一组 · 王强</span>
+                                <button className="h-8 px-4 border border-border bg-white text-xs font-bold hover:bg-gray-50 transition-colors">查看详情</button>
                             </div>
                         </div>
                     </div>
@@ -104,18 +92,19 @@ export default function SoOverview() {
                 {/* Right: Quick Actions */}
                 <div className="flex-[1] flex flex-col gap-6">
                     <div className="bg-[#1a1a1a] text-white p-6 shadow-sm flex flex-col">
-                        <h2 className="font-bold mb-4">快捷操作</h2>
-                        <div className="flex flex-col gap-3">
-                            <button className="bg-primary text-white py-3 font-bold hover:bg-opacity-90 flex items-center justify-center gap-2 text-sm transition-colors border-none w-full shadow-sm">
-                                + 新建销售订单
+                        <h2 className="font-bold text-gray-400 text-xs uppercase tracking-widest mb-6">快捷操作</h2>
+                        <div className="flex flex-col">
+                            <button className="w-full h-14 border-t border-white/5 flex items-center justify-between text-[14px] font-medium hover:bg-white/5 transition-colors px-1 group">
+                                <span>新建销售订单</span>
+                                <Plus className="w-4 h-4 opacity-0 group-hover:opacity-60 transition-opacity" />
                             </button>
-                            <button className="bg-[#2a2a2a] text-white py-2.5 font-medium hover:bg-[#333] flex items-center justify-between px-4 text-[13px] border border-[#333] transition-colors shadow-sm">
-                                <div className="flex gap-2 items-center"><Send className="w-4 h-4" /> 查看发运单 SHP</div>
-                                <ArrowRight className="w-4 h-4 text-gray-500" />
+                            <button className="w-full h-14 border-t border-white/5 flex items-center justify-between text-[14px] font-medium hover:bg-white/5 transition-colors px-1 group">
+                                <span>查看发运单 SHP</span>
+                                <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-60 transition-opacity" />
                             </button>
-                            <button className="bg-[#2a2a2a] text-white py-2.5 font-medium hover:bg-[#333] flex items-center justify-between px-4 text-[13px] border border-[#333] transition-colors shadow-sm">
-                                <div className="flex gap-2 items-center"><FileBox className="w-4 h-4" /> 退货与售后</div>
-                                <ArrowRight className="w-4 h-4 text-gray-500" />
+                            <button className="w-full h-14 border-t border-b border-white/5 flex items-center justify-between text-[14px] font-medium hover:bg-white/5 transition-colors px-1 group">
+                                <span>退货与售后</span>
+                                <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-60 transition-opacity" />
                             </button>
                         </div>
                     </div>

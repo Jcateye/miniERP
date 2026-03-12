@@ -8,12 +8,12 @@ export default function VoucherList() {
         <div className="p-8 pb-20 sm:p-10 flex flex-col gap-6 h-full overflow-y-auto w-full relative">
             <div className="flex justify-between items-start w-full">
                 <div>
-                    <h1 className="text-2xl font-bold font-['var(--font-space-grotesk)']">会计凭证</h1>
-                    <p className="text-muted mt-1 text-sm">凭证 · 凭证查询</p>
+                    <h1 className="font-['var(--font-space-grotesk)'] text-[28px] font-bold leading-none">会计凭证</h1>
+                    <p className="mt-2 text-[13px] text-muted">凭证 · 凭证查询</p>
                 </div>
 
                 <div className="flex gap-2">
-                    <button className="h-9 px-4 bg-primary text-primary-foreground flex items-center justify-center hover:bg-opacity-90 transition-colors text-sm font-bold shadow-sm">
+                    <button className="h-10 px-5 bg-primary text-primary-foreground flex items-center justify-center hover:bg-opacity-90 transition-colors text-sm font-bold shadow-sm">
                         新建凭证
                     </button>
                 </div>
@@ -32,9 +32,9 @@ export default function VoucherList() {
 
             <div className="flex justify-between items-center w-full mt-2">
                 <div className="flex gap-2 text-sm">
-                    <button className="bg-[#1a1a1a] text-white px-4 py-1.5 font-medium shadow-sm">全部</button>
-                    <button className="bg-white border border-border text-foreground px-4 py-1.5 hover:bg-gray-50 shadow-sm transition-colors">待结转</button>
-                    <button className="bg-white border border-border text-foreground px-4 py-1.5 hover:bg-gray-50 shadow-sm transition-colors">已结转</button>
+                    <button className="h-9 px-4 bg-[#1a1a1a] text-white text-xs font-bold shadow-sm">全部</button>
+                    <button className="h-9 px-4 bg-white border border-border text-muted text-xs font-bold hover:bg-background shadow-sm transition-colors">待结转</button>
+                    <button className="h-9 px-4 bg-white border border-border text-muted text-xs font-bold hover:bg-background shadow-sm transition-colors">已结转</button>
                 </div>
                 <div className="text-xs text-muted flex items-center gap-2">
                     共 1,850 张凭证
@@ -42,26 +42,26 @@ export default function VoucherList() {
             </div>
 
             <div className="flex-1 bg-white border border-border flex flex-col rounded-sm overflow-hidden min-w-[800px] shadow-sm mt-2">
-                <div className="grid grid-cols-[160px_120px_100px_1fr_120px_120px_80px] px-6 py-4 border-b border-border text-sm font-medium text-muted bg-[#FDFCFB]">
+                <div className="grid grid-cols-[160px_120px_100px_1fr_120px_120px_80px] h-10 items-center px-6 border-b border-border text-xs font-bold text-muted uppercase tracking-wider bg-[#FDFCFB]">
                     <div>凭证号</div>
                     <div>制单期</div>
                     <div>来源</div>
                     <div>摘要</div>
-                    <div>借方</div>
-                    <div>贷方</div>
+                    <div className="text-right">借方</div>
+                    <div className="text-right">贷方</div>
                     <div className="text-center">状态</div>
                 </div>
 
                 <div className="flex flex-col text-sm bg-white overflow-y-auto">
-                    <div className="grid grid-cols-[160px_120px_100px_1fr_120px_120px_80px] px-6 py-4 border-b border-border items-center hover:bg-gray-50 transition-colors">
-                        <div className="font-['var(--font-space-grotesk)'] font-medium text-primary cursor-pointer hover:underline">JV-20260216-166</div>
-                        <div className="font-['var(--font-space-grotesk)'] text-muted">2026-02-16</div>
-                        <div className="font-medium text-muted">收银</div>
-                        <div className="font-medium truncate pr-4">收到深圳星级网吧款项 3笔(含AR)</div>
-                        <div className="font-['var(--font-space-grotesk)'] font-medium">¥186,000.00</div>
-                        <div className="font-['var(--font-space-grotesk)'] font-medium text-muted text-opacity-50">¥186,000.00</div>
+                    <div className="grid grid-cols-[160px_120px_100px_1fr_120px_120px_80px] px-6 py-4 border-b border-border items-center hover:bg-background/50 transition-colors">
+                        <div className="text-sm font-medium italic text-[#C05A3C] cursor-pointer hover:underline font-mono">JV-20260216-166</div>
+                        <div className="text-sm text-muted font-mono">2026-02-16</div>
+                        <div className="text-[13px] font-bold text-[#1a1a1a]">收银</div>
+                        <div className="text-sm text-muted truncate pr-4">收到深圳星级网吧款项 3笔(含AR)</div>
+                        <div className="text-right text-[15px] font-bold text-[#1a1a1a] font-mono">¥186,000.00</div>
+                        <div className="text-right text-[15px] font-bold text-muted text-opacity-30 font-mono">¥186,000.00</div>
                         <div className="text-center">
-                            <span className="bg-[#EAF3EB] text-[#549363] px-2 py-0.5 text-xs font-medium border-transparent border">
+                            <span className="bg-[#F6FFF8] text-[#22C55E] px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight">
                                 已过账
                             </span>
                         </div>

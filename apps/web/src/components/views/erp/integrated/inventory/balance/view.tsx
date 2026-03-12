@@ -1,14 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowDown, ArrowUp, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Pencil, Plus, Search, Trash2, Download, Upload } from 'lucide-react';
 
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import {
   BalanceForm,
   type BalanceFormData,
 } from '@/components/views/erp/integrated/inventory/balance/balance-form';
-import { InoutDemoPanel } from '@/components/views/erp/integrated/inventory/balance/inout-demo-panel';
 import {
   LedgerForm,
   type LedgerFormData,
@@ -217,19 +216,42 @@ export default function InvBalList() {
 
   return (
     <>
-      <div className="relative flex h-full w-full flex-col gap-6 overflow-y-auto p-8 pb-20 sm:p-10">
+      {/* Container Background #F5F3EF matches Design 1VpfS */}
+      <div className="relative flex h-full w-full flex-col gap-6 overflow-y-auto bg-[#F5F3EF] px-10 py-8 pb-20">
         <div className="flex w-full items-start justify-between">
           <div>
-            <h1 className="font-['var(--font-space-grotesk)'] text-2xl font-bold">库存余额</h1>
-            <p className="mt-1 text-sm text-muted">SKU 现存量数据查询 · 单库层级盘点</p>
+            <h1 className="font-['var(--font-space-grotesk)'] text-[28px] font-bold leading-none tracking-tight text-[#1a1a1a]">库存余额</h1>
+            <p className="mt-2 text-[13px] text-[#888888] font-['var(--font-space-grotesk)']">SKU 现存量数据查询 · 单库层级盘点</p>
           </div>
 
-          <div className="flex gap-2">
-            <button className="flex h-9 items-center justify-center border border-border bg-white px-4 text-sm font-medium shadow-sm transition-colors hover:bg-gray-50">
+          <div className="flex gap-2.5">
+            <button
+              className="flex h-10 items-center justify-center border border-[#B6D7BD] bg-[#F2FBF4] px-5 text-sm font-bold text-[#2E7D32] shadow-sm transition-colors hover:bg-[#E8F5E9] uppercase tracking-wider"
+              onClick={() => {
+                setSelectedRow(null);
+                setLedgerMode('stock-in');
+                setLedgerDialogOpen(true);
+              }}
+              type="button"
+            >
+              入库
+            </button>
+            <button
+              className="flex h-10 items-center justify-center border border-[#E7B9B9] bg-[#FFF5F5] px-5 text-sm font-bold text-[#B54A4A] shadow-sm transition-colors hover:bg-[#FFF0F0] uppercase tracking-wider"
+              onClick={() => {
+                setSelectedRow(null);
+                setLedgerMode('stock-out');
+                setLedgerDialogOpen(true);
+              }}
+              type="button"
+            >
+              出库
+            </button>
+            <button className="flex h-10 items-center justify-center rounded-md border border-[#D1CCC4] bg-white px-5 text-[13px] font-medium text-[#666666] shadow-sm transition-colors hover:bg-gray-50">
               导出
             </button>
             <button
-              className="flex h-9 items-center justify-center gap-2 bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-opacity-90"
+              className="flex h-10 items-center justify-center gap-2 bg-[#C05A3C] px-5 text-[13px] font-bold text-white shadow-sm transition-opacity hover:opacity-90 active:scale-95"
               onClick={() => setCreateDialogOpen(true)}
               type="button"
             >
@@ -241,32 +263,22 @@ export default function InvBalList() {
 
         {notice ? <InlineNotice message={notice.message} tone={notice.tone} /> : null}
 
-        <InoutDemoPanel onNotice={showNotice} onReload={reload} rows={pageRows} />
-
-        <form className="w-full border border-border bg-white p-2" onSubmit={handleSearchSubmit}>
+        {/* Search Bar - Round 6, Stroke #D1CCC4 */}
+        <form className="w-full rounded-[6px] border border-[#D1CCC4] bg-white p-2" onSubmit={handleSearchSubmit}>
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#888888]" />
             <input
-              className="h-10 w-full bg-transparent pl-10 pr-24 text-sm font-['var(--font-space-grotesk)'] outline-none placeholder:text-muted"
+              className="h-10 w-full bg-transparent pl-10 pr-24 text-[13px] font-['var(--font-space-grotesk)'] outline-none placeholder:text-[#AAAAAA]"
               onChange={(event) => setDraftQuery(event.target.value)}
-              placeholder="搜索物料编码、型号、仓库..."
+              placeholder="搜索物料编号, 名称, 仓库..."
               type="text"
               value={draftQuery}
             />
-            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
-              {params.q ? (
-                <button
-                  className="text-xs text-muted hover:text-foreground"
-                  onClick={() => {
-                    setDraftQuery('');
-                    updateParams({ page: '1', q: '' });
-                  }}
-                  type="button"
-                >
-                  清除
-                </button>
-              ) : null}
-              <button className="h-8 rounded-sm bg-primary px-3 text-xs font-medium text-white" type="submit">
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-2">
+              <button 
+                className="h-8 rounded-sm bg-[#1a1a1a] px-5 text-[12px] font-bold text-white tracking-wide transition-all hover:bg-black active:scale-95" 
+                type="submit"
+              >
                 搜索
               </button>
             </div>
@@ -274,118 +286,73 @@ export default function InvBalList() {
         </form>
 
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2 text-sm">
-            <FilterButton
-              active={!params.warehouse}
-              label="全部仓库"
-              onClick={() => updateParams({ page: '1', warehouse: '' })}
-            />
-            {['深圳 A 仓', '青岛 B 仓', '苏州 周转仓'].map((warehouse) => (
-              <FilterButton
-                active={params.warehouse === warehouse}
-                key={warehouse}
-                label={warehouse}
-                onClick={() => updateParams({ page: '1', warehouse }, { resetPage: true })}
-              />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[12px]">
             <FilterButton
               active={!params.stockState}
-              label="全部状态"
+              label="全部库存"
               onClick={() => updateParams({ page: '1', stockState: '' })}
             />
             <FilterButton
               active={params.stockState === 'low'}
               label="低于安全库存"
-              onClick={() =>
-                updateParams({
-                  page: '1',
-                  stockState: params.stockState === 'low' ? '' : 'low',
-                })
-              }
+              onClick={() => updateParams({ page: '1', stockState: params.stockState === 'low' ? '' : 'low' })}
+              variant="outline"
             />
             <FilterButton
-              active={params.stockState === 'cycle'}
-              label="推荐盘点"
-              onClick={() =>
-                updateParams({
-                  page: '1',
-                  stockState: params.stockState === 'cycle' ? '' : 'cycle',
-                })
-              }
+              active={params.stockState === 'zero'}
+              label="零库存"
+              onClick={() => updateParams({ page: '1', stockState: params.stockState === 'zero' ? '' : 'zero' })}
+              variant="outline"
             />
+            <div className="flex-1" />
+            <div className="text-[#888888]">共 {pagination.total} 条 · 显示 {rangeStart}-{rangeEnd}</div>
           </div>
         </div>
 
-        <div className="mt-2 flex w-full items-center justify-between">
-          <div className="text-xs text-muted">
-            当前筛选: {params.warehouse || '全部仓库'} /{' '}
-            {params.stockState === 'low'
-              ? '低于安全库存'
-              : params.stockState === 'cycle'
-                ? '推荐盘点'
-                : '全部'}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted">
-            共 {pagination.total} 条 · 显示 {rangeStart}-{rangeEnd}
-          </div>
-        </div>
-
-        <div className="mt-2 flex min-w-[860px] flex-1 flex-col overflow-hidden rounded-sm border border-border bg-white shadow-sm">
-          <div className="grid grid-cols-[160px_200px_120px_100px_100px_100px_100px_90px_160px] border-b border-border bg-[#FDFCFB] px-6 py-4 text-sm font-medium text-muted">
-            <div>
-              <SortButton active={params.sort === 'sku'} direction={params.order} label="物料编码" onClick={() => handleSort('sku')} />
-            </div>
-            <div>
-              <SortButton active={params.sort === 'name'} direction={params.order} label="物料名称" onClick={() => handleSort('name')} />
-            </div>
-            <div>仓库</div>
-            <div className="text-right">
-              <SortButton active={params.sort === 'balance'} direction={params.order} label="当前余额" onClick={() => handleSort('balance')} />
-            </div>
-            <div className="text-right">
-              <SortButton active={params.sort === 'available'} direction={params.order} label="可用数量" onClick={() => handleSort('available')} />
-            </div>
-            <div className="text-right">预留数量</div>
-            <div className="text-right">
-              <SortButton active={params.sort === 'safe'} direction={params.order} label="安全库存" onClick={() => handleSort('safe')} />
-            </div>
-            <div className="text-center">状态</div>
-            <div className="text-right">操作</div>
+        {/* Table Container - Corner 4, Stroke #E8E4DD */}
+        <div className="mt-2 flex min-w-[960px] flex-1 flex-col overflow-hidden rounded-[4px] border border-[#E8E4DD] bg-white shadow-sm">
+          {/* Table Header - BG #F5F3EF */}
+          <div className="grid h-[44px] grid-cols-[120px_140px_100px_80px_80px_80px_80px_100px_1fr] items-center border-b border-[#E8E4DD] bg-[#F5F3EF] px-4 text-[12px] font-semibold text-[#888888]">
+            <div className="px-1"><SortButton active={params.sort === 'sku'} direction={params.order} label="物料编号" onClick={() => handleSort('sku')} /></div>
+            <div className="px-1"><SortButton active={params.sort === 'name'} direction={params.order} label="物料名称" onClick={() => handleSort('name')} /></div>
+            <div className="px-1">仓库</div>
+            <div className="px-1 text-center">在库数量</div>
+            <div className="px-1 text-center">可用数量</div>
+            <div className="px-1 text-center">预留数量</div>
+            <div className="px-1 text-center">安全库存</div>
+            <div className="px-1 text-center">状态</div>
+            <div className="px-1 text-right pr-4">操作</div>
           </div>
 
-          <div className="flex flex-1 flex-col overflow-y-auto bg-white text-sm">
+          <div className="flex flex-1 flex-col overflow-y-auto bg-white text-[12px]">
             {loading ? (
-              <div className="px-6 py-8 text-center text-sm text-muted">加载库存余额中...</div>
+              <div className="px-6 py-12 text-center text-[#888888]">加载中...</div>
             ) : null}
             {!loading && error ? (
-              <div className="px-6 py-8 text-center text-sm text-primary">
-                <p>库存余额加载失败：{error.message}</p>
-                <button className="mt-3 text-sm font-medium underline underline-offset-4" onClick={reload} type="button">
-                  重试
-                </button>
+              <div className="px-6 py-12 text-center text-primary">
+                <p>加载失败：{error.message}</p>
+                <button className="mt-3 font-medium underline" onClick={reload} type="button">重试</button>
               </div>
             ) : null}
             {!loading && !error
               ? pageRows.map((row) => (
                   <div
-                    className="grid grid-cols-[160px_200px_120px_100px_100px_100px_100px_90px_160px] items-center border-b border-border px-6 py-4 transition-colors hover:bg-gray-50"
+                    className="grid grid-cols-[120px_140px_100px_80px_80px_80px_80px_100px_1fr] items-center border-b border-[#E8E4DD] px-4 py-[14px] transition-colors hover:bg-gray-50 bg-white"
                     key={row.id}
                   >
-                    <div className="font-mono font-medium text-primary">{row.sku}</div>
-                    <div className="font-medium text-foreground">{row.name}</div>
-                    <div>{row.warehouse}</div>
-                    <div className="text-right font-mono">{row.balance}</div>
-                    <div className="text-right font-mono">{row.available}</div>
-                    <div className="text-right font-mono">{row.reserved}</div>
-                    <div className="text-right font-mono">{row.safe}</div>
-                    <div className="text-center">
+                    <div className="px-1 font-['var(--font-space-grotesk)'] font-bold text-[#C05A3C]">{row.sku}</div>
+                    <div className="px-1 text-[#1a1a1a] truncate">{row.name}</div>
+                    <div className="px-1 text-[#1a1a1a]">{row.warehouse}</div>
+                    <div className="px-1 text-center font-['var(--font-space-grotesk)'] text-[#1a1a1a]">{row.balance}</div>
+                    <div className="px-1 text-center font-['var(--font-space-grotesk)'] text-[#1a1a1a]">{row.available}</div>
+                    <div className="px-1 text-center font-['var(--font-space-grotesk)'] text-[#1a1a1a]">{row.reserved}</div>
+                    <div className="px-1 text-center font-['var(--font-space-grotesk)'] text-[#1a1a1a]">{row.safe}</div>
+                    <div className="px-1 text-center">
                       <span className={getStockStatusClassName(row)}>{row.statusLabel}</span>
                     </div>
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 pr-4">
                       <button
-                        className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
+                        className="inline-flex h-8 items-center gap-1.5 border border-[#B6D7BD] bg-white px-2.5 text-[10px] font-bold text-[#2E7D32] transition-colors hover:bg-[#F2FBF4] uppercase tracking-wider"
                         onClick={() => {
                           setSelectedRow(row);
                           setLedgerMode('stock-in');
@@ -393,10 +360,11 @@ export default function InvBalList() {
                         }}
                         type="button"
                       >
+                        <Download className="h-3 w-3" />
                         入库
                       </button>
                       <button
-                        className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
+                        className="inline-flex h-8 items-center gap-1.5 border border-[#E7B9B9] bg-white px-2.5 text-[10px] font-bold text-[#B54A4A] transition-colors hover:bg-[#FFF5F5] uppercase tracking-wider"
                         onClick={() => {
                           setSelectedRow(row);
                           setLedgerMode('stock-out');
@@ -404,72 +372,65 @@ export default function InvBalList() {
                         }}
                         type="button"
                       >
+                        <Upload className="h-3 w-3" />
                         出库
                       </button>
+                      <div className="h-4 w-[1px] bg-[#E8E4DD] mx-1" />
                       <button
-                        className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
+                        className="inline-flex h-7 w-7 items-center justify-center border border-[#E8E4DD] bg-white text-[#888888] transition-colors hover:bg-gray-50 hover:text-[#1a1a1a]"
                         onClick={() => {
                           setSelectedRow(row);
                           setEditDialogOpen(true);
                         }}
+                        title="编辑"
                         type="button"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        编辑
                       </button>
                       <button
-                        className="inline-flex h-8 items-center gap-1 border border-[#E7B9B9] bg-white px-3 text-xs font-medium text-[#B54A4A] transition-colors hover:bg-[#FFF5F5]"
+                        className="inline-flex h-7 w-7 items-center justify-center border border-[#E8E4DD] bg-white text-[#888888] transition-colors hover:bg-red-50 hover:text-red-500 hover:border-red-200"
                         onClick={() => {
                           setSelectedRow(row);
                           setDeleteDialogOpen(true);
                         }}
+                        title="删除"
                         type="button"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        删除
                       </button>
                     </div>
                   </div>
                 ))
               : null}
-            {!loading && !error && pageRows.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-muted">没有匹配的库存余额记录。</div>
-            ) : null}
           </div>
 
-          <div className="flex items-center justify-between border-t border-border px-6 py-3 text-sm">
-            <span className="text-muted">
-              排序字段: {getSortLabel(params.sort as BalanceSortField)} /{' '}
-              {params.order === 'asc' ? '升序' : '降序'}
-            </span>
-            <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between border-t border-[#E8E4DD] px-6 py-4 bg-[#F5F3EF] text-[12px]">
+            <div className="text-[#888888]">显示第 {rangeStart} 到 {rangeEnd} 条，共 {pagination.total} 条</div>
+            <div className="flex items-center gap-1.5">
               <button
-                className="border border-border bg-white px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-8 border border-[#D1CCC4] bg-white px-3 text-[#1a1a1a] disabled:opacity-30 disabled:cursor-not-allowed"
                 disabled={currentPage === 1}
                 onClick={() => updateParams({ page: String(currentPage - 1) })}
-                type="button"
               >
                 上一页
               </button>
               {pageNumbers.map((page) => (
                 <button
-                  className={`border px-3 py-1 text-xs ${
+                  className={`h-8 w-8 rounded-sm text-[12px] font-bold transition-colors ${
                     page === currentPage
-                      ? 'border-[#1a1a1a] bg-[#1a1a1a] text-white'
-                      : 'border-border bg-white'
+                      ? 'bg-[#1a1a1a] text-[#F5F3EF]'
+                      : 'border border-[#D1CCC4] bg-white text-[#1a1a1a] hover:bg-gray-50'
                   }`}
                   key={page}
                   onClick={() => updateParams({ page: String(page) })}
-                  type="button"
                 >
                   {page}
                 </button>
               ))}
               <button
-                className="border border-border bg-white px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-8 border border-[#D1CCC4] bg-white px-3 text-[#1a1a1a] disabled:opacity-30 disabled:cursor-not-allowed"
                 disabled={currentPage === totalPages}
                 onClick={() => updateParams({ page: String(currentPage + 1) })}
-                type="button"
               >
                 下一页
               </button>
@@ -510,6 +471,7 @@ export default function InvBalList() {
         onOpenChange={setLedgerDialogOpen}
         onSubmit={handleLedgerMutation}
         open={ledgerDialogOpen}
+        rows={pageRows}
       />
 
       <DeleteConfirmDialog
@@ -552,7 +514,7 @@ function getSortLabel(field: BalanceSortField) {
     case 'sku':
       return '物料编码';
     default:
-      return '当前余额';
+      return '在库数量';
   }
 }
 
@@ -560,65 +522,48 @@ function getStockStatusLabel(row: InventoryBalanceListItem) {
   if (row.balance < row.safe) {
     return '低库存';
   }
-
   if (row.available === 0) {
-    return '待补货';
+    return '零库存';
   }
-
   return '正常';
 }
 
 function getStockStatusClassName(row: InventoryBalanceListItem) {
   if (row.balance < row.safe) {
-    return 'rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700';
+    return 'inline-flex rounded-sm bg-[#FFF3E0] px-2.5 py-1 text-[10px] font-bold text-[#E67E22]';
   }
-
   if (row.available === 0) {
-    return 'rounded-full bg-[#FFF5F5] px-2 py-0.5 text-[10px] font-bold text-[#B54A4A]';
+    return 'inline-flex rounded-sm bg-[#FFEBEE] px-2.5 py-1 text-[10px] font-bold text-[#E53935]';
   }
-
-  return 'rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700';
+  return 'inline-flex rounded-sm bg-[#E8F5E9] px-2.5 py-1 text-[10px] font-bold text-[#2E7D32]';
 }
 
 function InlineNotice({ message, tone }: { message: string; tone: Notice['tone'] }) {
   return (
-    <div
-      className={`rounded-sm border px-4 py-3 text-sm ${
-        tone === 'success'
-          ? 'border-[#B6D7BD] bg-[#F2FBF4] text-[#2E7D32]'
-          : 'border-[#E7B9B9] bg-[#FFF5F5] text-[#B54A4A]'
-      }`}
-    >
+    <div className={`rounded-sm border px-4 py-3 text-[13px] ${tone === 'success' ? 'border-[#B6D7BD] bg-[#F2FBF4] text-[#2E7D32]' : 'border-[#E7B9B9] bg-[#FFF5F5] text-[#B54A4A]'}`}>
       {message}
     </div>
   );
 }
 
-function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function FilterButton({ active, label, onClick, variant = 'primary' }: { active: boolean; label: string; onClick: () => void; variant?: 'primary' | 'outline' }) {
+  if (active) {
+    return (
+      <button className="h-9 px-4 bg-[#1a1a1a] text-[#F5F3EF] rounded-[4px] text-[12px] font-bold shadow-sm" onClick={onClick}>
+        {label}
+      </button>
+    );
+  }
   return (
-    <button
-      className={active ? 'bg-[#1a1a1a] px-4 py-1.5 font-medium text-white shadow-sm' : 'border border-border bg-white px-4 py-1.5 text-foreground shadow-sm transition-colors hover:bg-gray-50'}
-      onClick={onClick}
-      type="button"
-    >
+    <button className="h-9 px-4 border border-[#D1CCC4] bg-white text-[#666666] rounded-[4px] text-[12px] font-normal transition-colors hover:bg-gray-50" onClick={onClick}>
       {label}
     </button>
   );
 }
 
-function SortButton({
-  active,
-  direction,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  direction: string;
-  label: string;
-  onClick: () => void;
-}) {
+function SortButton({ active, direction, label, onClick }: { active: boolean; direction: string; label: string; onClick: () => void }) {
   return (
-    <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={onClick} type="button">
+    <button className="inline-flex items-center gap-1 hover:text-[#1a1a1a] transition-colors" onClick={onClick} type="button">
       <span>{label}</span>
       {active ? (
         direction === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
@@ -631,19 +576,7 @@ async function requestBalanceMutation(input: RequestInfo | URL, init: RequestIni
   try {
     return await fetch(input, init);
   } catch {
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: '网络请求失败，请稍后重试',
-        },
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        status: 503,
-      },
-    );
+    return new Response(JSON.stringify({ error: { message: '请求失败' } }), { status: 503 });
   }
 }
 
@@ -651,31 +584,15 @@ async function requestLedgerMutation(input: RequestInfo | URL, init: RequestInit
   try {
     return await fetch(input, init);
   } catch {
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: '网络请求失败，请稍后重试',
-        },
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        status: 503,
-      },
-    );
+    return new Response(JSON.stringify({ error: { message: '请求失败' } }), { status: 503 });
   }
 }
 
-async function extractErrorMessage(response: Response, fallbackMessage: string) {
+async function extractErrorMessage(response: Response, fallback: string) {
   try {
-    const payload = (await response.json()) as {
-      error?: { message?: string };
-      message?: string;
-    };
-
-    return payload.error?.message || payload.message || fallbackMessage;
+    const data = await response.json();
+    return data.error?.message || data.message || fallback;
   } catch {
-    return fallbackMessage;
+    return fallback;
   }
 }

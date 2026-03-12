@@ -267,22 +267,22 @@ export default function SkuList() {
 
   return (
     <>
-      <div className="flex h-full flex-col gap-5 p-8 pb-20 sm:p-10">
+      <div className="flex h-full flex-col gap-6 p-8 pb-20 sm:p-10">
         <div className="flex w-full items-start justify-between">
           <div>
-            <h1 className="font-['var(--font-space-grotesk)'] text-2xl font-bold">SKU 管理</h1>
-            <p className="mt-1 text-sm text-muted">SKU 列表 / 管理及筛选</p>
+            <h1 className="font-['var(--font-space-grotesk)'] text-[28px] font-bold leading-none">SKU 管理</h1>
+            <p className="mt-2 text-[13px] text-muted">SKU 列表 / 管理及筛选</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="flex h-9 items-center justify-center gap-2 border border-border bg-white px-4 text-sm font-medium transition-colors hover:bg-gray-50">
+            <button className="flex h-10 items-center justify-center gap-2 border border-border bg-white px-5 text-sm font-medium transition-colors hover:bg-gray-50">
               <Upload className="h-4 w-4" /> 导入
             </button>
-            <button className="flex h-9 items-center justify-center gap-2 border border-border bg-white px-4 text-sm font-medium transition-colors hover:bg-gray-50">
+            <button className="flex h-10 items-center justify-center gap-2 border border-border bg-white px-5 text-sm font-medium transition-colors hover:bg-gray-50">
               <Download className="h-4 w-4" /> 导出
             </button>
             <button
-              className="flex h-9 items-center gap-2 bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-opacity-90"
+              className="flex h-10 items-center gap-2 bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-opacity-90"
               onClick={() => setCreateDialogOpen(true)}
               type="button"
             >
@@ -322,7 +322,7 @@ export default function SkuList() {
             </div>
           </form>
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
             <FilterSelect
               label="类目"
               onChange={(value) => updateParams({ category: value, page: '1' })}
@@ -419,32 +419,32 @@ export default function SkuList() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-[40px_160px_1fr_100px_120px_100px_100px_80px_160px] border-b border-border bg-[#FDFCFB] px-4 py-3 text-sm font-medium text-muted">
-                <div>
+              <div className="grid h-10 items-center grid-cols-[40px_160px_1fr_100px_120px_100px_100px_80px_160px] border-b border-border bg-[#FDFCFB] px-4 text-sm font-medium text-muted">
+                <div className="flex items-center">
                   <input type="checkbox" />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <SortButton active={params.sort === 'code'} direction={params.order} label="SKU 编码" onClick={() => handleSort('code')} />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <SortButton active={params.sort === 'name'} direction={params.order} label="名称 / 规格" onClick={() => handleSort('name')} />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <SortButton active={params.sort === 'cat'} direction={params.order} label="类目" onClick={() => handleSort('cat')} />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <SortButton active={params.sort === 'supp'} direction={params.order} label="默认供应商" onClick={() => handleSort('supp')} />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <SortButton active={params.sort === 'stock'} direction={params.order} label="可用库存" onClick={() => handleSort('stock')} />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <SortButton active={params.sort === 'threshold'} direction={params.order} label="告急阈值" onClick={() => handleSort('threshold')} />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <SortButton active={params.sort === 'status'} direction={params.order} label="状态" onClick={() => handleSort('status')} />
                 </div>
-                <div>操作</div>
+                <div className="flex items-center">操作</div>
               </div>
 
               <div className="flex-1 overflow-y-auto text-sm">
@@ -512,7 +512,7 @@ export default function SkuList() {
             </div>
 
             {selectedSku ? (
-              <div className="flex w-[320px] flex-col border border-border bg-white">
+              <div className="flex w-[300px] flex-col border border-border bg-white">
                 <div className="flex items-center justify-between border-b border-border bg-[#FDFCFB] p-4">
                   <h2 className="font-bold">快速预览</h2>
                   <span className="text-xs text-muted">BFF 列表页</span>

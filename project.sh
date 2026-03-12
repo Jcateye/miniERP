@@ -3,6 +3,18 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load .env if exists
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  echo "[project] 加载 .env 配置文件"
+  # Use a subshell to avoid exporting variables that might break the script if exported incorrectly,
+  # but here we actually WANT them as env vars.
+  # Using 'set -a' to export all variables from .env
+  set -a
+  source "$ROOT_DIR/.env"
+  set +a
+fi
+
 RUNTIME_DIR="${TMPDIR:-/tmp}/minierp-runtime"
 LOG_DIR="${LOG_DIR:-$ROOT_DIR/logs}"
 
