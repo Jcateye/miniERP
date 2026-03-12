@@ -8,6 +8,10 @@ import {
   BalanceForm,
   type BalanceFormData,
 } from '@/components/views/erp/integrated/inventory/balance/balance-form';
+import {
+  LedgerForm,
+  type LedgerFormData,
+} from '@/components/views/erp/integrated/inventory/ledger/ledger-form';
 import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
 import { useInventoryBalance } from '@/lib/hooks/use-inventory-balance';
 import type { InventoryBalanceListItem } from '@/lib/mocks/erp-list-fixtures';
@@ -28,6 +32,8 @@ type BalanceRow = InventoryBalanceListItem & {
   statusLabel: string;
 };
 
+type LedgerMutationMode = 'stock-in' | 'stock-out';
+
 type Notice = {
   id: number;
   message: string;
@@ -41,6 +47,8 @@ export default function InvBalList() {
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [ledgerDialogOpen, setLedgerDialogOpen] = React.useState(false);
+  const [ledgerMode, setLedgerMode] = React.useState<LedgerMutationMode>('stock-in');
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<BalanceRow | null>(null);
@@ -179,6 +187,31 @@ export default function InvBalList() {
     setDeleteDialogOpen(false);
     reload();
     showNotice('删除成功', 'success');
+  };
+
+  const handleLedgerMutation = async (formData: LedgerFormData) => {
+    if (!selectedRow) {
+      throw new Error('未选择要操作的库存余额');
+    }
+
+    const response = await requestLedgerMutation('/api/bff/inventory/ledger', {
+      body: JSON.stringify(formData),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const message = await extractErrorMessage(response, '操作失败');
+      showNotice(message, 'error');
+      throw new Error(message);
+    }
+
+    setLedgerDialogOpen(false);
+    reload();
+    window.dispatchEvent(new Event('minierp:inventory-mutated'));
+    showNotice(formData.type === '出库' ? '出库成功' : '入库成功', 'success');
   };
 
   return (
@@ -352,6 +385,28 @@ export default function InvBalList() {
                         className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
                         onClick={() => {
                           setSelectedRow(row);
+                          setLedgerMode('stock-in');
+                          setLedgerDialogOpen(true);
+                        }}
+                        type="button"
+                      >
+                        入库
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
+                        onClick={() => {
+                          setSelectedRow(row);
+                          setLedgerMode('stock-out');
+                          setLedgerDialogOpen(true);
+                        }}
+                        type="button"
+                      >
+                        出库
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
+                        onClick={() => {
+                          setSelectedRow(row);
                           setEditDialogOpen(true);
                         }}
                         type="button"
@@ -433,6 +488,25 @@ export default function InvBalList() {
         onOpenChange={setEditDialogOpen}
         onSubmit={handleUpdate}
         open={editDialogOpen}
+      />
+
+      <LedgerForm
+        key={`${selectedRow?.id ?? 'none'}-${ledgerMode}`}
+        initialData={
+          selectedRow
+            ? {
+                quantity: '',
+                reason: '',
+                skuId: selectedRow.sku,
+                type: ledgerMode === 'stock-out' ? '出库' : '入库',
+                warehouseId: selectedRow.warehouse,
+              }
+            : undefined
+        }
+        mode="create"
+        onOpenChange={setLedgerDialogOpen}
+        onSubmit={handleLedgerMutation}
+        open={ledgerDialogOpen}
       />
 
       <DeleteConfirmDialog
@@ -551,6 +625,26 @@ function SortButton({
 }
 
 async function requestBalanceMutation(input: RequestInfo | URL, init: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch {
+    return new Response(
+      JSON.stringify({
+        error: {
+          message: '网络请求失败，请稍后重试',
+        },
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        status: 503,
+      },
+    );
+  }
+}
+
+async function requestLedgerMutation(input: RequestInfo | URL, init: RequestInit) {
   try {
     return await fetch(input, init);
   } catch {

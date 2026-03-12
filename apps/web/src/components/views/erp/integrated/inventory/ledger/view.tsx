@@ -34,6 +34,18 @@ type Notice = {
 export default function InvLedgerList() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
   const { data, error, loading, pagination, reload } = useInventoryLedger();
+
+  React.useEffect(() => {
+    const handler = () => {
+      reload();
+    };
+
+    window.addEventListener('minierp:inventory-mutated', handler);
+
+    return () => {
+      window.removeEventListener('minierp:inventory-mutated', handler);
+    };
+  }, [reload]);
   const [draftQuery, setDraftQuery] = React.useState(params.q);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
