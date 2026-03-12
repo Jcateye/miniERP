@@ -4,6 +4,7 @@ import { AuditService } from '../../../audit/application/audit.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
 import { InvalidStatusTransitionError } from '../../core-document/domain/status-transition';
 import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
+import { HttpException } from '@nestjs/common';
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
@@ -355,6 +356,174 @@ describe('DocumentsService', () => {
 
       expect(first).toEqual(second);
       expect(mockInventoryPostingService.post).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('create', () => {
+    it('should require warehouseId for GRN documents', async () => {
+      await expect(
+        service.create(
+          'GRN',
+          {
+            lines: [{ skuId: 'CAB-HDMI-2M', qty: '5' }],
+          },
+          '1001',
+          'user-001',
+          'req-001',
+          'idem-create-grn-no-warehouse',
+        ),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: 'VALIDATION_DOCUMENT_WAREHOUSE_REQUIRED',
+        }),
+      });
+    });
+
+    it('should resolve warehouse code and sku code when creating GRN with prisma', async () => {
+      const mockPrisma = {
+        tenant: {
+          findFirst: jest.fn().mockResolvedValue({ id: BigInt(1001) }),
+        },
+        warehouse: {
+          findFirst: jest.fn().mockResolvedValue({ id: BigInt(2001) }),
+        },
+        sku: {
+          findFirst: jest.fn().mockResolvedValue({ id: BigInt(3001) }),
+        },
+        purchaseOrder: {
+          findFirst: jest.fn(),
+          create: jest.fn(),
+        },
+        purchaseOrderLine: {
+          createMany: jest.fn(),
+        },
+        grn: {
+          findFirst: jest.fn(),
+          create: jest.fn().mockResolvedValue({
+            id: BigInt(4001),
+            docDate: new Date('2026-03-12'),
+          }),
+        },
+        grnLine: {
+          createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      mockPrisma.grn.findFirst.mockResolvedValue(null);
+
+      const persistentService = new DocumentsService(
+        mockAuditService as unknown as AuditService,
+        mockInventoryPostingService as unknown as InventoryPostingService,
+        mockPrisma as never,
+      );
+
+      const result = await persistentService.create(
+        'GRN',
+        {
+          warehouseId: 'WH-A',
+          lines: [{ skuId: 'SKU-DEMO-001', qty: '10', unitPrice: '12.50' }],
+        },
+        '1001',
+        'user-001',
+        'req-001',
+        'idem-create-grn-with-warehouse',
+      );
+
+      expect(mockPrisma.warehouse.findFirst).toHaveBeenCalledWith({
+        where: {
+          tenantId: BigInt(1001),
+          code: 'WH-A',
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      expect(mockPrisma.sku.findFirst).toHaveBeenCalledWith({
+        where: {
+          tenantId: BigInt(1001),
+          skuCode: 'SKU-DEMO-001',
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      expect(mockPrisma.grn.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId: BigInt(1001),
+          warehouseId: BigInt(2001),
+        }),
+      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: '4001',
+          docType: 'GRN',
+          lineCount: 1,
+        }),
+      );
+    });
+
+    it('should reject unknown numeric warehouseId for OUT documents', async () => {
+      const mockPrisma = {
+        tenant: {
+          findFirst: jest.fn().mockResolvedValue({ id: BigInt(1001) }),
+        },
+        warehouse: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        sku: {
+          findFirst: jest.fn().mockResolvedValue({ id: BigInt(3001) }),
+        },
+        salesOrder: {
+          findFirst: jest.fn(),
+          create: jest.fn(),
+        },
+        salesOrderLine: {
+          createMany: jest.fn(),
+        },
+        outbound: {
+          findFirst: jest.fn(),
+          create: jest.fn(),
+        },
+        outboundLine: {
+          createMany: jest.fn(),
+        },
+      };
+      mockPrisma.outbound.findFirst.mockResolvedValue(null);
+
+      const persistentService = new DocumentsService(
+        mockAuditService as unknown as AuditService,
+        mockInventoryPostingService as unknown as InventoryPostingService,
+        mockPrisma as never,
+      );
+
+      await expect(
+        persistentService.create(
+          'OUT',
+          {
+            warehouseId: '9999',
+            lines: [{ skuId: 'SKU-DEMO-001', qty: '2' }],
+          },
+          '1001',
+          'user-001',
+          'req-001',
+          'idem-create-out-unknown-warehouse',
+        ),
+      ).rejects.toBeInstanceOf(HttpException);
+
+      await expect(
+        persistentService.create(
+          'OUT',
+          {
+            warehouseId: '9999',
+            lines: [{ skuId: 'SKU-DEMO-001', qty: '2' }],
+          },
+          '1001',
+          'user-001',
+          'req-001',
+          'idem-create-out-unknown-warehouse',
+        ),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: 'VALIDATION_WAREHOUSE_NOT_FOUND',
+        }),
+      });
     });
   });
 
