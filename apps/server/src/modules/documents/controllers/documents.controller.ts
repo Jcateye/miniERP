@@ -211,7 +211,6 @@ export class DocumentsController {
     @Param('action') action: string,
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    void body;
     const ctx = this.tenantContextService.getRequiredContext();
 
     if (!idempotencyKey || idempotencyKey.trim() === '') {
