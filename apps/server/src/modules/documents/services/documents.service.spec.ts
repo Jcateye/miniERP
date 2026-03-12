@@ -445,7 +445,7 @@ describe('DocumentsService', () => {
       });
       mockSalesOutboundPrisma.$transaction.mockImplementation(
         (work: (tx: typeof mockSalesOutboundPrisma) => unknown) =>
-          Promise.resolve(work(mockSalesOutboundPrisma)),
+          work(mockSalesOutboundPrisma),
       );
     });
 
@@ -566,8 +566,7 @@ describe('DocumentsService', () => {
       mockPrisma.stateTransitionLog.create.mockResolvedValue({ id: BigInt(1) });
       mockPrisma.outboxEvent.create.mockResolvedValue({ id: BigInt(1) });
       mockPrisma.$transaction.mockImplementation(
-        (work: (tx: typeof mockPrisma) => unknown) =>
-          Promise.resolve(work(mockPrisma)),
+        (work: (tx: typeof mockPrisma) => unknown) => work(mockPrisma),
       );
       mockInventoryPostingService.postInTransaction.mockResolvedValue({
         ledgerEntries: [{ id: 'ledger-001' }],

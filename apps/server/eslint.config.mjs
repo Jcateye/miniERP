@@ -33,7 +33,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/**/*.spec.ts'],
+    files: ['src/**/*.spec.ts', 'test/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
@@ -42,9 +42,11 @@ export default tseslint.config(
     },
   },
   {
+    // in-memory adapters/stores are Promise-shaped placeholders; keep lint relaxed here
     files: [
       'src/**/infrastructure/in-memory-*.ts',
       'src/**/infrastructure/in-memory-*.store.ts',
+      'src/**/in-memory-*.ts',
     ],
     rules: {
       '@typescript-eslint/require-await': 'off',
