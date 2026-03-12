@@ -1,7 +1,9 @@
+import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryController } from './inventory.controller';
 import { InventoryPostingService } from '../application/inventory-posting.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
+import { InventoryInsufficientStockError } from '../domain/inventory.errors';
 
 describe('InventoryController', () => {
   let controller: InventoryController;
@@ -16,6 +18,7 @@ describe('InventoryController', () => {
 
   const mockInventoryPostingService = {
     getBalanceSnapshot: jest.fn(),
+    post: jest.fn(),
   };
 
   const mockInventoryStore = {
@@ -64,6 +67,133 @@ describe('InventoryController', () => {
       data: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 }],
       total: 1,
     });
+  });
+
+  it('should post inbound movement and return latest balance', async () => {
+    mockInventoryPostingService.post.mockResolvedValue({
+      ledgerEntries: [
+        {
+          id: '1',
+          tenantId: '1001',
+          skuId: 'SKU-1',
+          warehouseId: 'WH-1',
+          quantityDelta: 100,
+          referenceType: 'GRN',
+          referenceId: 'DOC-GRN-20260312-000001',
+          postedAt: '2026-03-12T10:00:00.000Z',
+          reversalOfLedgerId: null,
+        },
+      ],
+      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 100 }],
+    });
+
+    const result = await controller.createInbound('idem-in-1', {
+      skuId: 'SKU-1',
+      warehouseId: 'WH-1',
+      quantity: 100,
+    });
+
+    expect(mockInventoryPostingService.post).toHaveBeenCalledWith(
+      '1001',
+      expect.objectContaining({
+        idempotencyKey: 'idem-in-1',
+        referenceType: 'GRN',
+        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: 100 }],
+        referenceId: expect.stringMatching(/^DOC-GRN-\d{8}-\d{6}$/),
+      }),
+      'req-001',
+    );
+    expect(result).toEqual({
+      movementType: 'INBOUND',
+      referenceType: 'GRN',
+      referenceId: expect.stringMatching(/^DOC-GRN-\d{8}-\d{6}$/),
+      quantity: 100,
+      ledgerEntries: [
+        expect.objectContaining({
+          skuId: 'SKU-1',
+          warehouseId: 'WH-1',
+          quantityDelta: 100,
+        }),
+      ],
+      balance: { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 100 },
+    });
+  });
+
+  it('should post outbound movement as negative quantity', async () => {
+    mockInventoryPostingService.post.mockResolvedValue({
+      ledgerEntries: [
+        {
+          id: '2',
+          tenantId: '1001',
+          skuId: 'SKU-1',
+          warehouseId: 'WH-1',
+          quantityDelta: -30,
+          referenceType: 'OUT',
+          referenceId: 'DOC-OUT-20260312-000001',
+          postedAt: '2026-03-12T10:05:00.000Z',
+          reversalOfLedgerId: null,
+        },
+      ],
+      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 70 }],
+    });
+
+    const result = await controller.createOutbound('idem-out-1', {
+      skuId: 'SKU-1',
+      warehouseId: 'WH-1',
+      quantity: 30,
+    });
+
+    expect(mockInventoryPostingService.post).toHaveBeenCalledWith(
+      '1001',
+      expect.objectContaining({
+        idempotencyKey: 'idem-out-1',
+        referenceType: 'OUT',
+        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: -30 }],
+        referenceId: expect.stringMatching(/^DOC-OUT-\d{8}-\d{6}$/),
+      }),
+      'req-001',
+    );
+    expect(result.balance.onHand).toBe(70);
+  });
+
+  it('should require idempotency key for movement posting', async () => {
+    await expect(
+      controller.createInbound(undefined, {
+        skuId: 'SKU-1',
+        warehouseId: 'WH-1',
+        quantity: 100,
+      }),
+    ).rejects.toThrow('Idempotency-Key header is required');
+  });
+
+  it('should map insufficient stock to conflict exception with details', async () => {
+    mockInventoryPostingService.post.mockRejectedValue(
+      new InventoryInsufficientStockError('SKU-1', 'WH-1', 70, 80),
+    );
+
+    try {
+      await controller.createOutbound('idem-out-2', {
+        skuId: 'SKU-1',
+        warehouseId: 'WH-1',
+        quantity: 80,
+      });
+      throw new Error('expected conflict exception');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConflictException);
+      const response = (error as ConflictException).getResponse() as {
+        readonly message: string;
+        readonly code: string;
+        readonly details: Record<string, unknown>;
+      };
+      expect(response.message).toBe('库存不足');
+      expect(response.code).toBe('CONFLICT_INSUFFICIENT_STOCK');
+      expect(response.details).toEqual({
+        skuId: 'SKU-1',
+        warehouseId: 'WH-1',
+        available: 70,
+        required: 80,
+      });
+    }
   });
 
   it('should return all balances when no filters provided', async () => {
