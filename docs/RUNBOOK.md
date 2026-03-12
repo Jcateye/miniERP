@@ -41,10 +41,15 @@ docker build -f apps/server/Dockerfile .
 当前可用的运维可观测命令：
 
 ```bash
-bun run infra:logs
+# 本项目（web/server）日志
+./project.sh server logs
+./project.sh web logs
+
+# 外部共享中间件（PostgreSQL/Redis）日志：需要到 infra 仓库执行
+# 参考：docs/Macmini-infra.md
 ```
 
-用于查看 Docker Compose 服务日志并辅助排障。
+说明：本仓库的 `./project.sh` 采用“外部 infra 模式”，只负责探活，不负责在本仓库内启停/聚合 Docker Compose 日志。
 
 ## 常见问题与处理
 
@@ -55,9 +60,11 @@ bun run infra:logs
 检查与处理：
 
 ```bash
-bun run infra:ps
-bun run infra:up
-bun run infra:logs
+# 本项目只支持探活（不负责启动 infra）
+./project.sh infra health
+./project.sh infra doctor
+
+# 启动/停止共享中间件请参考：docs/Macmini-infra.md
 ```
 
 ### 2）Web 无法访问后端 API
@@ -103,13 +110,14 @@ bun run build
 
 3. 重新初始化依赖基础设施（必要时）：
 
-```bash
-bun run infra:down
-bun run infra:up
-```
+- 本仓库默认采用“外部 infra 模式”，不在本仓库内执行 `docker compose up/down`。
+- 若你使用 Mac mini 共享中间件，请参考 `docs/Macmini-infra.md` 在基础设施仓库内执行 `docker compose down/up`。
 
 4. 使用日志确认恢复情况：
 
+- 本项目日志：
+
 ```bash
-bun run infra:logs
+./project.sh server logs
+./project.sh web logs
 ```

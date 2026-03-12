@@ -8,6 +8,7 @@ import {
   BalanceForm,
   type BalanceFormData,
 } from '@/components/views/erp/integrated/inventory/balance/balance-form';
+import { InoutDemoPanel } from '@/components/views/erp/integrated/inventory/balance/inout-demo-panel';
 import {
   LedgerForm,
   type LedgerFormData,
@@ -239,6 +240,8 @@ export default function InvBalList() {
         </div>
 
         {notice ? <InlineNotice message={notice.message} tone={notice.tone} /> : null}
+
+        <InoutDemoPanel onNotice={showNotice} onReload={reload} rows={pageRows} />
 
         <form className="w-full border border-border bg-white p-2" onSubmit={handleSearchSubmit}>
           <div className="relative w-full">

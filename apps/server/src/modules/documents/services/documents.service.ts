@@ -376,7 +376,7 @@ export class DocumentsService {
       return cached;
     }
 
-    this.validateCreateInput(input);
+    this.validateCreateInput(docType, input);
     const created = await this.createByStore(
       docType,
       input,
@@ -990,13 +990,30 @@ export class DocumentsService {
     return result;
   }
 
-  private validateCreateInput(input: DocumentCreateInput): void {
+  private validateCreateInput(
+    docType: CoreDocumentType,
+    input: DocumentCreateInput,
+  ): void {
     if (!Array.isArray(input.lines) || input.lines.length === 0) {
       throw new HttpException(
         {
           code: 'VALIDATION_DOCUMENT_LINES_REQUIRED',
           category: 'validation',
           message: 'lines must not be empty',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (
+      (docType === 'GRN' || docType === 'OUT') &&
+      (!input.warehouseId || input.warehouseId.trim().length === 0)
+    ) {
+      throw new HttpException(
+        {
+          code: 'VALIDATION_DOCUMENT_WAREHOUSE_REQUIRED',
+          category: 'validation',
+          message: `warehouseId is required for ${docType} documents`,
         },
         HttpStatus.BAD_REQUEST,
       );
@@ -1157,15 +1174,26 @@ export class DocumentsService {
 
     const value = raw.trim();
     const parsed = this.toBigintOrNull(value);
-    if (parsed !== null) {
-      return parsed;
-    }
-
     const row = await this.prisma.warehouse.findFirst({
-      where: { tenantId: tenantDbId, code: value, deletedAt: null },
+      where:
+        parsed !== null
+          ? { tenantId: tenantDbId, id: parsed, deletedAt: null }
+          : { tenantId: tenantDbId, code: value, deletedAt: null },
       select: { id: true },
     });
-    return row?.id ?? null;
+
+    if (!row) {
+      throw new HttpException(
+        {
+          code: 'VALIDATION_WAREHOUSE_NOT_FOUND',
+          category: 'validation',
+          message: `Warehouse not found: ${raw}`,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return row.id;
   }
 
   private async resolveSupplierId(
@@ -1266,12 +1294,11 @@ export class DocumentsService {
 
     const value = raw.trim();
     const parsed = this.toBigintOrNull(value);
-    if (parsed !== null) {
-      return parsed;
-    }
-
     const row = await this.prisma.sku.findFirst({
-      where: { tenantId: tenantDbId, skuCode: value, deletedAt: null },
+      where:
+        parsed !== null
+          ? { tenantId: tenantDbId, id: parsed, deletedAt: null }
+          : { tenantId: tenantDbId, skuCode: value, deletedAt: null },
       select: { id: true },
     });
 

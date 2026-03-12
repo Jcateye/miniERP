@@ -141,6 +141,162 @@ bun run db:migrate
 bun run db:seed
 ```
 
+## Inventory Lite Demo（非研发可点）
+
+目标：让非研发同学也能在本地把「建仓库 / 建 SKU / 入库 100 / 出库 30 / 看到库存变化」点出来。
+
+> 说明：当前 `/mdm/warehouses` 页面仍是静态 UI（未接入创建接口），所以“新建仓库”这一步使用 **后端 Swagger UI** 完成（依然是点点点，不需要写代码/命令）。
+
+### 0）准备环境（只做一次）
+
+1. 安装依赖
+
+```bash
+bun install
+```
+
+2. 准备环境变量
+
+```bash
+cp .env.example .env
+```
+
+- 默认会使用：PostgreSQL `localhost:5432`、Redis `localhost:6379`。
+- 本仓库不负责启动中间件；若你使用我自己的 Mac mini 共享中间件，请看 `docs/Macmini-infra.md`。
+
+3. 初始化数据库（首次必做，或当你换了一个全新库时再做一次）
+
+```bash
+bun run db:generate
+bun run db:migrate
+bun run db:seed
+```
+
+### 1）启动（web + server）
+
+```bash
+# 推荐：带 infra 探活 + 启动后健康检查
+./project.sh all start
+
+# 或：
+# bun run daily
+```
+
+启动后访问：
+
+- Web（前端）：http://localhost:3000
+- Server（后端）：http://localhost:3001
+- Server Health：http://localhost:3001/api/health/ready
+- Swagger API 文档：http://localhost:3001/api/docs
+
+### 2）在 Swagger 里“点”出仓库 A / 仓库 B
+
+1. 打开 Swagger： http://localhost:3001/api/docs
+2. 右上角点击 **Authorize**
+3. 在 Bearer token 输入框里填：`dev-token`（Swagger 会自动拼成 `Authorization: Bearer dev-token`）
+4. 找到 `POST /api/warehouses`，点 **Try it out**，分别创建 2 次：
+
+仓库 A：
+
+```json
+{
+  "code": "WH-A",
+  "name": "A 仓"
+}
+```
+
+仓库 B：
+
+```json
+{
+  "code": "WH-B",
+  "name": "B 仓"
+}
+```
+
+### 3）在 Web 里“点”出一个 SKU
+
+1. 打开 Web： http://localhost:3000
+2. 左侧菜单进入：**主数据 → SKU 管理**（路由：`/mdm/skus`）
+3. 点击 **新建 SKU**，填写：
+
+- `SKU 编码`：`SKU-DEMO-001`
+- `名称`：`演示用 SKU`
+- `单位`：`PCS`
+
+保存后，在列表里能看到该 SKU。
+
+### 4）入库 100（GRN）
+
+> 这一段用 Swagger “点”出一张 GRN，并执行 `validate -> post`，让后端真实写入 `inventory_ledger` / `inventory_balance`。
+
+1. Swagger 里找到 `POST /api/documents`，点 **Try it out**
+2. Headers 里加一个：`Idempotency-Key: demo-grn-001`（任意不重复字符串即可）
+3. Body 填：
+
+```json
+{
+  "docType": "GRN",
+  "warehouseId": "WH-001",
+  "remarks": "demo inbound +100",
+  "lines": [
+    {
+      "skuId": "SKU-DEMO-001",
+      "qty": "100"
+    }
+  ]
+}
+```
+
+4. 执行后，记下返回体中的 `id`（假设为 `3003`，下面用 `3003` 举例）
+5. 调用 `POST /api/documents/GRN/3003/validate`
+   - `Idempotency-Key: demo-grn-001-validate`
+6. 调用 `POST /api/documents/GRN/3003/post`
+   - `Idempotency-Key: demo-grn-001-post`
+
+### 5）出库 30（OUT）
+
+1. Swagger 里调用 `POST /api/documents`
+   - `Idempotency-Key: demo-out-001`
+
+```json
+{
+  "docType": "OUT",
+  "warehouseId": "WH-001",
+  "remarks": "demo outbound -30",
+  "lines": [
+    {
+      "skuId": "SKU-DEMO-001",
+      "qty": "30"
+    }
+  ]
+}
+```
+
+2. 记下返回体中的 `id`（假设为 `5003`）
+3. 调用 `POST /api/documents/OUT/5003/pick`
+   - `Idempotency-Key: demo-out-001-pick`
+4. 调用 `POST /api/documents/OUT/5003/post`
+   - `Idempotency-Key: demo-out-001-post`
+
+### 6）你应该看到什么（库存变化 & 记录）
+
+1. 打开 **库存 → 库存流水**（路由：`/inventory/ledger`）
+   - 搜索 `SKU-DEMO-001`
+   - 你应该能看到两条新增流水：
+     - `入库 +100`（来源类似 `GRN-<id>`）
+     - `出库 -30`（来源类似 `OUT-<id>`）
+   - 余额列最终应为：`70`
+
+2. 打开 **库存 → 库存余额**（路由：`/inventory/balance`）
+   - 搜索 `SKU-DEMO-001`
+   - 你应该能看到该 SKU 在 `WH-001`（页面上会显示成“深圳 A 仓”）的余额为：`70`
+
+> 若页面数据看起来没变化，请先确认：
+> - `http://localhost:3001/api/health/ready` 可访问
+> - 你在 Swagger 里执行 `post` 时返回 `success: true`
+> - 不是在后端不可用时触发了 fixtures fallback（BFF 会优先走真实后端）
+
 ### 定向命令
 
 ```bash

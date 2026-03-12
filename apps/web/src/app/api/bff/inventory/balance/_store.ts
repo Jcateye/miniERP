@@ -6,6 +6,7 @@ import {
 export interface InventoryBalanceDraft {
   readonly id: string;
   readonly name?: string;
+  readonly reserved?: number;
   readonly quantity: number;
   readonly skuId: string;
   readonly threshold: number;
@@ -60,11 +61,13 @@ export function removeInventoryBalanceDraft(id: string) {
 }
 
 function toListItem(draft: InventoryBalanceDraft): InventoryBalanceListItem {
+  const reserved = draft.reserved ?? 0;
+
   return {
-    available: draft.quantity,
+    available: Math.max(draft.quantity - reserved, 0),
     balance: draft.quantity,
     name: draft.name?.trim() || draft.skuId,
-    reserved: 0,
+    reserved,
     safe: draft.threshold,
     sku: draft.skuId,
     warehouse: draft.warehouseId,
@@ -113,16 +116,24 @@ export function applyInventoryBalanceDelta(input: {
   const baselineQuantity = existingDraft?.quantity ?? fixture?.balance ?? 0;
   const baselineThreshold = existingDraft?.threshold ?? fixture?.safe ?? 0;
   const baselineName = existingDraft?.name ?? fixture?.name;
+  const baselineReserved = existingDraft?.reserved ?? fixture?.reserved ?? 0;
 
   const nextQuantity = Math.max(0, baselineQuantity + input.quantityDelta);
 
   return upsertInventoryBalanceDraft({
     name: baselineName,
+    reserved: baselineReserved,
     quantity: nextQuantity,
     skuId: input.skuId,
     threshold: baselineThreshold,
     warehouseId: normalizedWarehouseId,
   });
+}
+
+export function resetInventoryBalanceStore() {
+  const store = getStore();
+  store.deleted.clear();
+  store.upserts.clear();
 }
 
 function normalizeWarehouseForBalance(value: string) {
