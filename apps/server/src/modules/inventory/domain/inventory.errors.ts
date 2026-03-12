@@ -13,6 +13,11 @@ export class InventoryIdempotencyConflictError extends Error {
 }
 
 export class InventoryInsufficientStockError extends Error {
+  readonly skuId: string;
+  readonly warehouseId: string;
+  readonly available: number;
+  readonly required: number;
+
   constructor(
     skuId: string,
     warehouseId: string,
@@ -22,6 +27,10 @@ export class InventoryInsufficientStockError extends Error {
     super(
       `Insufficient stock for sku=${skuId}, warehouse=${warehouseId}, available=${available}, required=${required}`,
     );
+    this.skuId = skuId;
+    this.warehouseId = warehouseId;
+    this.available = available;
+    this.required = required;
     this.name = 'InventoryInsufficientStockError';
   }
 }
