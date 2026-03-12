@@ -10,8 +10,6 @@ import { TenantContextService } from '../../../common/tenant/tenant-context.serv
 
 describe('DocumentsController', () => {
   let controller: DocumentsController;
-  let service: DocumentsService;
-  let tenantContextService: TenantContextService;
 
   const mockTenantContext = {
     tenantId: '1001',
@@ -45,9 +43,6 @@ describe('DocumentsController', () => {
     }).compile();
 
     controller = module.get<DocumentsController>(DocumentsController);
-    service = module.get<DocumentsService>(DocumentsService);
-    tenantContextService =
-      module.get<TenantContextService>(TenantContextService);
   });
 
   afterEach(() => {
@@ -71,7 +66,7 @@ describe('DocumentsController', () => {
 
       const result = await controller.list('PO');
 
-      expect(service.list).toHaveBeenCalledWith(
+      expect(mockDocumentsService.list).toHaveBeenCalledWith(
         { docType: 'PO', page: undefined, pageSize: undefined },
         '1001',
       );
@@ -83,7 +78,7 @@ describe('DocumentsController', () => {
 
       await controller.list('GRN');
 
-      expect(service.list).toHaveBeenCalledWith(
+      expect(mockDocumentsService.list).toHaveBeenCalledWith(
         { docType: 'GRN', page: undefined, pageSize: undefined },
         '1001',
       );
@@ -100,7 +95,7 @@ describe('DocumentsController', () => {
 
       await controller.list('ADJ');
 
-      expect(service.list).toHaveBeenCalledWith(
+      expect(mockDocumentsService.list).toHaveBeenCalledWith(
         { docType: 'ADJ', page: undefined, pageSize: undefined },
         '1001',
       );
@@ -120,7 +115,11 @@ describe('DocumentsController', () => {
 
       const result = await controller.getDetail('PO', '2001');
 
-      expect(service.getDetail).toHaveBeenCalledWith('PO', '2001', '1001');
+      expect(mockDocumentsService.getDetail).toHaveBeenCalledWith(
+        'PO',
+        '2001',
+        '1001',
+      );
       expect(result).toEqual(mockDoc);
     });
 
@@ -155,7 +154,7 @@ describe('DocumentsController', () => {
           category: 'validation',
         },
       });
-      expect(service.executeAction).not.toHaveBeenCalled();
+      expect(mockDocumentsService.executeAction).not.toHaveBeenCalled();
     });
 
     it('should execute action with valid Idempotency-Key', async () => {
@@ -178,7 +177,7 @@ describe('DocumentsController', () => {
         {},
       );
 
-      expect(service.executeAction).toHaveBeenCalledWith(
+      expect(mockDocumentsService.executeAction).toHaveBeenCalledWith(
         'PO',
         '2001',
         'confirm',

@@ -89,47 +89,54 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
     }
   }
 
-  async getAllBalanceSnapshots(
+  getAllBalanceSnapshots(
     tenantId: string,
   ): Promise<InventoryBalanceSnapshot[]> {
     const state = this.stateByTenant.get(tenantId) ?? createTenantState();
 
-    return [...state.balanceByKey.entries()].map(([rawKey, onHand]) => {
-      const [skuId, warehouseId] = rawKey.split('::');
-      return {
-        skuId,
-        warehouseId,
-        onHand,
-      };
-    });
+    return Promise.resolve(
+      [...state.balanceByKey.entries()].map(([rawKey, onHand]) => {
+        const [skuId, warehouseId] = rawKey.split('::');
+        return {
+          skuId,
+          warehouseId,
+          onHand,
+        };
+      }),
+    );
   }
 
-  async getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]> {
+  getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]> {
     const state = this.stateByTenant.get(tenantId) ?? createTenantState();
-    return [...state.ledgerEntries.values()].map((entry) => ({ ...entry }));
+    return Promise.resolve(
+      [...state.ledgerEntries.values()].map((entry) => ({ ...entry })),
+    );
   }
 }
 
 class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
   constructor(private readonly workingState: TenantState) {}
 
-  async findIdempotencyRecord(
+  findIdempotencyRecord(
     actionType: InventoryIdempotencyAction,
     idempotencyKey: string,
   ): Promise<IdempotencyRecord | undefined> {
-    return this.workingState.idempotencyRecords.get(
-      idempotencyMapKey(actionType, idempotencyKey),
+    return Promise.resolve(
+      this.workingState.idempotencyRecords.get(
+        idempotencyMapKey(actionType, idempotencyKey),
+      ),
     );
   }
 
-  async saveIdempotencyRecord(record: IdempotencyRecord): Promise<void> {
+  saveIdempotencyRecord(record: IdempotencyRecord): Promise<void> {
     this.workingState.idempotencyRecords.set(
       idempotencyMapKey(record.actionType, record.idempotencyKey),
       record,
     );
+    return Promise.resolve();
   }
 
-  async createLedgerEntry(
+  createLedgerEntry(
     entry: Omit<InventoryLedgerEntry, 'id' | 'postedAt'>,
   ): Promise<InventoryLedgerEntry> {
     const sequence = this.workingState.sequence + 1;
@@ -142,34 +149,41 @@ class InMemoryInventoryTenantTransaction implements InventoryTenantTransaction {
     this.workingState.ledgerEntries.set(created.id, created);
     this.workingState.sequence = sequence;
 
-    return created;
+    return Promise.resolve(created);
   }
 
-  async findLedgerEntriesByIds(
+  findLedgerEntriesByIds(
     ledgerIds: readonly string[],
   ): Promise<InventoryLedgerEntry[]> {
-    return ledgerIds
-      .map((id) => this.workingState.ledgerEntries.get(id))
-      .filter(
-        (entry): entry is InventoryLedgerEntry => typeof entry !== 'undefined',
-      )
-      .map((entry) => ({ ...entry }));
+    return Promise.resolve(
+      ledgerIds
+        .map((id) => this.workingState.ledgerEntries.get(id))
+        .filter(
+          (entry): entry is InventoryLedgerEntry =>
+            typeof entry !== 'undefined',
+        )
+        .map((entry) => ({ ...entry })),
+    );
   }
 
-  async findBalance(key: InventoryKey): Promise<number> {
-    return this.workingState.balanceByKey.get(keyToString(key)) ?? 0;
+  findBalance(key: InventoryKey): Promise<number> {
+    return Promise.resolve(
+      this.workingState.balanceByKey.get(keyToString(key)) ?? 0,
+    );
   }
 
-  async saveBalance(key: InventoryKey, onHand: number): Promise<void> {
+  saveBalance(key: InventoryKey, onHand: number): Promise<void> {
     this.workingState.balanceByKey.set(keyToString(key), onHand);
+    return Promise.resolve();
   }
 
-  async isLedgerReversed(ledgerId: string): Promise<boolean> {
-    return this.workingState.reversedLedgerIds.has(ledgerId);
+  isLedgerReversed(ledgerId: string): Promise<boolean> {
+    return Promise.resolve(this.workingState.reversedLedgerIds.has(ledgerId));
   }
 
-  async markLedgerReversed(ledgerId: string): Promise<void> {
+  markLedgerReversed(ledgerId: string): Promise<void> {
     this.workingState.reversedLedgerIds.add(ledgerId);
+    return Promise.resolve();
   }
 
   commit(): TenantState {

@@ -8,7 +8,6 @@ import { PlatformAccessService } from '../../../platform/application/platform-ac
 
 describe('SupplierController', () => {
   let controller: SupplierController;
-  let supplierService: SupplierService;
 
   const mockTenantContext = {
     tenantId: '1001',
@@ -56,7 +55,6 @@ describe('SupplierController', () => {
     }).compile();
 
     controller = module.get<SupplierController>(SupplierController);
-    supplierService = module.get<SupplierService>(SupplierService);
   });
 
   afterEach(() => {
@@ -102,7 +100,7 @@ describe('SupplierController', () => {
 
     const result = await controller.list(undefined, undefined, 'true');
 
-    expect(supplierService.findAll).toHaveBeenCalledWith('1001', {
+    expect(mockSupplierService.findAll).toHaveBeenCalledWith('1001', {
       code: undefined,
       name: undefined,
       isActive: true,
@@ -133,7 +131,7 @@ describe('SupplierController', () => {
       contactPerson: ' ',
     });
 
-    expect(supplierService.create).toHaveBeenCalledWith('1001', {
+    expect(mockSupplierService.create).toHaveBeenCalledWith('1001', {
       code: 'SUP-B',
       name: '供应商B',
       contactPerson: null,
@@ -166,7 +164,7 @@ describe('SupplierController', () => {
       isActive: true,
     });
 
-    expect(supplierService.update).toHaveBeenCalledWith('1001', 'sup_001', {
+    expect(mockSupplierService.update).toHaveBeenCalledWith('1001', 'sup_001', {
       name: '供应商A(更新)',
       contactPerson: undefined,
       contactPhone: undefined,
@@ -196,7 +194,10 @@ describe('SupplierController', () => {
 
     const result = await controller.getById('sup_001');
 
-    expect(supplierService.findById).toHaveBeenCalledWith('1001', 'sup_001');
+    expect(mockSupplierService.findById).toHaveBeenCalledWith(
+      '1001',
+      'sup_001',
+    );
     expect(result).toEqual(entity);
   });
 
@@ -205,7 +206,7 @@ describe('SupplierController', () => {
 
     const result = await controller.remove('sup_001');
 
-    expect(supplierService.delete).toHaveBeenCalledWith('1001', 'sup_001');
+    expect(mockSupplierService.delete).toHaveBeenCalledWith('1001', 'sup_001');
     expect(result).toEqual({ id: 'sup_001', deleted: true });
   });
 });

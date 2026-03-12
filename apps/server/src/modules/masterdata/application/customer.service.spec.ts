@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from '@jest/globals';
-import { CustomerService, CUSTOMER_REPOSITORY_TOKEN } from './customer.service';
+import { CustomerService } from './customer.service';
 import { InMemoryCustomerRepository } from '../infrastructure/in-memory-customer.repository';
 import {
   CustomerCodeDuplicateError,

@@ -1,6 +1,11 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import type { AppConfig } from './app.config';
 import { applyAppRuntimeConfig } from './runtime-config';
+
+type RuntimeConfigAppMock = Pick<
+  INestApplication,
+  'use' | 'useGlobalPipes' | 'setGlobalPrefix'
+>;
 
 describe('applyAppRuntimeConfig', () => {
   const baseConfig: AppConfig = {
@@ -14,7 +19,7 @@ describe('applyAppRuntimeConfig', () => {
     authContextSecret: 'test-secret',
   };
 
-  function createAppMock() {
+  function createAppMock(): jest.Mocked<RuntimeConfigAppMock> {
     return {
       use: jest.fn(),
       useGlobalPipes: jest.fn(),
@@ -25,26 +30,32 @@ describe('applyAppRuntimeConfig', () => {
   it('applies auth/tenant middlewares in order and sets validation pipe', () => {
     const app = createAppMock();
 
-    applyAppRuntimeConfig(app as never, baseConfig);
+    applyAppRuntimeConfig(app, baseConfig);
 
     expect(app.use).toHaveBeenCalledTimes(2);
-    const authMiddleware = app.use.mock.calls[0]?.[0];
-    const tenantMiddleware = app.use.mock.calls[1]?.[0];
+    const useCalls = app.use.mock.calls as ReadonlyArray<[unknown]>;
+    const authMiddleware = useCalls[0]?.[0];
+    const tenantMiddleware = useCalls[1]?.[0];
     expect(typeof authMiddleware).toBe('function');
     expect(typeof tenantMiddleware).toBe('function');
 
     expect(app.useGlobalPipes).toHaveBeenCalledTimes(1);
-    const validationPipe = app.useGlobalPipes.mock
-      .calls[0]?.[0] as ValidationPipe;
+    const globalPipeCalls = app.useGlobalPipes.mock.calls as ReadonlyArray<
+      [ValidationPipe]
+    >;
+    const validationPipe = globalPipeCalls[0]?.[0];
     expect(validationPipe).toBeInstanceOf(ValidationPipe);
-    expect(validationPipe).toEqual(
-      expect.objectContaining({
-        isTransformEnabled: true,
-        validatorOptions: expect.objectContaining({
-          whitelist: true,
-          forbidNonWhitelisted: true,
-        }),
-      }),
+    const validationPipeState = validationPipe as ValidationPipe & {
+      isTransformEnabled: boolean;
+      validatorOptions: {
+        whitelist: boolean;
+        forbidNonWhitelisted: boolean;
+      };
+    };
+    expect(validationPipeState.isTransformEnabled).toBe(true);
+    expect(validationPipeState.validatorOptions.whitelist).toBe(true);
+    expect(validationPipeState.validatorOptions.forbidNonWhitelisted).toBe(
+      true,
     );
 
     expect(app.setGlobalPrefix).toHaveBeenCalledWith('api');
@@ -53,7 +64,7 @@ describe('applyAppRuntimeConfig', () => {
   it('does not set global prefix when prefix is empty', () => {
     const app = createAppMock();
 
-    applyAppRuntimeConfig(app as never, {
+    applyAppRuntimeConfig(app, {
       ...baseConfig,
       globalPrefix: '',
     });

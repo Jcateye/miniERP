@@ -210,7 +210,6 @@ export class DocumentsController {
     @Param('id') id: string,
     @Param('action') action: string,
     @Headers('idempotency-key') idempotencyKey?: string,
-    @Body() body?: Record<string, unknown>,
   ) {
     const ctx = this.tenantContextService.getRequiredContext();
 

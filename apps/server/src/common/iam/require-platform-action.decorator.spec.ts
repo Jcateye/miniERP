@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { PLATFORM_ACTION_METADATA_KEY, IamGuard } from './iam.guard';
 import { RequirePlatformAction } from './require-platform-action.decorator';

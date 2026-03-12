@@ -17,6 +17,7 @@ import {
   purchaseOrderListFixtures,
   type PurchaseOrderListItem,
 } from '@/lib/mocks/erp-list-fixtures';
+import { mergePurchaseOrderItems, upsertPurchaseOrderDraft } from './_store';
 import {
   fetchBackendArray,
   toListRouteResponse,
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
     fallbackReason = 'fixture_response';
   }
 
-  const filtered = source
+  const filtered = mergePurchaseOrderItems(source)
     .filter((item) => {
       if (status && item.status !== status) {
         return false;
@@ -117,6 +118,79 @@ export async function GET(request: NextRequest) {
   );
 
   return toListRouteResponse(payload, fallbackReason);
+}
+
+export async function POST(request: NextRequest) {
+  let payload: unknown;
+
+  try {
+    payload = await request.json();
+  } catch {
+    return Response.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_JSON',
+          category: 'validation',
+          message: 'Request body must be valid JSON',
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const candidate = payload as Record<string, unknown>;
+
+    if (typeof candidate.orderNo !== 'string' || candidate.orderNo.trim() === '') {
+      throw new Error('orderNo is required');
+    }
+
+    if (typeof candidate.supplierId !== 'string' || candidate.supplierId.trim() === '') {
+      throw new Error('supplierId is required');
+    }
+
+    if (typeof candidate.orderDate !== 'string' || candidate.orderDate.trim() === '') {
+      throw new Error('orderDate is required');
+    }
+
+    if (typeof candidate.status !== 'string' || candidate.status.trim() === '') {
+      throw new Error('status is required');
+    }
+
+    const amount = Number(candidate.amount);
+    if (!Number.isFinite(amount)) {
+      throw new Error('amount must be a valid number');
+    }
+
+    const id = upsertPurchaseOrderDraft({
+      amount,
+      orderDate: candidate.orderDate.trim(),
+      orderNo: candidate.orderNo.trim(),
+      status: candidate.status.trim() as PurchaseOrderListItem['status'],
+      supplierId: candidate.supplierId.trim(),
+    });
+
+    return Response.json(
+      {
+        data: {
+          id,
+        },
+        message: '新增成功',
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    return Response.json(
+      {
+        error: {
+          code: 'VALIDATION_INVALID_PAYLOAD',
+          category: 'validation',
+          message: error instanceof Error ? error.message : 'Invalid payload',
+        },
+      },
+      { status: 400 },
+    );
+  }
 }
 
 function getSortValue(
