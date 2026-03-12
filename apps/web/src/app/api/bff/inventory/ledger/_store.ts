@@ -119,6 +119,12 @@ export function mergeInventoryLedgerItems(
   return [...merged.values()];
 }
 
+export function resetInventoryLedgerStore() {
+  const store = getStore();
+  store.deleted.clear();
+  store.upserts.clear();
+}
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {

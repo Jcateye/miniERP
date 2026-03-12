@@ -66,6 +66,22 @@ export interface InventoryPostingResult {
   balanceSnapshots: readonly InventoryBalanceSnapshot[];
 }
 
+export interface InventoryMovementCommand {
+  skuId: string;
+  warehouseId: string;
+  quantity: number;
+  referenceId?: string;
+}
+
+export interface InventoryMovementResponse {
+  movementType: 'INBOUND' | 'OUTBOUND';
+  referenceType: Extract<InventoryReferenceType, 'GRN' | 'OUT'>;
+  referenceId: string;
+  quantity: number;
+  ledgerEntries: readonly InventoryLedgerEntry[];
+  balance: InventoryBalanceSnapshot;
+}
+
 export type InventoryBalancePage = PaginatedResponse<InventoryBalanceSnapshot>;
 export type InventoryLedgerPage = PaginatedResponse<InventoryLedgerEntry>;
 
