@@ -10,11 +10,9 @@ import {
 describe('SkuService', () => {
   const tenantId = 'tenant-1';
   let service: SkuService;
-  let repository: InMemorySkuRepository;
 
   function createService(): SkuService {
-    repository = new InMemorySkuRepository();
-    return new SkuService(repository);
+    return new SkuService(new InMemorySkuRepository());
   }
 
   beforeEach(() => {

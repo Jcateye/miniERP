@@ -343,8 +343,8 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
     return count > 0;
   }
 
-  markLedgerReversed(ledgerId: string): Promise<void> {
-    void ledgerId;
+  markLedgerReversed(_ledgerId: string): Promise<void> {
+    void _ledgerId;
     return Promise.resolve();
   }
 

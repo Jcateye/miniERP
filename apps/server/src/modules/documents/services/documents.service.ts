@@ -1645,7 +1645,7 @@ export class DocumentsService {
     tenantId: string,
     actorId: string,
     requestId: string,
-  ): Promise<DocumentCreateResult> {
+  ): DocumentCreateResult {
     const docDate = this.normalizeDocDate(input.docDate);
     const docNo = this.nextInMemoryDocNo(docType, docDate);
     const now = new Date().toISOString();

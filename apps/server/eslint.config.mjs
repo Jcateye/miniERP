@@ -29,7 +29,7 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
-      "prettier/prettier": ["error", { endOfLine: "auto" }],
+      'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },
   {
@@ -42,7 +42,10 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/**/infrastructure/in-memory-*.ts'],
+    files: [
+      'src/**/infrastructure/in-memory-*.ts',
+      'src/**/infrastructure/in-memory-*.store.ts',
+    ],
     rules: {
       '@typescript-eslint/require-await': 'off',
     },
