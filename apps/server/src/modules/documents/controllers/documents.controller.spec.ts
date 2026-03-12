@@ -11,7 +11,6 @@ import { TenantContextService } from '../../../common/tenant/tenant-context.serv
 describe('DocumentsController', () => {
   let controller: DocumentsController;
   let service: DocumentsService;
-  let tenantContextService: TenantContextService;
 
   const mockTenantContext = {
     tenantId: '1001',
@@ -46,8 +45,6 @@ describe('DocumentsController', () => {
 
     controller = module.get<DocumentsController>(DocumentsController);
     service = module.get<DocumentsService>(DocumentsService);
-    tenantContextService =
-      module.get<TenantContextService>(TenantContextService);
   });
 
   afterEach(() => {

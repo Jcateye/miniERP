@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from '@jest/globals';
-import { SkuService, SKU_REPOSITORY_TOKEN } from './sku.service';
+import { SkuService } from './sku.service';
 import { InMemorySkuRepository } from '../infrastructure/in-memory-sku.repository';
 import {
   SkuCodeDuplicateError,

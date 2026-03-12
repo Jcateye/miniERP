@@ -1,8 +1,5 @@
 import { describe, expect, it, beforeEach } from '@jest/globals';
-import {
-  WarehouseService,
-  WAREHOUSE_REPOSITORY_TOKEN,
-} from './warehouse.service';
+import { WarehouseService } from './warehouse.service';
 import { InMemoryWarehouseRepository } from '../infrastructure/in-memory-warehouse.repository';
 import {
   WarehouseCodeDuplicateError,

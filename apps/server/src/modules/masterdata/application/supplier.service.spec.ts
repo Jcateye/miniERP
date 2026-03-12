@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from '@jest/globals';
-import { SupplierService, SUPPLIER_REPOSITORY_TOKEN } from './supplier.service';
+import { SupplierService } from './supplier.service';
 import { InMemorySupplierRepository } from '../infrastructure/in-memory-supplier.repository';
 import {
   SupplierCodeDuplicateError,

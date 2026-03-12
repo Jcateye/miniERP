@@ -1639,7 +1639,7 @@ export class DocumentsService {
     };
   }
 
-  private async createInMemoryDocument(
+  private createInMemoryDocument(
     docType: CoreDocumentType,
     input: DocumentCreateInput,
     tenantId: string,
@@ -1707,14 +1707,14 @@ export class DocumentsService {
       metadata: { docType, docNo, lineCount: lines.length },
     });
 
-    return {
+    return Promise.resolve({
       id,
       docNo,
       docType,
       status: 'draft',
       docDate: detail.docDate,
       lineCount: lines.length,
-    };
+    });
   }
 
   private usePersistentStore(docType: CoreDocumentType): boolean {

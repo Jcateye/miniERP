@@ -212,6 +212,7 @@ export class DocumentsController {
     @Headers('idempotency-key') idempotencyKey?: string,
     @Body() body?: Record<string, unknown>,
   ) {
+    void body;
     const ctx = this.tenantContextService.getRequiredContext();
 
     if (!idempotencyKey || idempotencyKey.trim() === '') {
