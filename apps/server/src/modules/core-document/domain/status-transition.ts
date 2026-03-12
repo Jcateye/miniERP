@@ -1,28 +1,23 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import {
+  DOCUMENT_STATUS_CODES,
+  type DocumentStatusCode,
+} from '@minierp/shared';
+import {
+  TRADING_LEGACY_DOCUMENT_TYPES,
+  TRADING_MODULE_BOUNDARIES,
+  TRADING_MODULES,
+  type TradingLegacyDocumentType,
+  type TradingModule,
+} from '../../trading/domain/trading-document.catalog';
 
-export const CORE_DOCUMENT_MODULES = [
-  'purchase',
-  'inbound',
-  'sales',
-  'outbound',
-  'stocktake',
-] as const;
+export const CORE_DOCUMENT_MODULES = TRADING_MODULES;
+export const CORE_DOCUMENT_TYPES = TRADING_LEGACY_DOCUMENT_TYPES;
+export const CORE_DOCUMENT_STATUSES = DOCUMENT_STATUS_CODES;
 
-export const CORE_DOCUMENT_TYPES = ['PO', 'GRN', 'SO', 'OUT', 'ADJ'] as const;
-
-export const CORE_DOCUMENT_STATUSES = [
-  'draft',
-  'confirmed',
-  'closed',
-  'cancelled',
-  'validating',
-  'posted',
-  'picking',
-] as const;
-
-export type CoreDocumentModule = (typeof CORE_DOCUMENT_MODULES)[number];
-export type CoreDocumentType = (typeof CORE_DOCUMENT_TYPES)[number];
-export type CoreDocumentStatus = (typeof CORE_DOCUMENT_STATUSES)[number];
+export type CoreDocumentModule = TradingModule;
+export type CoreDocumentType = TradingLegacyDocumentType;
+export type CoreDocumentStatus = DocumentStatusCode;
 
 export interface InvalidStatusTransitionDetails {
   entity_type: CoreDocumentType;
@@ -117,75 +112,8 @@ const STATUS_GRAPH: StatusGraph = {
     picking: [],
   },
 };
-const MODULE_BOUNDARIES: Readonly<
-  Record<CoreDocumentModule, DocumentModuleBoundary>
-> = {
-  purchase: {
-    module: 'purchase',
-    entityType: 'PO',
-    initialStatus: 'draft',
-    statuses: ['draft', 'confirmed', 'closed', 'cancelled'],
-    commands: [
-      'createPurchaseOrder',
-      'confirmPurchaseOrder',
-      'closePurchaseOrder',
-      'cancelPurchaseOrder',
-    ],
-    queries: ['getPurchaseOrder', 'listPurchaseOrders'],
-  },
-  inbound: {
-    module: 'inbound',
-    entityType: 'GRN',
-    initialStatus: 'draft',
-    statuses: ['draft', 'validating', 'posted', 'cancelled'],
-    commands: [
-      'createGoodsReceipt',
-      'startGoodsReceiptValidation',
-      'postGoodsReceipt',
-      'cancelGoodsReceipt',
-    ],
-    queries: ['getGoodsReceipt', 'listGoodsReceipts'],
-  },
-  sales: {
-    module: 'sales',
-    entityType: 'SO',
-    initialStatus: 'draft',
-    statuses: ['draft', 'confirmed', 'closed', 'cancelled'],
-    commands: [
-      'createSalesOrder',
-      'confirmSalesOrder',
-      'closeSalesOrder',
-      'cancelSalesOrder',
-    ],
-    queries: ['getSalesOrder', 'listSalesOrders'],
-  },
-  outbound: {
-    module: 'outbound',
-    entityType: 'OUT',
-    initialStatus: 'draft',
-    statuses: ['draft', 'picking', 'posted', 'cancelled'],
-    commands: [
-      'createOutboundOrder',
-      'startOutboundPicking',
-      'postOutboundOrder',
-      'cancelOutboundOrder',
-    ],
-    queries: ['getOutboundOrder', 'listOutboundOrders'],
-  },
-  stocktake: {
-    module: 'stocktake',
-    entityType: 'ADJ',
-    initialStatus: 'draft',
-    statuses: ['draft', 'validating', 'posted', 'cancelled'],
-    commands: [
-      'createStocktakeAdjustment',
-      'startStocktakeValidation',
-      'postStocktakeAdjustment',
-      'cancelStocktakeAdjustment',
-    ],
-    queries: ['getStocktakeAdjustment', 'listStocktakeAdjustments'],
-  },
-};
+const MODULE_BOUNDARIES: Readonly<Record<CoreDocumentModule, DocumentModuleBoundary>> =
+  TRADING_MODULE_BOUNDARIES;
 
 export class InvalidStatusTransitionError extends HttpException {
   readonly code = 'VALIDATION_STATUS_TRANSITION_INVALID';

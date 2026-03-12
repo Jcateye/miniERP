@@ -64,6 +64,8 @@ miniERP 是一个 **设计优先 + 可运行 monorepo**：
 - 只有补齐测试并完成代码审查后，才允许升级到 `verified` / `production`
 - 2026-03-13 起，`packages/shared/src/types/erp/*` 成为 canonical ERP contract 的唯一新增入口
 - `sku / grn / outbound` 仍保留兼容别名，但不再作为新增字段的主定义
+- 2026-03-13 已完成 Prisma canonical phase 1 additive rollout，并已对远程 `192.168.1.68:5432/minierp` 执行 migration
+- server 侧已新增 trading catalog，purchase / sales / inbound / outbound boundary 已收敛到 shared canonical 状态源
 
 ## 页面状态定义
 

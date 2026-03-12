@@ -3,12 +3,9 @@ import {
   getDocumentModuleBoundary,
   type DocumentModuleBoundary,
 } from '../../core-document/domain/status-transition';
+import type { ShipmentLifecycleStatus } from '../../trading/domain/trading-document.catalog';
 
-export type OutboundDocumentStatus =
-  | 'draft'
-  | 'picking'
-  | 'posted'
-  | 'cancelled';
+export type OutboundDocumentStatus = ShipmentLifecycleStatus;
 
 export interface OutboundDocumentTransitionAttempt {
   entityId: string;

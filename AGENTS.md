@@ -47,6 +47,8 @@ miniERP 是一个 **design-first + runnable monorepo**：
   - `docs/architecture/erp-canonical-contract-freeze.md` 已建立
   - `packages/shared/src/types/erp/*` 已作为 canonical ERP contract 新增入口
   - `sku / grn / outbound` 仅允许兼容，不再作为新增主定义
+  - Prisma canonical phase 1 additive migration 已完成，并已应用到远程 `192.168.1.68:5432/minierp`
+  - server trading catalog 已建立，交易边界状态统一复用 shared canonical source
 
 ---
 

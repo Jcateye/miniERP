@@ -3,12 +3,9 @@ import {
   getDocumentModuleBoundary,
   type DocumentModuleBoundary,
 } from '../../core-document/domain/status-transition';
+import type { GoodsReceiptLifecycleStatus } from '../../trading/domain/trading-document.catalog';
 
-export type GoodsReceiptStatus =
-  | 'draft'
-  | 'validating'
-  | 'posted'
-  | 'cancelled';
+export type GoodsReceiptStatus = GoodsReceiptLifecycleStatus;
 
 export interface GoodsReceiptTransitionAttempt {
   entityId: string;
