@@ -10,11 +10,9 @@ import {
 describe('SupplierService', () => {
   const tenantId = 'tenant-1';
   let service: SupplierService;
-  let repository: InMemorySupplierRepository;
 
   function createService(): SupplierService {
-    repository = new InMemorySupplierRepository();
-    return new SupplierService(repository);
+    return new SupplierService(new InMemorySupplierRepository());
   }
 
   beforeEach(() => {

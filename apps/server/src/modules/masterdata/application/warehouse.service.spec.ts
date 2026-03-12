@@ -10,11 +10,9 @@ import {
 describe('WarehouseService', () => {
   const tenantId = 'tenant-1';
   let service: WarehouseService;
-  let repository: InMemoryWarehouseRepository;
 
   function createService(): WarehouseService {
-    repository = new InMemoryWarehouseRepository();
-    return new WarehouseService(repository);
+    return new WarehouseService(new InMemoryWarehouseRepository());
   }
 
   beforeEach(() => {
