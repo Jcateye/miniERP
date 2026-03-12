@@ -20,7 +20,7 @@ REDIS_PORT="${REDIS_PORT:-6379}"
 DATABASE_URL="${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}}"
 REDIS_URL="${REDIS_URL:-redis://${REDIS_HOST}:${REDIS_PORT}}"
 
-WEB_HEALTH_URL="${WEB_HEALTH_URL:-http://localhost:${WEB_PORT}}"
+WEB_HEALTH_URL="${WEB_HEALTH_URL:-http://localhost:${WEB_PORT}/workspace}"
 SERVER_HEALTH_URL="${SERVER_HEALTH_URL:-http://localhost:${SERVER_PORT}/api/health/ready}"
 
 mkdir -p "$RUNTIME_DIR"
@@ -46,6 +46,10 @@ detect_lan_ip() {
       echo "$default_ip"
       return
     fi
+  fi
+
+  if ! command -v ifconfig >/dev/null 2>&1; then
+    return
   fi
 
   for iface in $(ifconfig -l); do
