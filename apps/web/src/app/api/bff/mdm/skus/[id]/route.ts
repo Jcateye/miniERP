@@ -61,9 +61,12 @@ function parseUpdateSkuPayload(
         readonly specification?: string | null;
         readonly baseUnit?: string;
         readonly categoryId?: string | null;
+        readonly itemType?: string | null;
+        readonly taxRate?: string | null;
         readonly barcode?: string | null;
         readonly batchManaged?: boolean;
         readonly serialManaged?: boolean;
+        readonly shelfLifeDays?: number | null;
         readonly minStockQty?: string | null;
         readonly maxStockQty?: string | null;
         readonly leadTimeDays?: number | null;
@@ -90,6 +93,12 @@ function parseUpdateSkuPayload(
   if (!isOptionalNullableString(payload.category)) {
     return { ok: false, message: 'category must be string or null' };
   }
+  if (!isOptionalNullableString(payload.itemType)) {
+    return { ok: false, message: 'itemType must be string or null' };
+  }
+  if (!isOptionalNullableString(payload.taxRate)) {
+    return { ok: false, message: 'taxRate must be string or null' };
+  }
 
   if (!isOptionalNullableString(payload.barcode)) {
     return { ok: false, message: 'barcode must be string or null' };
@@ -114,6 +123,9 @@ function parseUpdateSkuPayload(
   if (!isOptionalNullableInteger(payload.leadTimeDays)) {
     return { ok: false, message: 'leadTimeDays must be integer or null' };
   }
+  if (!isOptionalNullableInteger(payload.shelfLifeDays)) {
+    return { ok: false, message: 'shelfLifeDays must be integer or null' };
+  }
 
   if (
     payload.status !== undefined &&
@@ -137,6 +149,8 @@ function parseUpdateSkuPayload(
           ? undefined
           : payload.baseUnit.trim(),
       categoryId: normalizeCategoryId(payload.category),
+      itemType: normalizeOptionalNullableString(payload.itemType),
+      taxRate: normalizeOptionalNullableString(payload.taxRate),
       barcode: normalizeOptionalNullableString(payload.barcode),
       batchManaged:
         payload.batchManaged === undefined || payload.batchManaged === null
@@ -148,6 +162,10 @@ function parseUpdateSkuPayload(
           : payload.serialManaged,
       minStockQty: normalizeOptionalNullableString(payload.minStockQty),
       maxStockQty: normalizeOptionalNullableString(payload.maxStockQty),
+      shelfLifeDays:
+        payload.shelfLifeDays === undefined || payload.shelfLifeDays === null
+          ? undefined
+          : payload.shelfLifeDays,
       leadTimeDays:
         payload.leadTimeDays === undefined || payload.leadTimeDays === null
           ? undefined

@@ -18,9 +18,12 @@ export interface SkuFormData {
   specification?: string;
   baseUnit: string;
   category?: string;
+  itemType?: string;
+  taxRate?: string;
   barcode?: string;
   batchManaged: boolean;
   serialManaged: boolean;
+  shelfLifeDays?: number | null;
   minStockQty?: string;
   maxStockQty?: string;
   leadTimeDays?: number | null;
@@ -41,9 +44,12 @@ const EMPTY_FORM: SkuFormData = {
   specification: '',
   baseUnit: 'PCS',
   category: '',
+  itemType: '',
+  taxRate: '',
   barcode: '',
   batchManaged: false,
   serialManaged: false,
+  shelfLifeDays: null,
   minStockQty: '',
   maxStockQty: '',
   leadTimeDays: null,
@@ -91,6 +97,18 @@ export function SkuForm({
       return '最大库存必须为数字';
     }
 
+    if (formData.taxRate?.trim() && Number.isNaN(Number(formData.taxRate))) {
+      return '税率必须为数字';
+    }
+
+    if (
+      formData.shelfLifeDays !== null &&
+      formData.shelfLifeDays !== undefined &&
+      (!Number.isInteger(formData.shelfLifeDays) || formData.shelfLifeDays < 0)
+    ) {
+      return '保质期必须为大于等于 0 的整数';
+    }
+
     if (
       formData.leadTimeDays !== null &&
       formData.leadTimeDays !== undefined &&
@@ -107,6 +125,8 @@ export function SkuForm({
     formData.maxStockQty,
     formData.minStockQty,
     formData.name,
+    formData.shelfLifeDays,
+    formData.taxRate,
   ]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -127,10 +147,13 @@ export function SkuForm({
         leadTimeDays: formData.leadTimeDays ?? null,
         category: formData.category?.trim() ?? '',
         code: formData.code.trim(),
+        itemType: formData.itemType?.trim() ?? '',
         maxStockQty: formData.maxStockQty?.trim() ?? '',
         minStockQty: formData.minStockQty?.trim() ?? '',
         name: formData.name.trim(),
+        shelfLifeDays: formData.shelfLifeDays ?? null,
         specification: formData.specification?.trim() ?? '',
+        taxRate: formData.taxRate?.trim() ?? '',
       });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : '保存失败');
@@ -228,6 +251,25 @@ export function SkuForm({
           />
         </Field>
 
+        <Field label="物料类型">
+          <input
+            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
+            onChange={(event) => setFormData((current) => ({ ...current, itemType: event.target.value }))}
+            placeholder="例如 finished_goods"
+            value={formData.itemType ?? ''}
+          />
+        </Field>
+
+        <Field label="税率">
+          <input
+            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
+            inputMode="decimal"
+            onChange={(event) => setFormData((current) => ({ ...current, taxRate: event.target.value }))}
+            placeholder="例如 13.00"
+            value={formData.taxRate ?? ''}
+          />
+        </Field>
+
         <Field label="最小库存">
           <input
             className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
@@ -264,6 +306,21 @@ export function SkuForm({
             }
             placeholder="可选"
             value={formData.leadTimeDays ?? ''}
+          />
+        </Field>
+
+        <Field label="保质期(天)">
+          <input
+            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
+            inputMode="numeric"
+            onChange={(event) =>
+              setFormData((current) => ({
+                ...current,
+                shelfLifeDays: event.target.value.trim() === '' ? null : Number(event.target.value),
+              }))
+            }
+            placeholder="可选"
+            value={formData.shelfLifeDays ?? ''}
           />
         </Field>
 

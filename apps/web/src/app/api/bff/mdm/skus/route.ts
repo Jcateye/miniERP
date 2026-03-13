@@ -29,9 +29,12 @@ interface BackendSkuDto {
   specification: string | null;
   baseUnit: string;
   categoryId: string | null;
+  itemType?: string | null;
+  taxRate?: string | null;
   barcode?: string | null;
   batchManaged?: boolean;
   serialManaged?: boolean;
+  shelfLifeDays?: number | null;
   minStockQty?: string | null;
   maxStockQty?: string | null;
   leadTimeDays?: number | null;
@@ -46,9 +49,12 @@ interface SkuMutationPayload {
   readonly specification?: string | null;
   readonly baseUnit?: string;
   readonly category?: string | null;
+  readonly itemType?: string | null;
+  readonly taxRate?: string | null;
   readonly barcode?: string | null;
   readonly batchManaged?: boolean;
   readonly serialManaged?: boolean;
+  readonly shelfLifeDays?: number | null;
   readonly minStockQty?: string | null;
   readonly maxStockQty?: string | null;
   readonly leadTimeDays?: number | null;
@@ -78,9 +84,12 @@ function mapBackendSku(item: BackendSkuDto): Sku {
     categoryId:
       item.categoryId ??
       (meta ? skuCategoryIdByLabel[meta.categoryLabel] ?? null : null),
+    itemType: item.itemType ?? null,
+    taxRate: item.taxRate ?? null,
     barcode: item.barcode ?? null,
     batchManaged: item.batchManaged ?? false,
     serialManaged: item.serialManaged ?? false,
+    shelfLifeDays: item.shelfLifeDays ?? null,
     minStockQty: item.minStockQty ?? null,
     maxStockQty: item.maxStockQty ?? null,
     leadTimeDays: item.leadTimeDays ?? null,
@@ -160,9 +169,12 @@ function parseCreateSkuPayload(
         readonly name: string;
         readonly specification: string | null;
         readonly baseUnit: string;
+        readonly itemType: string | null;
+        readonly taxRate: string | null;
         readonly barcode: string | null;
         readonly batchManaged: boolean;
         readonly serialManaged: boolean;
+        readonly shelfLifeDays: number | null;
         readonly minStockQty: string | null;
         readonly maxStockQty: string | null;
         readonly leadTimeDays: number | null;
@@ -193,6 +205,12 @@ function parseCreateSkuPayload(
   if (!isOptionalNullableString(payload.category)) {
     return { ok: false, message: 'category must be string or null' };
   }
+  if (!isOptionalNullableString(payload.itemType)) {
+    return { ok: false, message: 'itemType must be string or null' };
+  }
+  if (!isOptionalNullableString(payload.taxRate)) {
+    return { ok: false, message: 'taxRate must be string or null' };
+  }
 
   if (!isOptionalNullableString(payload.barcode)) {
     return { ok: false, message: 'barcode must be string or null' };
@@ -217,6 +235,9 @@ function parseCreateSkuPayload(
   if (!isOptionalNullableInteger(payload.leadTimeDays)) {
     return { ok: false, message: 'leadTimeDays must be integer or null' };
   }
+  if (!isOptionalNullableInteger(payload.shelfLifeDays)) {
+    return { ok: false, message: 'shelfLifeDays must be integer or null' };
+  }
 
   const status = parseStatus(payload.status);
   if (!status) {
@@ -231,9 +252,15 @@ function parseCreateSkuPayload(
       name: payload.name.trim(),
       specification: normalizeOptionalNullableString(payload.specification),
       baseUnit: payload.baseUnit.trim(),
+      itemType: normalizeOptionalNullableString(payload.itemType),
+      taxRate: normalizeOptionalNullableString(payload.taxRate),
       barcode: normalizeOptionalNullableString(payload.barcode),
       batchManaged: payload.batchManaged === true,
       serialManaged: payload.serialManaged === true,
+      shelfLifeDays:
+        payload.shelfLifeDays === undefined || payload.shelfLifeDays === null
+          ? null
+          : payload.shelfLifeDays,
       minStockQty: normalizeOptionalNullableString(payload.minStockQty),
       maxStockQty: normalizeOptionalNullableString(payload.maxStockQty),
       leadTimeDays:

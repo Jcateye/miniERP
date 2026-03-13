@@ -48,17 +48,20 @@ type SkuRow = {
   code: string;
   desc: string;
   id: string;
+  itemType: string;
   leadTimeDays: number | null;
   maxStockQty: string;
   minStockQty: string;
   name: string;
   serialManaged: boolean;
+  shelfLifeDays: number | null;
   specification: string;
   status: Sku['status'];
   statusLabel: string;
   stock: number;
   supp: string;
   supplierSku: string;
+  taxRate: string;
   threshold: number;
   warehouse: string;
 };
@@ -78,12 +81,15 @@ type ItemDetailPayload = {
   categoryId?: string | null;
   code?: string | null;
   isActive?: boolean;
+  itemType?: string | null;
   leadTimeDays?: number | null;
   maxStockQty?: string | null;
   minStockQty?: string | null;
   name?: string | null;
   serialManaged?: boolean;
+  shelfLifeDays?: number | null;
   specification?: string | null;
+  taxRate?: string | null;
 };
 
 function isItemDetailPayload(value: unknown): value is ItemDetailPayload {
@@ -147,17 +153,20 @@ export default function SkuList() {
           code: item.code,
           desc: item.specification ?? '-',
           id: item.id,
+          itemType: item.itemType ?? '-',
           leadTimeDays: item.leadTimeDays ?? null,
           maxStockQty: item.maxStockQty ?? '',
           minStockQty: item.minStockQty ?? '',
           name: item.name,
           serialManaged: item.serialManaged,
+          shelfLifeDays: item.shelfLifeDays ?? null,
           specification: item.specification ?? '',
           status: item.status,
           statusLabel: getSkuStatusLabel(item.status),
           stock: meta?.stock ?? 0,
           supp: meta?.supplierName ?? '-',
           supplierSku: meta?.supplierSku ?? '-',
+          taxRate: item.taxRate ?? '',
           threshold: meta?.threshold ?? 0,
           warehouse: meta?.warehouseLabel ?? '-',
         };
@@ -585,6 +594,9 @@ export default function SkuList() {
                         单位 {selectedSku.baseUnit}
                       </span>
                       <span className="border border-border bg-[#FDFCFB] px-2 py-0.5 text-xs">
+                        类型 {selectedSku.itemType}
+                      </span>
+                      <span className="border border-border bg-[#FDFCFB] px-2 py-0.5 text-xs">
                         {selectedSku.warehouse}
                       </span>
                     </div>
@@ -621,6 +633,16 @@ export default function SkuList() {
                       <span className="font-medium">
                         {selectedSku.leadTimeDays === null ? '-' : `${selectedSku.leadTimeDays} 天`}
                       </span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
+                      <span className="text-muted">保质期</span>
+                      <span className="font-medium">
+                        {selectedSku.shelfLifeDays === null ? '-' : `${selectedSku.shelfLifeDays} 天`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
+                      <span className="text-muted">税率</span>
+                      <span className="font-medium">{selectedSku.taxRate || '-'}</span>
                     </div>
                     <div className="flex items-center justify-between bg-gray-50 px-2 py-2 text-sm font-bold">
                       <span>状态</span>
@@ -734,11 +756,14 @@ function toSkuFormData(row: SkuRow): SkuFormData {
     specification: row.specification,
     baseUnit: row.baseUnit,
     category: row.categoryId ?? (row.cat === '-' ? '' : row.cat),
+    itemType: row.itemType === '-' ? '' : row.itemType,
     leadTimeDays: row.leadTimeDays,
     maxStockQty: row.maxStockQty,
     minStockQty: row.minStockQty,
     serialManaged: row.serialManaged,
+    shelfLifeDays: row.shelfLifeDays,
     status: row.status,
+    taxRate: row.taxRate,
   };
 }
 
@@ -757,11 +782,13 @@ function toSkuFormDataFromDetail(
     batchManaged: detail.batchManaged ?? fallbackRow.batchManaged,
     category,
     code: detail.code ?? fallbackRow.code,
+    itemType: detail.itemType ?? (fallbackRow.itemType === '-' ? '' : fallbackRow.itemType),
     leadTimeDays: detail.leadTimeDays ?? fallbackRow.leadTimeDays,
     maxStockQty: detail.maxStockQty ?? fallbackRow.maxStockQty,
     minStockQty: detail.minStockQty ?? fallbackRow.minStockQty,
     name: detail.name ?? fallbackRow.name,
     serialManaged: detail.serialManaged ?? fallbackRow.serialManaged,
+    shelfLifeDays: detail.shelfLifeDays ?? fallbackRow.shelfLifeDays,
     specification: detail.specification ?? fallbackRow.specification,
     status:
       detail.isActive === undefined
@@ -771,6 +798,7 @@ function toSkuFormDataFromDetail(
             ? 'normal'
             : fallbackRow.status
           : 'disabled',
+    taxRate: detail.taxRate ?? fallbackRow.taxRate,
   };
 }
 

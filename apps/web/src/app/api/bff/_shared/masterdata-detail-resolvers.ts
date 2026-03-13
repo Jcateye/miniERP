@@ -31,9 +31,12 @@ export interface CanonicalItemDetailEntity {
   readonly specification: string | null;
   readonly baseUnit: string;
   readonly categoryId: string | null;
+  readonly itemType: string | null;
+  readonly taxRate: string | null;
   readonly barcode: string | null;
   readonly batchManaged: boolean;
   readonly serialManaged: boolean;
+  readonly shelfLifeDays: number | null;
   readonly minStockQty: string | null;
   readonly maxStockQty: string | null;
   readonly leadTimeDays: number | null;
@@ -104,9 +107,12 @@ function toItemDetailFixture(id: string): CanonicalItemDetailEntity | null {
     specification: fixture.specification ?? null,
     baseUnit: fixture.unit,
     categoryId: fixture.categoryId ?? null,
+    itemType: fixture.itemType ?? null,
+    taxRate: fixture.taxRate ?? null,
     barcode: fixture.barcode ?? null,
     batchManaged: fixture.batchManaged,
     serialManaged: fixture.serialManaged,
+    shelfLifeDays: fixture.shelfLifeDays ?? null,
     minStockQty: fixture.minStockQty ?? null,
     maxStockQty: fixture.maxStockQty ?? null,
     leadTimeDays: fixture.leadTimeDays ?? null,
