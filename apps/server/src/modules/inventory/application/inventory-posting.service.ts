@@ -24,9 +24,10 @@ function normalizeLines(
   lines: readonly InventoryPostingLine[],
 ): InventoryPostingLine[] {
   return [...lines].sort((left, right) => {
-    const keyCompare = `${left.skuId}:${left.warehouseId}:${left.binId ?? ''}`.localeCompare(
-      `${right.skuId}:${right.warehouseId}:${right.binId ?? ''}`,
-    );
+    const keyCompare =
+      `${left.skuId}:${left.warehouseId}:${left.binId ?? ''}`.localeCompare(
+        `${right.skuId}:${right.warehouseId}:${right.binId ?? ''}`,
+      );
     if (keyCompare !== 0) {
       return keyCompare;
     }
@@ -57,7 +58,11 @@ function aggregateLines(
     }
 
     acc.set(mapKey, {
-      key: { skuId: line.skuId, warehouseId: line.warehouseId, binId: normalizedBinId },
+      key: {
+        skuId: line.skuId,
+        warehouseId: line.warehouseId,
+        binId: normalizedBinId,
+      },
       quantityDelta: line.quantityDelta,
     });
     return acc;
@@ -376,7 +381,9 @@ export class InventoryPostingService {
         line.binId !== null &&
         (typeof line.binId !== 'string' || line.binId.trim().length === 0)
       ) {
-        throw new InventoryValidationError('line.binId must be a non-empty string when provided');
+        throw new InventoryValidationError(
+          'line.binId must be a non-empty string when provided',
+        );
       }
 
       if (!Number.isFinite(line.quantityDelta) || line.quantityDelta === 0) {

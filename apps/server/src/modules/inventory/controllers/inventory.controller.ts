@@ -116,11 +116,7 @@ function parseMovementPayload(payload: unknown): InventoryMovementCommand {
     throw validationError('warehouseId is required');
   }
 
-  if (
-    binId !== undefined &&
-    binId !== null &&
-    !isNonEmptyString(binId)
-  ) {
+  if (binId !== undefined && binId !== null && !isNonEmptyString(binId)) {
     throw validationError('binId must be a non-empty string');
   }
 

@@ -98,7 +98,12 @@ describe('WarehouseController', () => {
 
     mockWarehouseService.findAll.mockResolvedValue(data);
 
-    const result = await controller.list(undefined, undefined, undefined, 'true');
+    const result = await controller.list(
+      undefined,
+      undefined,
+      undefined,
+      'true',
+    );
 
     expect(mockWarehouseService.findAll).toHaveBeenCalledWith('1001', {
       code: undefined,

@@ -36,8 +36,10 @@ export class TradingDocumentsReadService {
   constructor(@Optional() private readonly prisma?: PrismaService) {}
 
   canHandle(docType: CoreDocumentType): boolean {
-    return Boolean(this.prisma) &&
-      (PERSISTED_TRADING_DOC_TYPES as readonly string[]).includes(docType);
+    return (
+      Boolean(this.prisma) &&
+      (PERSISTED_TRADING_DOC_TYPES as readonly string[]).includes(docType)
+    );
   }
 
   async list(

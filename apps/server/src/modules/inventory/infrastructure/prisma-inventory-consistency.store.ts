@@ -331,10 +331,13 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
       },
     });
 
-    this.balanceCache.set(`${key.skuId}::${key.warehouseId}::${key.binId ?? ''}`, {
-      id: cached.id,
-      onHand,
-    });
+    this.balanceCache.set(
+      `${key.skuId}::${key.warehouseId}::${key.binId ?? ''}`,
+      {
+        id: cached.id,
+        onHand,
+      },
+    );
   }
 
   async isLedgerReversed(ledgerId: string): Promise<boolean> {

@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, Optional } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import Decimal from 'decimal.js';
 import {
@@ -210,10 +215,10 @@ export class SalesShipmentWriteService {
       id: header.id.toString(),
       docNo,
       docType,
-        status: 'draft',
-        docDate: header.docDate.toISOString().slice(0, 10),
-        lineCount: persistedLines.length,
-      };
+      status: 'draft',
+      docDate: header.docDate.toISOString().slice(0, 10),
+      lineCount: persistedLines.length,
+    };
   }
 
   async executeAction(
@@ -328,10 +333,8 @@ export class SalesShipmentWriteService {
       throw new Error(`Document not found: ${docType}/${id}`);
     }
 
-    const lines = await this.prisma.outboundLine.findMany({
-      where: { tenantId: tenantDbId, outboundId: outbound.id },
-      orderBy: { lineNo: 'asc' },
-    });
+    // NOTE: lines are loaded later inside the transaction for posting.
+    // Keeping this query here would be redundant.
 
     const previousStatus = this.toCoreStatus(outbound.status, docType);
     const attempt: StatusTransitionAttempt = {
@@ -398,7 +401,8 @@ export class SalesShipmentWriteService {
                 lines: transactionalLines.map((line) => ({
                   binId: line.binId?.toString() ?? null,
                   skuId: line.skuId.toString(),
-                  warehouseId: transactionalOutbound.warehouseId?.toString() ?? 'WH-001',
+                  warehouseId:
+                    transactionalOutbound.warehouseId?.toString() ?? 'WH-001',
                   quantityDelta: -Math.abs(Math.trunc(Number(line.qty) || 0)),
                 })),
               },
@@ -632,7 +636,12 @@ export class SalesShipmentWriteService {
       where:
         parsed !== null
           ? { tenantId: tenantDbId, warehouseId, id: parsed, deletedAt: null }
-          : { tenantId: tenantDbId, warehouseId, binCode: value, deletedAt: null },
+          : {
+              tenantId: tenantDbId,
+              warehouseId,
+              binCode: value,
+              deletedAt: null,
+            },
       select: { id: true },
     });
 

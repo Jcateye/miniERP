@@ -288,7 +288,10 @@ export class DocumentsService {
             docId: demo.id,
             lineNo: 1,
             skuId: 'CAB-HDMI-2M',
-            binId: demo.docType === 'GRN' || demo.docType === 'OUT' ? 'BIN-A-01-01' : null,
+            binId:
+              demo.docType === 'GRN' || demo.docType === 'OUT'
+                ? 'BIN-A-01-01'
+                : null,
             itemNameSnapshot: 'HDMI 高清视频线 2米',
             specModelSnapshot: 'HDMI 2.0 / 编织外被 / 镀金',
             uom: 'PCS',
@@ -524,9 +527,12 @@ export class DocumentsService {
             referenceType,
             referenceId: id,
             lines: doc.lines.map((line) => ({
-              binId: 'binId' in line && typeof line.binId === 'string' && line.binId.trim().length > 0
-                ? line.binId.trim()
-                : null,
+              binId:
+                'binId' in line &&
+                typeof line.binId === 'string' &&
+                line.binId.trim().length > 0
+                  ? line.binId.trim()
+                  : null,
               skuId: line.skuId,
               warehouseId: 'WH-001',
               quantityDelta:

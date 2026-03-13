@@ -157,7 +157,10 @@ export class PurchaseInboundWriteService {
       };
     }
 
-    const poId = await this.resolvePurchaseOrderId(tenantDbId, input.sourceDocId);
+    const poId = await this.resolvePurchaseOrderId(
+      tenantDbId,
+      input.sourceDocId,
+    );
     const warehouseId = await this.resolveWarehouseId(
       tenantDbId,
       input.warehouseId,
@@ -217,10 +220,10 @@ export class PurchaseInboundWriteService {
       id: header.id.toString(),
       docNo,
       docType,
-        status: 'draft',
-        docDate: header.docDate.toISOString().slice(0, 10),
-        lineCount: persistedLines.length,
-      };
+      status: 'draft',
+      docDate: header.docDate.toISOString().slice(0, 10),
+      lineCount: persistedLines.length,
+    };
   }
 
   async executeAction(
@@ -858,7 +861,12 @@ export class PurchaseInboundWriteService {
       where:
         parsed !== null
           ? { tenantId: tenantDbId, warehouseId, id: parsed, deletedAt: null }
-          : { tenantId: tenantDbId, warehouseId, binCode: value, deletedAt: null },
+          : {
+              tenantId: tenantDbId,
+              warehouseId,
+              binCode: value,
+              deletedAt: null,
+            },
       select: { id: true },
     });
 

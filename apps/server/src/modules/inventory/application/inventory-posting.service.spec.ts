@@ -306,8 +306,18 @@ describe('InventoryPostingService', () => {
         referenceType: 'GRN',
         referenceId: 'GRN-BIN-1',
         lines: [
-          { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-A', quantityDelta: 5 },
-          { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-B', quantityDelta: 3 },
+          {
+            skuId: 'SKU-1',
+            warehouseId: 'WH-1',
+            binId: 'BIN-A',
+            quantityDelta: 5,
+          },
+          {
+            skuId: 'SKU-1',
+            warehouseId: 'WH-1',
+            binId: 'BIN-B',
+            quantityDelta: 3,
+          },
         ],
       },
       'request-bin-1',

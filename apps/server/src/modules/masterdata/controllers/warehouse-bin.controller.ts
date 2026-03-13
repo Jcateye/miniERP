@@ -195,10 +195,17 @@ export class WarehouseBinController {
         tenantId: tenantDbId,
         deletedAt: null,
         warehouseId:
-          warehouseId === undefined ? undefined : toDbId(warehouseId) ?? BigInt(-1),
+          warehouseId === undefined
+            ? undefined
+            : (toDbId(warehouseId) ?? BigInt(-1)),
         binCode: code ? { contains: code } : undefined,
         binName: name ? { contains: name } : undefined,
-        status: active === undefined ? undefined : active ? 'active' : { not: 'active' },
+        status:
+          active === undefined
+            ? undefined
+            : active
+              ? 'active'
+              : { not: 'active' },
       },
       orderBy: [{ warehouseId: 'asc' }, { binCode: 'asc' }, { id: 'asc' }],
     });
