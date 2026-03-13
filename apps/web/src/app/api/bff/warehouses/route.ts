@@ -1,13 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import type { CreateWarehouseCommand } from '@minierp/shared';
+import type { CreateWarehouseCommand, Warehouse } from '@minierp/shared';
 
 import {
   buildBackendUrl,
   createServerHeaders,
+  toFixtureFallbackDisabledResponse,
+  toFixtureFallbackResponse,
   toUpstreamErrorResponse,
   toUpstreamUnavailableResponse,
 } from '@/lib/bff/server-fixtures';
+import { warehouseListFixtures } from '@/lib/mocks/erp-list-fixtures';
+
+type BackendWarehouseDto = {
+  id: string;
+  tenantId?: string;
+  code: string;
+  name: string;
+  address?: string | null;
+  contactPerson?: string | null;
+  contactPhone?: string | null;
+  manageBin?: boolean;
+  isActive?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function isBackendWarehouseDto(value: unknown): value is BackendWarehouseDto {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    typeof (value as { code?: unknown }).code === 'string' &&
+    typeof (value as { name?: unknown }).name === 'string' &&
+    typeof (value as { createdAt?: unknown }).createdAt === 'string' &&
+    typeof (value as { updatedAt?: unknown }).updatedAt === 'string'
+  );
+}
+
+function mapBackendWarehouse(entity: BackendWarehouseDto): Warehouse {
+  return {
+    id: entity.id,
+    tenantId: entity.tenantId ?? '1001',
+    code: entity.code,
+    name: entity.name,
+    address: entity.address ?? null,
+    contactName: entity.contactPerson ?? null,
+    phone: entity.contactPhone ?? null,
+    supportsBinManagement: entity.manageBin ?? false,
+    status: entity.isActive === false ? 'disabled' : 'normal',
+    createdAt: entity.createdAt,
+    updatedAt: entity.updatedAt,
+  };
+}
 
 function isOptionalNullableString(value: unknown): value is string | null | undefined {
   return value === undefined || value === null || typeof value === 'string';
@@ -57,6 +102,10 @@ function parseCreateWarehouseCommand(
     return { ok: false, message: 'contactPhone must be string or null' };
   }
 
+  if (candidate.manageBin !== undefined && typeof candidate.manageBin !== 'boolean') {
+    return { ok: false, message: 'manageBin must be boolean' };
+  }
+
   return {
     ok: true,
     data: {
@@ -65,6 +114,7 @@ function parseCreateWarehouseCommand(
       address: normalizeOptionalNullableString(candidate.address),
       contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
       contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
+      manageBin: candidate.manageBin as boolean | undefined,
     },
   };
 }
@@ -79,12 +129,42 @@ export async function GET(request: NextRequest) {
     });
 
     if (response.ok) {
-      return NextResponse.json(await response.json());
+      const payload = (await response.json()) as
+        | { data?: BackendWarehouseDto[]; total?: number }
+        | BackendWarehouseDto[];
+      const data = Array.isArray(payload)
+        ? payload.map(mapBackendWarehouse)
+        : Array.isArray(payload.data)
+          ? payload.data.map(mapBackendWarehouse)
+          : [];
+
+      return NextResponse.json({
+        data,
+        total: Array.isArray(payload) ? data.length : payload.total ?? data.length,
+      });
     }
 
     return toUpstreamErrorResponse(response);
   } catch {
-    return toUpstreamUnavailableResponse('Backend warehouses list is unavailable');
+    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+      return toFixtureFallbackDisabledResponse('Backend warehouses list is unavailable');
+    }
+
+    const q = searchParams.get('q')?.trim().toLowerCase() ?? '';
+    const data = q
+      ? warehouseListFixtures.filter((item) =>
+          [item.code, item.name, item.address ?? '', item.contactName ?? '']
+            .some((value) => value.toLowerCase().includes(q)),
+        )
+      : warehouseListFixtures;
+
+    return toFixtureFallbackResponse(
+      {
+        data,
+        total: data.length,
+      },
+      'fixture_warehouses_list',
+    );
   }
 }
 
@@ -129,7 +209,26 @@ export async function POST(request: NextRequest) {
     });
 
     if (response.ok) {
-      return NextResponse.json(await response.json());
+      const payload = (await response.json()) as BackendWarehouseDto | { data?: BackendWarehouseDto };
+      const entity =
+        payload && typeof payload === 'object' && 'data' in payload
+          ? payload.data
+          : payload;
+
+      if (!isBackendWarehouseDto(entity)) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'WAREHOUSE_CREATE_EMPTY',
+              category: 'upstream',
+              message: 'Backend warehouses create returned empty payload',
+            },
+          },
+          { status: 502 },
+        );
+      }
+
+      return NextResponse.json(mapBackendWarehouse(entity));
     }
 
     return toUpstreamErrorResponse(response);

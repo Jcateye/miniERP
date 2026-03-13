@@ -2,13 +2,17 @@
 
 import * as React from 'react';
 
+import { RemoteEntitySelect } from '@/components/shared/remote-entity-select';
 import { FormDialog } from '@/components/shared/form-dialog';
 
 export interface BalanceFormData {
+  binId?: string;
+  binLabel?: string;
   quantity: string;
   skuId: string;
   threshold?: string;
   warehouseId: string;
+  warehouseLabel?: string;
 }
 
 interface BalanceFormProps {
@@ -20,10 +24,13 @@ interface BalanceFormProps {
 }
 
 const EMPTY_FORM: BalanceFormData = {
+  binId: '',
+  binLabel: '',
   quantity: '',
   skuId: '',
   threshold: '',
   warehouseId: '',
+  warehouseLabel: '',
 };
 
 export function BalanceForm({
@@ -47,6 +54,16 @@ export function BalanceForm({
     setSubmitError('');
     setFormData(initialData ? { ...initialData } : { ...EMPTY_FORM });
   }, [initialData, open]);
+
+  React.useEffect(() => {
+    if (!formData.warehouseId) {
+      setFormData((current) => ({
+        ...current,
+        binId: '',
+        binLabel: '',
+      }));
+    }
+  }, [formData.warehouseId]);
 
   const validationMessage = React.useMemo(() => {
     if (!formData.skuId.trim()) {
@@ -85,10 +102,13 @@ export function BalanceForm({
 
     try {
       await onSubmit({
+        binId: formData.binId?.trim() ?? '',
+        binLabel: formData.binLabel?.trim() ?? '',
         quantity: formData.quantity.trim(),
         skuId: formData.skuId.trim(),
         threshold: formData.threshold?.trim() ?? '',
         warehouseId: formData.warehouseId.trim(),
+        warehouseLabel: formData.warehouseLabel?.trim() ?? '',
       });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : '保存失败');
@@ -124,14 +144,40 @@ export function BalanceForm({
           />
         </Field>
 
-        <Field label="仓库 ID" required>
-          <input
-            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
-            onChange={(event) =>
-              setFormData((current) => ({ ...current, warehouseId: event.target.value }))
+        <Field label="仓库" required>
+          <RemoteEntitySelect
+            currentFallbackLabel={formData.warehouseLabel}
+            emptyLabel="请选择仓库"
+            endpoint="/warehouses"
+            onChange={(value, label) =>
+              setFormData((current) => ({
+                ...current,
+                warehouseId: value,
+                warehouseLabel: label ?? '',
+                binId: '',
+                binLabel: '',
+              }))
             }
-            placeholder="例如 深圳 A 仓 / WH-001"
+            open={open}
             value={formData.warehouseId}
+          />
+        </Field>
+
+        <Field label="仓位">
+          <RemoteEntitySelect
+            currentFallbackLabel={formData.binLabel}
+            disabled={!formData.warehouseId}
+            emptyLabel={formData.warehouseId ? '请选择仓位' : '请先选择仓库'}
+            endpoint={`/warehouse-bins?warehouseId=${encodeURIComponent(formData.warehouseId)}`}
+            onChange={(value, label) =>
+              setFormData((current) => ({
+                ...current,
+                binId: value,
+                binLabel: label ?? '',
+              }))
+            }
+            open={open}
+            value={formData.binId ?? ''}
           />
         </Field>
 

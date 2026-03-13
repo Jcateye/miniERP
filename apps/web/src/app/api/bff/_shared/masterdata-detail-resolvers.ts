@@ -7,9 +7,18 @@ import {
   customerListFixtures,
   skuListFixtures,
   supplierListFixtures,
+  taxCodeById,
+  uomById,
+  warehouseBinListFixtures,
 } from '@/lib/mocks/erp-list-fixtures';
 
-type LookupResource = 'customers' | 'suppliers' | 'items';
+type LookupResource =
+  | 'customers'
+  | 'suppliers'
+  | 'items'
+  | 'uoms'
+  | 'tax-codes'
+  | 'warehouse-bins';
 
 interface LookupEntitySummary {
   readonly id?: string;
@@ -32,6 +41,7 @@ export interface CanonicalItemDetailEntity {
   readonly baseUnit: string;
   readonly categoryId: string | null;
   readonly itemType: string | null;
+  readonly taxCodeId: string | null;
   readonly taxRate: string | null;
   readonly barcode: string | null;
   readonly batchManaged: boolean;
@@ -90,6 +100,12 @@ function getLookupEntityFixture(
       return supplierListFixtures.find((entity) => entity.id === id) ?? null;
     case 'items':
       return skuListFixtures.find((entity) => entity.id === id) ?? null;
+    case 'uoms':
+      return uomById[id] ?? null;
+    case 'tax-codes':
+      return taxCodeById[id] ?? null;
+    case 'warehouse-bins':
+      return warehouseBinListFixtures.find((entity) => entity.id === id) ?? null;
   }
 }
 
@@ -108,6 +124,7 @@ function toItemDetailFixture(id: string): CanonicalItemDetailEntity | null {
     baseUnit: fixture.unit,
     categoryId: fixture.categoryId ?? null,
     itemType: fixture.itemType ?? null,
+    taxCodeId: fixture.taxCodeId ?? null,
     taxRate: fixture.taxRate ?? null,
     barcode: fixture.barcode ?? null,
     batchManaged: fixture.batchManaged,
@@ -243,6 +260,20 @@ export async function resolveItemLookupLabel(
   itemId: string,
 ): Promise<string | null> {
   const entity = await fetchMasterdataEntity('items', itemId);
+  return entity ? formatLookupLabel(entity) : null;
+}
+
+export async function resolveUomLookupLabel(
+  uomId: string,
+): Promise<string | null> {
+  const entity = await fetchMasterdataEntity('uoms', uomId);
+  return entity ? formatLookupLabel(entity) : null;
+}
+
+export async function resolveTaxCodeLookupLabel(
+  taxCodeId: string,
+): Promise<string | null> {
+  const entity = await fetchMasterdataEntity('tax-codes', taxCodeId);
   return entity ? formatLookupLabel(entity) : null;
 }
 

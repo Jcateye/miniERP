@@ -36,9 +36,16 @@ export interface ItemEntity {
   readonly specification: string | null;
   readonly baseUnit: string;
   readonly categoryId: string | null;
+  readonly itemType: string | null;
+  readonly taxCodeId: string | null;
   readonly taxRate: DecimalString | null;
+  readonly barcode: string | null;
   readonly batchManaged: boolean;
   readonly serialManaged: boolean;
+  readonly shelfLifeDays: number | null;
+  readonly minStockQty: DecimalString | null;
+  readonly maxStockQty: DecimalString | null;
+  readonly leadTimeDays: number | null;
   readonly isActive: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -50,9 +57,16 @@ export interface CreateItemCommand {
   readonly specification?: string | null;
   readonly baseUnit: string;
   readonly categoryId?: string | null;
+  readonly itemType?: string | null;
+  readonly taxCodeId?: string | null;
   readonly taxRate?: DecimalString | null;
+  readonly barcode?: string | null;
   readonly batchManaged?: boolean;
   readonly serialManaged?: boolean;
+  readonly shelfLifeDays?: number | null;
+  readonly minStockQty?: DecimalString | null;
+  readonly maxStockQty?: DecimalString | null;
+  readonly leadTimeDays?: number | null;
 }
 
 export interface WarehouseEntity {
@@ -63,9 +77,39 @@ export interface WarehouseEntity {
   readonly address: string | null;
   readonly contactPerson: string | null;
   readonly contactPhone: string | null;
+  readonly manageBin: boolean;
   readonly isActive: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+export interface WarehouseBinEntity {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly warehouseId: string;
+  readonly code: string;
+  readonly name: string;
+  readonly zoneCode: string | null;
+  readonly binType: string | null;
+  readonly isActive: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CreateWarehouseBinCommand {
+  readonly warehouseId: string;
+  readonly code: string;
+  readonly name: string;
+  readonly zoneCode?: string | null;
+  readonly binType?: string | null;
+  readonly status?: 'disabled' | 'normal';
+}
+
+export interface UpdateWarehouseBinCommand {
+  readonly name?: string;
+  readonly zoneCode?: string | null;
+  readonly binType?: string | null;
+  readonly status?: 'disabled' | 'normal';
 }
 
 export interface CreateWarehouseCommand {
@@ -74,6 +118,7 @@ export interface CreateWarehouseCommand {
   readonly address?: string | null;
   readonly contactPerson?: string | null;
   readonly contactPhone?: string | null;
+  readonly manageBin?: boolean;
 }
 
 export interface SupplierEntity {

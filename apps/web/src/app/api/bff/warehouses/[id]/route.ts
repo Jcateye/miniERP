@@ -1,13 +1,51 @@
 import { NextResponse } from 'next/server';
 
 import {
+  applyBffTraceHeaders,
   buildBackendUrl,
   createServerHeaders,
+  toFixtureFallbackDisabledResponse,
+  toFixtureFallbackResponse,
   toUpstreamErrorResponse,
   toUpstreamUnavailableResponse,
 } from '@/lib/bff/server-fixtures';
+import { warehouseListFixtures } from '@/lib/mocks/erp-list-fixtures';
+import type { Warehouse } from '@minierp/shared';
 
-const ALLOWED_PATCH_FIELDS = ['name', 'address', 'contactPerson', 'contactPhone', 'isActive'] as const;
+type BackendWarehouseDto = {
+  id: string;
+  tenantId?: string;
+  code: string;
+  name: string;
+  address?: string | null;
+  contactPerson?: string | null;
+  contactPhone?: string | null;
+  manageBin?: boolean;
+  isActive?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function isBackendWarehouseDto(value: unknown): value is BackendWarehouseDto {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    typeof (value as { code?: unknown }).code === 'string' &&
+    typeof (value as { name?: unknown }).name === 'string' &&
+    typeof (value as { createdAt?: unknown }).createdAt === 'string' &&
+    typeof (value as { updatedAt?: unknown }).updatedAt === 'string'
+  );
+}
+
+const ALLOWED_PATCH_FIELDS = [
+  'name',
+  'address',
+  'contactPerson',
+  'contactPhone',
+  'manageBin',
+  'isActive',
+] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -40,6 +78,7 @@ function parseUpdateWarehousePayload(
         readonly address?: string | null;
         readonly contactPerson?: string | null;
         readonly contactPhone?: string | null;
+        readonly manageBin?: boolean;
         readonly isActive?: boolean;
       };
     }
@@ -74,6 +113,10 @@ function parseUpdateWarehousePayload(
     return { ok: false, message: 'contactPhone must be string or null' };
   }
 
+  if (candidate.manageBin !== undefined && typeof candidate.manageBin !== 'boolean') {
+    return { ok: false, message: 'manageBin must be boolean' };
+  }
+
   if (candidate.isActive !== undefined && typeof candidate.isActive !== 'boolean') {
     return { ok: false, message: 'isActive must be boolean' };
   }
@@ -85,9 +128,100 @@ function parseUpdateWarehousePayload(
       address: normalizeOptionalNullableString(candidate.address),
       contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
       contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
+      manageBin: candidate.manageBin as boolean | undefined,
       isActive: candidate.isActive as boolean | undefined,
     },
   };
+}
+
+function mapBackendWarehouse(entity: BackendWarehouseDto): Warehouse {
+  return {
+    id: entity.id,
+    tenantId: entity.tenantId ?? '1001',
+    code: entity.code,
+    name: entity.name,
+    address: entity.address ?? null,
+    contactName: entity.contactPerson ?? null,
+    phone: entity.contactPhone ?? null,
+    supportsBinManagement: entity.manageBin ?? false,
+    status: entity.isActive === false ? 'disabled' : 'normal',
+    createdAt: entity.createdAt,
+    updatedAt: entity.updatedAt,
+  };
+}
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+
+  try {
+    const response = await fetch(buildBackendUrl(`/warehouses/${id}`), {
+      method: 'GET',
+      headers: createServerHeaders(),
+      cache: 'no-store',
+    });
+
+    if (response.ok) {
+      const payload = (await response.json()) as
+        | BackendWarehouseDto
+        | { data?: BackendWarehouseDto };
+      const entity =
+        payload && typeof payload === 'object' && 'data' in payload
+          ? payload.data
+          : payload;
+
+      if (!isBackendWarehouseDto(entity)) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'WAREHOUSE_NOT_FOUND',
+              message: `Warehouse with id ${id} not found`,
+              category: 'not_found',
+            },
+          },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json(mapBackendWarehouse(entity));
+    }
+
+    return toUpstreamErrorResponse(response);
+  } catch {
+    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+      return toFixtureFallbackDisabledResponse('Backend warehouse detail is unavailable');
+    }
+
+    const entity = warehouseListFixtures.find((item) => item.id === id);
+    if (!entity) {
+      return applyBffTraceHeaders(
+        NextResponse.json(
+          {
+            error: {
+              code: 'WAREHOUSE_NOT_FOUND',
+              message: `Warehouse with id ${id} not found`,
+              category: 'not_found',
+            },
+          },
+          { status: 404 },
+        ),
+        {
+          fallbackHit: '1',
+          reason: 'fixture_miss',
+        },
+      );
+    }
+
+    return toFixtureFallbackResponse(
+      {
+        data: entity,
+        message: 'fixture',
+      },
+      'fixture_warehouse_detail',
+    );
+  }
 }
 
 export async function PATCH(
@@ -135,7 +269,26 @@ export async function PATCH(
     });
 
     if (response.ok) {
-      return NextResponse.json(await response.json());
+      const payload = (await response.json()) as BackendWarehouseDto | { data?: BackendWarehouseDto };
+      const entity =
+        payload && typeof payload === 'object' && 'data' in payload
+          ? payload.data
+          : payload;
+
+      if (!entity || !isBackendWarehouseDto(entity)) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'WAREHOUSE_UPDATE_EMPTY',
+              category: 'upstream',
+              message: 'Backend warehouses update returned empty payload',
+            },
+          },
+          { status: 502 },
+        );
+      }
+
+      return NextResponse.json(mapBackendWarehouse(entity));
     }
 
     return toUpstreamErrorResponse(response);

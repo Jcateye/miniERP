@@ -48,10 +48,22 @@ function parseBalancePayload(payload: unknown) {
       : parseNumber(payload.threshold, 'threshold');
 
   return {
+    binId:
+      isNonEmptyString(payload.binId)
+        ? payload.binId.trim()
+        : null,
+    binLabel:
+      isNonEmptyString(payload.binLabel)
+        ? payload.binLabel.trim()
+        : null,
     quantity,
     skuId: payload.skuId.trim(),
     threshold,
     warehouseId: payload.warehouseId.trim(),
+    warehouseLabel:
+      isNonEmptyString(payload.warehouseLabel)
+        ? payload.warehouseLabel.trim()
+        : payload.warehouseId.trim(),
   };
 }
 

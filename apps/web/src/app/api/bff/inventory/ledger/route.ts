@@ -16,6 +16,8 @@ import {
 import {
   inventoryLedgerListFixtures,
   type InventoryLedgerListItem,
+  warehouseBinLabelById,
+  warehouseLabelById,
 } from '@/lib/mocks/erp-list-fixtures';
 import { applyInventoryBalanceDelta } from '../balance/_store';
 import { mergeInventoryLedgerItems, upsertInventoryLedgerDraft } from './_store';
@@ -31,12 +33,6 @@ const INVENTORY_TYPE_LABELS: Record<string, InventoryLedgerListItem['type']> = {
   GRN: '入库',
   OUT: '出库',
   STOCKTAKE: '盘点',
-};
-
-const WAREHOUSE_LABELS: Record<string, string> = {
-  'WH-001': '深圳 A 仓',
-  'WH-002': '青岛 B 仓',
-  'WH-003': '苏州 周转仓',
 };
 
 function formatDateTime(value: string) {
@@ -62,7 +58,7 @@ function computeBalanceByLedgerId(entries: readonly InventoryLedgerEntry[]) {
   );
 
   for (const entry of sorted) {
-    const key = `${entry.skuId}::${entry.warehouseId}`;
+    const key = `${entry.skuId}::${entry.warehouseId}::`;
     const nextBalance =
       (balanceByKey.get(key) ?? 0) + Number(entry.quantityDelta);
     balanceByKey.set(key, nextBalance);
@@ -77,13 +73,16 @@ function mapBackendLedger(entries: readonly InventoryLedgerEntry[]) {
 
   return entries.map<InventoryLedgerListItem>((entry) => ({
     balance: balanceByLedgerId.get(entry.id) ?? Number(entry.quantityDelta),
+    bin: null,
+    binId: null,
     date: formatDateTime(entry.postedAt),
     direction: `${entry.quantityDelta >= 0 ? '+' : ''}${entry.quantityDelta}`,
     operator: '-',
     skuId: entry.skuId,
     source: `${entry.referenceType}-${entry.referenceId}`,
     type: INVENTORY_TYPE_LABELS[entry.referenceType] ?? '调拨',
-    warehouse: WAREHOUSE_LABELS[entry.warehouseId] ?? entry.warehouseId,
+    warehouse: warehouseLabelById[entry.warehouseId] ?? entry.warehouseId,
+    warehouseId: entry.warehouseId,
   }));
 }
 
@@ -94,6 +93,7 @@ export async function GET(request: NextRequest) {
   const q = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
   const type = (searchParams.get('type') || '').trim();
   const warehouse = (searchParams.get('warehouse') || '').trim();
+  const bin = (searchParams.get('bin') || '').trim();
   const sortBy = (searchParams.get('sortBy') || 'date') as SortField;
   const sortOrder = normalizeSortDirection(searchParams.get('sortOrder'), 'desc');
   let source: readonly InventoryLedgerListItem[] = inventoryLedgerListFixtures;
@@ -131,7 +131,11 @@ export async function GET(request: NextRequest) {
         return false;
       }
 
-      if (warehouse && item.warehouse !== warehouse) {
+      if (warehouse && item.warehouseId !== warehouse) {
+        return false;
+      }
+
+      if (bin && (item.binId ?? '') !== bin) {
         return false;
       }
 
@@ -139,7 +143,7 @@ export async function GET(request: NextRequest) {
         return true;
       }
 
-      return [item.skuId, item.warehouse, item.source, item.operator]
+      return [item.skuId, item.warehouse, item.bin ?? '', item.source, item.operator]
         .some((value) => value.toLowerCase().includes(q));
     })
     .toSorted((left, right) => {
@@ -212,6 +216,10 @@ export async function POST(request: NextRequest) {
 
     const skuId = candidate.skuId.trim();
     const warehouseId = candidate.warehouseId.trim();
+    const binId =
+      typeof candidate.binId === 'string' && candidate.binId.trim()
+        ? candidate.binId.trim()
+        : null;
     const normalizedType = candidate.type.trim() as '入库' | '出库' | '调整';
 
     if (!['入库', '出库', '调整'].includes(normalizedType)) {
@@ -221,6 +229,7 @@ export async function POST(request: NextRequest) {
     const quantityDelta = normalizedType === '出库' ? -Math.abs(quantity) : Math.abs(quantity);
 
     applyInventoryBalanceDelta({
+      binId,
       quantityDelta,
       skuId,
       warehouseId,
@@ -232,9 +241,20 @@ export async function POST(request: NextRequest) {
         typeof candidate.reason === 'string'
           ? candidate.reason.trim()
           : '',
+      binId,
+      binLabel:
+        typeof candidate.binLabel === 'string' && candidate.binLabel.trim()
+          ? candidate.binLabel.trim()
+          : binId
+            ? warehouseBinLabelById[binId] ?? binId
+            : null,
       skuId,
       type: normalizedType,
       warehouseId,
+      warehouseLabel:
+        typeof candidate.warehouseLabel === 'string' && candidate.warehouseLabel.trim()
+          ? candidate.warehouseLabel.trim()
+          : warehouseLabelById[warehouseId] ?? warehouseId,
     });
 
     return Response.json(

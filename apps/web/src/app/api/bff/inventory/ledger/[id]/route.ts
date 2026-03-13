@@ -49,6 +49,14 @@ function parseLedgerPayload(payload: unknown) {
   const normalizedType = payload.type.trim();
 
   return {
+    binId:
+      isNonEmptyString(payload.binId)
+        ? payload.binId.trim()
+        : null,
+    binLabel:
+      isNonEmptyString(payload.binLabel)
+        ? payload.binLabel.trim()
+        : null,
     quantity: normalizedType === '出库' ? -Math.abs(quantity) : Math.abs(quantity),
     reason:
       typeof payload.reason === 'string'
@@ -57,6 +65,10 @@ function parseLedgerPayload(payload: unknown) {
     skuId: payload.skuId.trim(),
     type: normalizedType as '入库' | '出库' | '调整',
     warehouseId: payload.warehouseId.trim(),
+    warehouseLabel:
+      isNonEmptyString(payload.warehouseLabel)
+        ? payload.warehouseLabel.trim()
+        : payload.warehouseId.trim(),
   };
 }
 

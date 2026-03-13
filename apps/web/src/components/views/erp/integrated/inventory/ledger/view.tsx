@@ -3,16 +3,20 @@
 import * as React from 'react';
 import { ArrowDown, ArrowUp, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
+import type { Warehouse, WarehouseBin } from '@minierp/shared';
+
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import {
   LedgerForm,
   type LedgerFormData,
 } from '@/components/views/erp/integrated/inventory/ledger/ledger-form';
+import { useBffGet } from '@/hooks/use-bff-get';
 import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
 import { useInventoryLedger } from '@/lib/hooks/use-inventory-ledger';
 import type { InventoryLedgerListItem } from '@/lib/mocks/erp-list-fixtures';
 
 const DEFAULT_PARAMS = {
+  bin: '',
   order: 'desc',
   page: '1',
   q: '',
@@ -31,9 +35,19 @@ type Notice = {
   tone: 'error' | 'success';
 };
 
+type LookupPagePayload<T> = {
+  data?: T[];
+  total?: number;
+};
+
 export default function InvLedgerList() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
   const { data, error, loading, pagination, reload } = useInventoryLedger();
+  const warehousesState = useBffGet<LookupPagePayload<Warehouse>>('/warehouses?page=1&pageSize=100');
+  const binsState = useBffGet<LookupPagePayload<WarehouseBin>>(
+    params.warehouse ? `/warehouse-bins?warehouseId=${encodeURIComponent(params.warehouse)}` : '/warehouse-bins?warehouseId=__none__',
+    Boolean(params.warehouse),
+  );
 
   React.useEffect(() => {
     const handler = () => {
@@ -100,6 +114,12 @@ export default function InvLedgerList() {
 
   const currentPage = pagination.page;
   const totalPages = Math.max(1, pagination.totalPages);
+  const warehouses = warehousesState.data?.data ?? [];
+  const bins = binsState.data?.data ?? [];
+  const selectedWarehouseLabel =
+    warehouses.find((item) => item.id === params.warehouse)?.name ?? params.warehouse;
+  const selectedBinLabel =
+    bins.find((item) => item.id === params.bin)?.name ?? params.bin;
   const pageNumbers = buildPagination(currentPage, totalPages);
   const rangeStart = pagination.total === 0 ? 0 : (currentPage - 1) * pagination.pageSize + 1;
   const rangeEnd = pagination.total === 0 ? 0 : rangeStart + data.length - 1;
@@ -255,19 +275,45 @@ export default function InvLedgerList() {
               onClick={() => updateParams({ page: '1', type: params.type === type ? '' : type })}
             />
           ))}
+          <div className="flex-1" />
+          <select
+            className="h-9 rounded-sm border border-border bg-white px-3 text-xs text-foreground"
+            onChange={(event) => updateParams({ bin: '', page: '1', warehouse: event.target.value })}
+            value={params.warehouse}
+          >
+            <option value="">全部仓库</option>
+            {warehouses.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.code} · {item.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-sm border border-border bg-white px-3 text-xs text-foreground disabled:bg-[#F5F3EF] disabled:text-muted"
+            disabled={!params.warehouse}
+            onChange={(event) => updateParams({ bin: event.target.value, page: '1' })}
+            value={params.bin}
+          >
+            <option value="">{params.warehouse ? '全部仓位' : '先选仓库'}</option>
+            {bins.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.code} · {item.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="mt-2 flex w-full items-center justify-between">
           <div className="text-xs text-muted">
-            当前类型筛选: {params.type || '全部'} / 仓库: {params.warehouse || '全部'}
+            当前类型筛选: {params.type || '全部'} / 仓库: {selectedWarehouseLabel || '全部'} / 仓位: {selectedBinLabel || '全部'}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted">
             共 {pagination.total} 条 · 显示 {rangeStart}-{rangeEnd}
           </div>
         </div>
 
-        <div className="mt-2 flex min-w-[860px] flex-1 flex-col overflow-hidden rounded-sm border border-border bg-white shadow-sm">
-          <div className="grid h-10 items-center grid-cols-[140px_120px_100px_90px_100px_160px_100px_160px] border-b border-border bg-[#FDFCFB] px-6 text-sm font-medium text-muted">
+        <div className="mt-2 flex min-w-[980px] flex-1 flex-col overflow-hidden rounded-sm border border-border bg-white shadow-sm">
+          <div className="grid h-10 items-center grid-cols-[140px_120px_100px_160px_90px_100px_160px_100px_160px] border-b border-border bg-[#FDFCFB] px-6 text-sm font-medium text-muted">
             <div>
               <SortButton active={params.sort === 'date'} direction={params.order} label="时间" onClick={() => handleSort('date')} />
             </div>
@@ -277,6 +323,7 @@ export default function InvLedgerList() {
             <div>
               <SortButton active={params.sort === 'warehouse'} direction={params.order} label="仓库" onClick={() => handleSort('warehouse')} />
             </div>
+            <div>仓位</div>
             <div>
               <SortButton active={params.sort === 'type'} direction={params.order} label="类型" onClick={() => handleSort('type')} />
             </div>
@@ -303,12 +350,13 @@ export default function InvLedgerList() {
             {!loading && !error
               ? pageRows.map((row) => (
                   <div
-                    className="grid grid-cols-[140px_120px_100px_90px_100px_160px_100px_160px] items-center border-b border-border px-6 py-4 transition-colors hover:bg-gray-50"
+                    className="grid grid-cols-[140px_120px_100px_160px_90px_100px_160px_100px_160px] items-center border-b border-border px-6 py-4 transition-colors hover:bg-gray-50"
                     key={row.id}
                   >
                     <div>{row.date}</div>
                     <div className="font-mono font-medium text-primary">{row.skuId}</div>
                     <div>{row.warehouse}</div>
+                    <div className="truncate text-muted">{row.bin ?? '未分仓位'}</div>
                     <div>
                       <span className={getLedgerTypeClassName(row.type)}>{row.type}</span>
                     </div>
@@ -425,16 +473,19 @@ export default function InvLedgerList() {
 
 function toLedgerFormData(row: LedgerRow): LedgerFormData {
   return {
+    binId: row.binId ?? '',
+    binLabel: row.bin ?? '',
     quantity: row.direction.replace('+', '').replace('-', ''),
     reason: row.source.startsWith('MANUAL-') ? '' : row.source,
     skuId: row.skuId,
     type: row.type === '出库' ? '出库' : row.type === '入库' ? '入库' : '调整',
-    warehouseId: row.warehouse,
+    warehouseId: row.warehouseId,
+    warehouseLabel: row.warehouse,
   };
 }
 
 function createLedgerRowId(row: InventoryLedgerListItem) {
-  return `${row.date}::${row.skuId}::${row.warehouse}::${row.source}`;
+  return `${row.date}::${row.skuId}::${row.warehouseId}::${row.binId ?? ''}::${row.source}`;
 }
 
 function getSortLabel(field: LedgerSortField) {

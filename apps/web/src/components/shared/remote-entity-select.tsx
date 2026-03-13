@@ -33,6 +33,7 @@ interface RemoteEntitySelectProps {
   onChange: (value: string, label?: string) => void;
   open: boolean;
   value: string;
+  valueKey?: 'code' | 'id';
 }
 
 function toLookupEntities(payload: LookupPayload): LookupEntity[] {
@@ -47,6 +48,18 @@ function formatOptionLabel(entity: LookupEntity): string {
   return `${entity.code} · ${entity.name}`;
 }
 
+function buildLookupPath(endpoint: string) {
+  const [pathname, rawQuery = ''] = endpoint.split('?', 2);
+  const searchParams = new URLSearchParams(rawQuery);
+
+  if (!searchParams.has('isActive')) {
+    searchParams.set('isActive', 'true');
+  }
+
+  const serialized = searchParams.toString();
+  return serialized ? `${pathname}?${serialized}` : pathname;
+}
+
 export function RemoteEntitySelect({
   currentFallbackLabel,
   disabled = false,
@@ -55,6 +68,7 @@ export function RemoteEntitySelect({
   onChange,
   open,
   value,
+  valueKey = 'id',
 }: RemoteEntitySelectProps) {
   const [options, setOptions] = React.useState<RemoteEntityOption[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -66,7 +80,8 @@ export function RemoteEntitySelect({
     }
 
     let disposed = false;
-    const cacheKey = `${endpoint}?isActive=true`;
+    const requestPath = buildLookupPath(endpoint);
+    const cacheKey = `${requestPath}::${valueKey}`;
 
     const load = async () => {
       const cached = lookupOptionsCache.get(cacheKey);
@@ -81,10 +96,10 @@ export function RemoteEntitySelect({
       try {
         const inflight =
           lookupInflightCache.get(cacheKey) ??
-          bffGet<LookupPayload>(cacheKey).then((payload) =>
+          bffGet<LookupPayload>(requestPath).then((payload) =>
             toLookupEntities(payload).map((entity) => ({
               label: formatOptionLabel(entity),
-              value: entity.id,
+              value: valueKey === 'code' ? entity.code : entity.id,
             })),
           );
 
@@ -119,7 +134,7 @@ export function RemoteEntitySelect({
     return () => {
       disposed = true;
     };
-  }, [endpoint, open]);
+  }, [endpoint, open, valueKey]);
 
   const normalizedOptions = React.useMemo(() => {
     if (!value || options.some((option) => option.value === value)) {

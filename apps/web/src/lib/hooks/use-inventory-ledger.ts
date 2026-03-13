@@ -18,6 +18,7 @@ export function useInventoryLedger() {
       const order = searchParams.get('order') === 'asc' ? 'asc' : 'desc';
       const type = searchParams.get('type') || '';
       const warehouse = searchParams.get('warehouse') || '';
+      const bin = searchParams.get('bin') || '';
 
       const request: PaginationParams & FilterParams & SortParams = {
         page,
@@ -30,6 +31,7 @@ export function useInventoryLedger() {
       return {
         base: request,
         extras: {
+          bin,
           q,
           type,
           warehouse,

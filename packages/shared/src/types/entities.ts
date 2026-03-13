@@ -1,6 +1,12 @@
 import type { DecimalString } from './api';
 import type { Family, OrderStatus, Status } from './enums';
-import type { CustomerRecord, ItemRecord, SupplierRecord, WarehouseRecord } from './erp';
+import type {
+  CustomerRecord,
+  ItemRecord,
+  SupplierRecord,
+  WarehouseBinRecord,
+  WarehouseRecord,
+} from './erp';
 
 /**
  * 共享实体的最小审计字段。
@@ -29,6 +35,7 @@ export interface Sku extends NamedEntity {
   readonly unit: string;
   readonly categoryId: string | null;
   readonly itemType?: string | null;
+  readonly taxCodeId?: string | null;
   readonly taxRate?: DecimalString | null;
   readonly barcode: string | null;
   readonly batchManaged: boolean;
@@ -71,6 +78,18 @@ export interface Warehouse extends NamedEntity {
 }
 
 /**
+ * 仓位基础实体。
+ */
+export interface WarehouseBin extends AuditedEntity {
+  readonly warehouseId: string;
+  readonly code: string;
+  readonly name: string;
+  readonly zoneCode: string | null;
+  readonly binType: string | null;
+  readonly status: Status;
+}
+
+/**
  * 订单基类。
  * 作为采购、销售等单据的共享最小契约，不承载具体业务字段。
  */
@@ -105,3 +124,4 @@ export type CanonicalItem = ItemRecord;
 export type CanonicalCustomer = CustomerRecord;
 export type CanonicalSupplier = SupplierRecord;
 export type CanonicalWarehouse = WarehouseRecord;
+export type CanonicalWarehouseBin = WarehouseBinRecord;

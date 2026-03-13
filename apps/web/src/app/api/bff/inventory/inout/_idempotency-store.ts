@@ -3,6 +3,7 @@ type SuccessPayload = {
     balanceAfter: number;
     balanceBefore: number;
     balanceId: string;
+    binId?: string | null;
     ledgerId: string;
     operation: 'INBOUND' | 'OUTBOUND';
     quantity: number;

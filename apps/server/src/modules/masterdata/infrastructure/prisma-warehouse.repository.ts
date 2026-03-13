@@ -24,6 +24,7 @@ function mapWarehouseEntity(row: {
   address: string | null;
   contactPerson: string | null;
   contactPhone: string | null;
+  manageBin: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,7 @@ function mapWarehouseEntity(row: {
     address: row.address,
     contactPerson: row.contactPerson,
     contactPhone: row.contactPhone,
+    manageBin: row.manageBin,
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -94,6 +96,14 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
         deletedAt: null,
         code: filter?.code ? { contains: filter.code } : undefined,
         name: filter?.name ? { contains: filter.name } : undefined,
+        OR: filter?.search
+          ? [
+              { code: { contains: filter.search } },
+              { name: { contains: filter.search } },
+              { address: { contains: filter.search } },
+              { contactPerson: { contains: filter.search } },
+            ]
+          : undefined,
         isActive: filter?.isActive !== undefined ? filter.isActive : undefined,
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -115,6 +125,7 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
         address: entity.address,
         contactPerson: entity.contactPerson,
         contactPhone: entity.contactPhone,
+        manageBin: entity.manageBin,
         isActive: entity.isActive,
       },
     });
@@ -152,6 +163,7 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
         address: updates.address,
         contactPerson: updates.contactPerson,
         contactPhone: updates.contactPhone,
+        manageBin: updates.manageBin,
         isActive: updates.isActive,
       },
     });

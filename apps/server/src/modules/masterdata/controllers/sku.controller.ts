@@ -99,6 +99,9 @@ function parseCreateSkuCommand(payload: unknown): CreateSkuCommand {
   if (!isOptionalNullableString(candidate.itemType)) {
     throw new SkuValidationError('itemType must be string or null');
   }
+  if (!isOptionalNullableString(candidate.taxCodeId)) {
+    throw new SkuValidationError('taxCodeId must be string or null');
+  }
   if (!isOptionalNullableString(candidate.taxRate)) {
     throw new SkuValidationError('taxRate must be string or null');
   }
@@ -137,6 +140,7 @@ function parseCreateSkuCommand(payload: unknown): CreateSkuCommand {
     baseUnit: candidate.baseUnit.trim(),
     categoryId: normalizeOptionalNullableString(candidate.categoryId),
     itemType: normalizeOptionalNullableString(candidate.itemType),
+    taxCodeId: normalizeOptionalNullableString(candidate.taxCodeId),
     taxRate: normalizeOptionalNullableString(candidate.taxRate),
     barcode: normalizeOptionalNullableString(candidate.barcode),
     batchManaged:
@@ -193,6 +197,9 @@ function parseUpdateSkuCommand(payload: unknown): UpdateSkuCommand {
   if (!isOptionalNullableString(candidate.itemType)) {
     throw new SkuValidationError('itemType must be string or null');
   }
+  if (!isOptionalNullableString(candidate.taxCodeId)) {
+    throw new SkuValidationError('taxCodeId must be string or null');
+  }
   if (!isOptionalNullableString(candidate.taxRate)) {
     throw new SkuValidationError('taxRate must be string or null');
   }
@@ -243,6 +250,7 @@ function parseUpdateSkuCommand(payload: unknown): UpdateSkuCommand {
         : candidate.baseUnit.trim(),
     categoryId: normalizeOptionalNullableString(candidate.categoryId),
     itemType: normalizeOptionalNullableString(candidate.itemType),
+    taxCodeId: normalizeOptionalNullableString(candidate.taxCodeId),
     taxRate: normalizeOptionalNullableString(candidate.taxRate),
     barcode: normalizeOptionalNullableString(candidate.barcode),
     batchManaged:

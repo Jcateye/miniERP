@@ -1,4 +1,4 @@
-import type { Customer, Supplier, Sku } from '@minierp/shared';
+import type { Customer, Supplier, Sku, Warehouse, WarehouseBin } from '@minierp/shared';
 
 export type SkuActivity = {
   color: string;
@@ -21,6 +21,12 @@ export type SupplierViewMeta = {
   orders: number;
 };
 
+export type LookupFixture = {
+  id: string;
+  code: string;
+  name: string;
+};
+
 export const skuCategoryIdByLabel: Record<string, string> = {
   扩展坞: 'cat_dock',
   电源: 'cat_power',
@@ -33,6 +39,126 @@ export const skuCategoryLabelById = Object.fromEntries(
   Object.entries(skuCategoryIdByLabel).map(([label, id]) => [id, label]),
 ) as Record<string, string>;
 
+export const uomListFixtures: readonly LookupFixture[] = [
+  { id: 'uom_pcs', code: 'PCS', name: '件' },
+  { id: 'uom_set', code: 'SET', name: '套' },
+  { id: 'uom_kg', code: 'KG', name: '千克' },
+  { id: 'uom_m', code: 'M', name: '米' },
+  { id: 'uom_box', code: 'BOX', name: '箱' },
+] as const;
+
+export const taxCodeListFixtures: readonly LookupFixture[] = [
+  { id: '1013', code: 'VAT13', name: '增值税 13%' },
+  { id: '1009', code: 'VAT09', name: '增值税 9%' },
+  { id: '1006', code: 'VAT06', name: '增值税 6%' },
+  { id: '1000', code: 'VAT00', name: '零税率' },
+] as const;
+
+export const uomLabelByCode = Object.fromEntries(
+  uomListFixtures.map((item) => [item.code, `${item.code} · ${item.name}`]),
+) as Record<string, string>;
+
+export const taxCodeLabelById = Object.fromEntries(
+  taxCodeListFixtures.map((item) => [item.id, `${item.code} · ${item.name}`]),
+) as Record<string, string>;
+
+export const uomById = Object.fromEntries(
+  uomListFixtures.map((item) => [item.id, item]),
+) as Record<string, LookupFixture>;
+
+export const taxCodeById = Object.fromEntries(
+  taxCodeListFixtures.map((item) => [item.id, item]),
+) as Record<string, LookupFixture>;
+
+export const warehouseListFixtures: readonly Warehouse[] = [
+  {
+    id: 'wh_001',
+    tenantId: '1001',
+    code: 'WH-SZ-A',
+    name: '深圳 A 仓',
+    address: '深圳市宝安区航城大道 88 号',
+    contactName: '赵强',
+    phone: '0755-88880001',
+    supportsBinManagement: true,
+    status: 'normal',
+    createdAt: '2026-03-01T08:00:00.000Z',
+    updatedAt: '2026-03-08T08:00:00.000Z',
+  },
+  {
+    id: 'wh_002',
+    tenantId: '1001',
+    code: 'WH-QD-B',
+    name: '青岛 B 仓',
+    address: '青岛市城阳区空港工业园 6 号',
+    contactName: '韩磊',
+    phone: '0532-66660002',
+    supportsBinManagement: true,
+    status: 'normal',
+    createdAt: '2026-03-02T08:00:00.000Z',
+    updatedAt: '2026-03-08T08:00:00.000Z',
+  },
+  {
+    id: 'wh_003',
+    tenantId: '1001',
+    code: 'WH-SZ-T',
+    name: '苏州 周转仓',
+    address: '苏州市工业园区星湖街 18 号',
+    contactName: '许洁',
+    phone: '0512-77770003',
+    supportsBinManagement: false,
+    status: 'warning',
+    createdAt: '2026-03-03T08:00:00.000Z',
+    updatedAt: '2026-03-08T08:00:00.000Z',
+  },
+] as const;
+
+export const warehouseBinListFixtures: readonly WarehouseBin[] = [
+  {
+    id: 'bin_001',
+    tenantId: '1001',
+    warehouseId: 'wh_001',
+    code: 'A-01-01',
+    name: '成品货架 A-01-01',
+    zoneCode: 'FG-A',
+    binType: 'pick',
+    status: 'normal',
+    createdAt: '2026-03-01T08:00:00.000Z',
+    updatedAt: '2026-03-08T08:00:00.000Z',
+  },
+  {
+    id: 'bin_002',
+    tenantId: '1001',
+    warehouseId: 'wh_001',
+    code: 'A-01-02',
+    name: '成品货架 A-01-02',
+    zoneCode: 'FG-A',
+    binType: 'reserve',
+    status: 'normal',
+    createdAt: '2026-03-01T08:00:00.000Z',
+    updatedAt: '2026-03-08T08:00:00.000Z',
+  },
+  {
+    id: 'bin_003',
+    tenantId: '1001',
+    warehouseId: 'wh_002',
+    code: 'RM-B-09',
+    name: '原料区 B-09',
+    zoneCode: 'RM-B',
+    binType: 'pick',
+    status: 'normal',
+    createdAt: '2026-03-02T08:00:00.000Z',
+    updatedAt: '2026-03-08T08:00:00.000Z',
+  },
+] as const;
+
+export const warehouseLabelById = Object.fromEntries(
+  warehouseListFixtures.map((item) => [item.id, item.name]),
+) as Record<string, string>;
+
+export const warehouseBinLabelById = Object.fromEntries(
+  warehouseBinListFixtures.map((item) => [item.id, `${item.code} · ${item.name}`]),
+) as Record<string, string>;
+
 export const skuListFixtures: readonly Sku[] = [
   {
     id: 'sku_001',
@@ -43,6 +169,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'PCS',
     categoryId: 'cat_cable',
     itemType: 'finished_goods',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000012',
     batchManaged: false,
@@ -64,6 +191,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'BAG',
     categoryId: 'cat_connector',
     itemType: 'raw_material',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000013',
     batchManaged: false,
@@ -85,6 +213,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'PCS',
     categoryId: 'cat_adapter',
     itemType: 'finished_goods',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000014',
     batchManaged: false,
@@ -106,6 +235,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'PCS',
     categoryId: 'cat_power',
     itemType: 'finished_goods',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000015',
     batchManaged: true,
@@ -127,6 +257,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'PCS',
     categoryId: 'cat_dock',
     itemType: 'finished_goods',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000016',
     batchManaged: false,
@@ -148,6 +279,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'PCS',
     categoryId: 'cat_cable',
     itemType: 'finished_goods',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000017',
     batchManaged: false,
@@ -169,6 +301,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'PACK',
     categoryId: 'cat_power',
     itemType: 'consumable',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000018',
     batchManaged: true,
@@ -190,6 +323,7 @@ export const skuListFixtures: readonly Sku[] = [
     unit: 'PCS',
     categoryId: 'cat_dock',
     itemType: 'finished_goods',
+    taxCodeId: '1013',
     taxRate: '13.00',
     barcode: '6901001000019',
     batchManaged: false,
@@ -469,24 +603,29 @@ export const supplierViewMetaByCode: Record<string, SupplierViewMeta> = {
 export type InventoryBalanceListItem = {
   available: number;
   balance: number;
+  bin?: string | null;
+  binId?: string | null;
   name: string;
   reserved: number;
   safe: number;
   sku: string;
   warehouse: string;
+  warehouseId: string;
 };
 
 export const inventoryBalanceListFixtures: readonly InventoryBalanceListItem[] = [
-  { sku: 'RAW-488B-2M', name: 'ROHM 电源稳压管', warehouse: '深圳 A 仓', balance: 320, available: 280, reserved: 40, safe: 50 },
-  { sku: 'ADR-LED50-V9A', name: 'LED 大灯灯珠模组', warehouse: '青岛 B 仓', balance: 10, available: 10, reserved: 0, safe: 50 },
-  { sku: 'CAB-HDMI-2M', name: 'HDMI 高清视频线 2 米', warehouse: '深圳 A 仓', balance: 342, available: 300, reserved: 42, safe: 60 },
-  { sku: 'CON-RJ45-CAT6', name: 'RJ45 水晶头 CAT6', warehouse: '苏州 周转仓', balance: 18, available: 12, reserved: 6, safe: 100 },
-  { sku: 'ADP-USBC-VGA', name: 'USB-C 转 VGA 转换器', warehouse: '青岛 B 仓', balance: 80, available: 72, reserved: 8, safe: 30 },
-  { sku: 'PWR-65W-PD', name: '65W PD 快充电源适配器', warehouse: '深圳 A 仓', balance: 560, available: 510, reserved: 50, safe: 120 },
+  { sku: 'RAW-488B-2M', name: 'ROHM 电源稳压管', warehouseId: 'wh_001', warehouse: '深圳 A 仓', binId: 'bin_002', bin: 'A-01-02 · 成品货架 A-01-02', balance: 320, available: 280, reserved: 40, safe: 50 },
+  { sku: 'ADR-LED50-V9A', name: 'LED 大灯灯珠模组', warehouseId: 'wh_002', warehouse: '青岛 B 仓', binId: 'bin_003', bin: 'RM-B-09 · 原料区 B-09', balance: 10, available: 10, reserved: 0, safe: 50 },
+  { sku: 'CAB-HDMI-2M', name: 'HDMI 高清视频线 2 米', warehouseId: 'wh_001', warehouse: '深圳 A 仓', binId: 'bin_001', bin: 'A-01-01 · 成品货架 A-01-01', balance: 342, available: 300, reserved: 42, safe: 60 },
+  { sku: 'CON-RJ45-CAT6', name: 'RJ45 水晶头 CAT6', warehouseId: 'wh_003', warehouse: '苏州 周转仓', binId: null, bin: null, balance: 18, available: 12, reserved: 6, safe: 100 },
+  { sku: 'ADP-USBC-VGA', name: 'USB-C 转 VGA 转换器', warehouseId: 'wh_002', warehouse: '青岛 B 仓', binId: 'bin_003', bin: 'RM-B-09 · 原料区 B-09', balance: 80, available: 72, reserved: 8, safe: 30 },
+  { sku: 'PWR-65W-PD', name: '65W PD 快充电源适配器', warehouseId: 'wh_001', warehouse: '深圳 A 仓', binId: 'bin_001', bin: 'A-01-01 · 成品货架 A-01-01', balance: 560, available: 510, reserved: 50, safe: 120 },
 ] as const;
 
 export type InventoryLedgerListItem = {
   balance: number;
+  bin?: string | null;
+  binId?: string | null;
   date: string;
   direction: string;
   operator: string;
@@ -494,15 +633,16 @@ export type InventoryLedgerListItem = {
   source: string;
   type: '入库' | '出库' | '调拨' | '盘点';
   warehouse: string;
+  warehouseId: string;
 };
 
 export const inventoryLedgerListFixtures: readonly InventoryLedgerListItem[] = [
-  { date: '2026-03-10 14:30', skuId: 'SKU-HDMI-2M', warehouse: '深圳总仓', type: '入库', direction: '+100', balance: 500, source: 'GRN-001', operator: '张三' },
-  { date: '2026-03-09 10:20', skuId: 'SKU-HDMI-2M', warehouse: '深圳总仓', type: '出库', direction: '-20', balance: 400, source: 'OUT-021', operator: '李四' },
-  { date: '2026-03-08 09:12', skuId: 'SKU-RJ45-CAT6', warehouse: '青岛 B 仓', type: '调拨', direction: '+60', balance: 160, source: 'TRF-008', operator: '王倩' },
-  { date: '2026-03-07 17:06', skuId: 'SKU-USBC-VGA', warehouse: '苏州周转仓', type: '盘点', direction: '+2', balance: 82, source: 'ST-112', operator: '赵云' },
-  { date: '2026-03-06 15:48', skuId: 'SKU-PD-65W', warehouse: '深圳总仓', type: '入库', direction: '+40', balance: 560, source: 'GRN-119', operator: '张三' },
-  { date: '2026-03-05 13:30', skuId: 'SKU-RJ45-CAT6', warehouse: '青岛 B 仓', type: '出库', direction: '-15', balance: 100, source: 'OUT-019', operator: '韩梅' },
+  { date: '2026-03-10 14:30', skuId: 'CAB-HDMI-2M', warehouseId: 'wh_001', warehouse: '深圳 A 仓', binId: 'bin_001', bin: 'A-01-01 · 成品货架 A-01-01', type: '入库', direction: '+100', balance: 500, source: 'GRN-001', operator: '张三' },
+  { date: '2026-03-09 10:20', skuId: 'CAB-HDMI-2M', warehouseId: 'wh_001', warehouse: '深圳 A 仓', binId: 'bin_001', bin: 'A-01-01 · 成品货架 A-01-01', type: '出库', direction: '-20', balance: 400, source: 'OUT-021', operator: '李四' },
+  { date: '2026-03-08 09:12', skuId: 'CON-RJ45-CAT6', warehouseId: 'wh_002', warehouse: '青岛 B 仓', binId: 'bin_003', bin: 'RM-B-09 · 原料区 B-09', type: '调拨', direction: '+60', balance: 160, source: 'TRF-008', operator: '王倩' },
+  { date: '2026-03-07 17:06', skuId: 'ADP-USBC-VGA', warehouseId: 'wh_003', warehouse: '苏州 周转仓', binId: null, bin: null, type: '盘点', direction: '+2', balance: 82, source: 'ST-112', operator: '赵云' },
+  { date: '2026-03-06 15:48', skuId: 'PWR-65W-PD', warehouseId: 'wh_001', warehouse: '深圳 A 仓', binId: 'bin_002', bin: 'A-01-02 · 成品货架 A-01-02', type: '入库', direction: '+40', balance: 560, source: 'GRN-119', operator: '张三' },
+  { date: '2026-03-05 13:30', skuId: 'CON-RJ45-CAT6', warehouseId: 'wh_002', warehouse: '青岛 B 仓', binId: 'bin_003', bin: 'RM-B-09 · 原料区 B-09', type: '出库', direction: '-15', balance: 100, source: 'OUT-019', operator: '韩梅' },
 ] as const;
 
 export type SalesOrderListItem = {

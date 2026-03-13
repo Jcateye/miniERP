@@ -20,6 +20,7 @@ import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-ur
 import { useSkuList } from '@/lib/hooks/use-sku-list';
 import {
   skuCategoryLabelById,
+  taxCodeLabelById,
   skuViewMetaByCode,
   type SkuActivity,
 } from '@/lib/mocks/erp-list-fixtures';
@@ -61,6 +62,7 @@ type SkuRow = {
   stock: number;
   supp: string;
   supplierSku: string;
+  taxCodeId: string;
   taxRate: string;
   threshold: number;
   warehouse: string;
@@ -89,6 +91,7 @@ type ItemDetailPayload = {
   serialManaged?: boolean;
   shelfLifeDays?: number | null;
   specification?: string | null;
+  taxCodeId?: string | null;
   taxRate?: string | null;
 };
 
@@ -166,6 +169,7 @@ export default function SkuList() {
           stock: meta?.stock ?? 0,
           supp: meta?.supplierName ?? '-',
           supplierSku: meta?.supplierSku ?? '-',
+          taxCodeId: item.taxCodeId ?? '',
           taxRate: item.taxRate ?? '',
           threshold: meta?.threshold ?? 0,
           warehouse: meta?.warehouseLabel ?? '-',
@@ -641,6 +645,14 @@ export default function SkuList() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
+                      <span className="text-muted">税码</span>
+                      <span className="font-medium">
+                        {selectedSku.taxCodeId
+                          ? taxCodeLabelById[selectedSku.taxCodeId] ?? selectedSku.taxCodeId
+                          : '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
                       <span className="text-muted">税率</span>
                       <span className="font-medium">{selectedSku.taxRate || '-'}</span>
                     </div>
@@ -763,6 +775,7 @@ function toSkuFormData(row: SkuRow): SkuFormData {
     serialManaged: row.serialManaged,
     shelfLifeDays: row.shelfLifeDays,
     status: row.status,
+    taxCodeId: row.taxCodeId,
     taxRate: row.taxRate,
   };
 }
@@ -798,6 +811,7 @@ function toSkuFormDataFromDetail(
             ? 'normal'
             : fallbackRow.status
           : 'disabled',
+    taxCodeId: detail.taxCodeId ?? fallbackRow.taxCodeId,
     taxRate: detail.taxRate ?? fallbackRow.taxRate,
   };
 }

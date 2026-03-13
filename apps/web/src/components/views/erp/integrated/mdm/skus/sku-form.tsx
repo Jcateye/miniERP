@@ -3,8 +3,8 @@
 import * as React from 'react';
 
 import { FormDialog } from '@/components/shared/form-dialog';
-
-const BASE_UNIT_OPTIONS = ['PCS', 'SET', 'KG', 'M', 'BOX'] as const;
+import { RemoteEntitySelect } from '@/components/shared/remote-entity-select';
+import { taxCodeLabelById, uomLabelByCode } from '@/lib/mocks/erp-list-fixtures';
 const CATEGORY_SUGGESTIONS = ['线材', '连接器', '转换器', '电源', '扩展坞'] as const;
 const STATUS_OPTIONS = [
   { label: '正常', value: 'normal' },
@@ -19,6 +19,7 @@ export interface SkuFormData {
   baseUnit: string;
   category?: string;
   itemType?: string;
+  taxCodeId?: string;
   taxRate?: string;
   barcode?: string;
   batchManaged: boolean;
@@ -45,6 +46,7 @@ const EMPTY_FORM: SkuFormData = {
   baseUnit: 'PCS',
   category: '',
   itemType: '',
+  taxCodeId: '',
   taxRate: '',
   barcode: '',
   batchManaged: false,
@@ -148,6 +150,7 @@ export function SkuForm({
         category: formData.category?.trim() ?? '',
         code: formData.code.trim(),
         itemType: formData.itemType?.trim() ?? '',
+        taxCodeId: formData.taxCodeId?.trim() ?? '',
         maxStockQty: formData.maxStockQty?.trim() ?? '',
         minStockQty: formData.minStockQty?.trim() ?? '',
         name: formData.name.trim(),
@@ -214,17 +217,18 @@ export function SkuForm({
         </Field>
 
         <Field label="基本单位" required>
-          <select
-            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
-            onChange={(event) => setFormData((current) => ({ ...current, baseUnit: event.target.value }))}
+          <RemoteEntitySelect
+            currentFallbackLabel={
+              (uomLabelByCode[formData.baseUnit] ?? formData.baseUnit) || undefined
+            }
+            disabled={loading}
+            emptyLabel="选择单位"
+            endpoint="/api/bff/uoms"
+            onChange={(value) => setFormData((current) => ({ ...current, baseUnit: value }))}
+            open={open}
             value={formData.baseUnit}
-          >
-            {BASE_UNIT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            valueKey="code"
+          />
         </Field>
 
         <Field label="类目">
@@ -257,6 +261,22 @@ export function SkuForm({
             onChange={(event) => setFormData((current) => ({ ...current, itemType: event.target.value }))}
             placeholder="例如 finished_goods"
             value={formData.itemType ?? ''}
+          />
+        </Field>
+
+        <Field label="税码 ID">
+          <RemoteEntitySelect
+            currentFallbackLabel={
+              formData.taxCodeId
+                ? taxCodeLabelById[formData.taxCodeId] ?? formData.taxCodeId
+                : undefined
+            }
+            disabled={loading}
+            emptyLabel="选择税码"
+            endpoint="/api/bff/tax-codes"
+            onChange={(value) => setFormData((current) => ({ ...current, taxCodeId: value }))}
+            open={open}
+            value={formData.taxCodeId ?? ''}
           />
         </Field>
 
@@ -376,7 +396,7 @@ export function SkuForm({
       </div>
 
       <p className="text-xs text-muted">
-        条码、批次/序列、库存阈值、采购提前期已纳入 canonical item 表单字段；是否被上游完整持久化取决于当前 backend 能力。
+        条码、税码、批次/序列、库存阈值、采购提前期已纳入 canonical item 表单字段；是否被上游完整持久化取决于当前 backend 能力。
       </p>
     </FormDialog>
   );

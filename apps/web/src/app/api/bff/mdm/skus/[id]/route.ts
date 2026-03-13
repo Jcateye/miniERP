@@ -62,6 +62,7 @@ function parseUpdateSkuPayload(
         readonly baseUnit?: string;
         readonly categoryId?: string | null;
         readonly itemType?: string | null;
+        readonly taxCodeId?: string | null;
         readonly taxRate?: string | null;
         readonly barcode?: string | null;
         readonly batchManaged?: boolean;
@@ -95,6 +96,9 @@ function parseUpdateSkuPayload(
   }
   if (!isOptionalNullableString(payload.itemType)) {
     return { ok: false, message: 'itemType must be string or null' };
+  }
+  if (!isOptionalNullableString(payload.taxCodeId)) {
+    return { ok: false, message: 'taxCodeId must be string or null' };
   }
   if (!isOptionalNullableString(payload.taxRate)) {
     return { ok: false, message: 'taxRate must be string or null' };
@@ -150,6 +154,7 @@ function parseUpdateSkuPayload(
           : payload.baseUnit.trim(),
       categoryId: normalizeCategoryId(payload.category),
       itemType: normalizeOptionalNullableString(payload.itemType),
+      taxCodeId: normalizeOptionalNullableString(payload.taxCodeId),
       taxRate: normalizeOptionalNullableString(payload.taxRate),
       barcode: normalizeOptionalNullableString(payload.barcode),
       batchManaged:

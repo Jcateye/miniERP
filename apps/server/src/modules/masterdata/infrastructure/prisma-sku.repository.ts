@@ -17,6 +17,7 @@ function mapSkuEntity(row: {
   categoryId: string | null;
   unit: string | null;
   itemType: string | null;
+  taxCodeId: bigint | null;
   taxRate: { toString(): string } | null;
   barcode: string | null;
   batchManaged: boolean;
@@ -38,6 +39,7 @@ function mapSkuEntity(row: {
     baseUnit: row.unit ?? 'PCS',
     categoryId: row.categoryId,
     itemType: row.itemType,
+    taxCodeId: row.taxCodeId?.toString() ?? null,
     taxRate: row.taxRate?.toString() ?? null,
     barcode: row.barcode,
     batchManaged: row.batchManaged,
@@ -134,6 +136,7 @@ export class PrismaSkuRepository implements SkuRepository {
         categoryId: entity.categoryId,
         unit: entity.baseUnit,
         itemType: entity.itemType,
+        taxCodeId: this.toDbId(entity.taxCodeId ?? ''),
         taxRate: entity.taxRate,
         barcode: entity.barcode,
         batchManaged: entity.batchManaged,
@@ -181,6 +184,10 @@ export class PrismaSkuRepository implements SkuRepository {
         categoryId: updates.categoryId,
         unit: updates.baseUnit,
         itemType: updates.itemType,
+        taxCodeId:
+          updates.taxCodeId === undefined
+            ? undefined
+            : this.toDbId(updates.taxCodeId ?? ''),
         taxRate: updates.taxRate,
         barcode: updates.barcode,
         batchManaged: updates.batchManaged,

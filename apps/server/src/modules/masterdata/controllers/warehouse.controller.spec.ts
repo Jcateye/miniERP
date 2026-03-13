@@ -62,9 +62,9 @@ describe('WarehouseController', () => {
   });
 
   it('should reject invalid isActive query', async () => {
-    await expect(controller.list(undefined, undefined, 'abc')).rejects.toThrow(
-      'isActive must be true or false',
-    );
+    await expect(
+      controller.list(undefined, undefined, undefined, 'abc'),
+    ).rejects.toThrow('isActive must be true or false');
   });
 
   it('should reject non-object create payload', async () => {
@@ -89,6 +89,7 @@ describe('WarehouseController', () => {
         address: null,
         contactPerson: null,
         contactPhone: null,
+        manageBin: true,
         isActive: true,
         createdAt: '2026-03-01T00:00:00.000Z',
         updatedAt: '2026-03-01T00:00:00.000Z',
@@ -97,11 +98,12 @@ describe('WarehouseController', () => {
 
     mockWarehouseService.findAll.mockResolvedValue(data);
 
-    const result = await controller.list(undefined, undefined, 'true');
+    const result = await controller.list(undefined, undefined, undefined, 'true');
 
     expect(mockWarehouseService.findAll).toHaveBeenCalledWith('1001', {
       code: undefined,
       name: undefined,
+      search: undefined,
       isActive: true,
     });
     expect(result).toEqual({ data, total: 1 });
@@ -116,6 +118,7 @@ describe('WarehouseController', () => {
       address: null,
       contactPerson: null,
       contactPhone: null,
+      manageBin: true,
       isActive: true,
       createdAt: '2026-03-01T00:00:00.000Z',
       updatedAt: '2026-03-01T00:00:00.000Z',
@@ -127,6 +130,7 @@ describe('WarehouseController', () => {
       code: ' WH-B ',
       name: ' 备仓 ',
       address: ' ',
+      manageBin: true,
     });
 
     expect(mockWarehouseService.create).toHaveBeenCalledWith('1001', {
@@ -135,6 +139,7 @@ describe('WarehouseController', () => {
       address: null,
       contactPerson: undefined,
       contactPhone: undefined,
+      manageBin: true,
     });
     expect(result).toEqual(created);
   });
@@ -148,6 +153,7 @@ describe('WarehouseController', () => {
       address: null,
       contactPerson: null,
       contactPhone: null,
+      manageBin: false,
       isActive: true,
       createdAt: '2026-03-01T00:00:00.000Z',
       updatedAt: '2026-03-02T00:00:00.000Z',
@@ -157,6 +163,7 @@ describe('WarehouseController', () => {
 
     const result = await controller.update('wh_001', {
       name: ' 主仓(更新) ',
+      manageBin: false,
       isActive: true,
     });
 
@@ -165,6 +172,7 @@ describe('WarehouseController', () => {
       address: undefined,
       contactPerson: undefined,
       contactPhone: undefined,
+      manageBin: false,
       isActive: true,
     });
     expect(result).toEqual(updated);
@@ -179,6 +187,7 @@ describe('WarehouseController', () => {
       address: null,
       contactPerson: null,
       contactPhone: null,
+      manageBin: true,
       isActive: true,
       createdAt: '2026-03-01T00:00:00.000Z',
       updatedAt: '2026-03-01T00:00:00.000Z',

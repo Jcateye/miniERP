@@ -11,6 +11,7 @@ export interface SkuEntity {
   readonly baseUnit: string;
   readonly categoryId: string | null;
   readonly itemType: string | null;
+  readonly taxCodeId: string | null;
   readonly taxRate: string | null;
   readonly barcode: string | null;
   readonly batchManaged: boolean;
@@ -31,6 +32,7 @@ export interface CreateSkuCommand {
   readonly baseUnit: string;
   readonly categoryId?: string | null;
   readonly itemType?: string | null;
+  readonly taxCodeId?: string | null;
   readonly taxRate?: string | null;
   readonly barcode?: string | null;
   readonly batchManaged?: boolean;
@@ -47,6 +49,7 @@ export interface UpdateSkuCommand {
   readonly baseUnit?: string;
   readonly categoryId?: string | null;
   readonly itemType?: string | null;
+  readonly taxCodeId?: string | null;
   readonly taxRate?: string | null;
   readonly barcode?: string | null;
   readonly batchManaged?: boolean;

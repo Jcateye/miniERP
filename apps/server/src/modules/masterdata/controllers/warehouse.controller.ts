@@ -81,12 +81,20 @@ function parseCreateWarehouseCommand(payload: unknown): CreateWarehouseCommand {
     throw new WarehouseValidationError('contactPhone must be string or null');
   }
 
+  if (
+    candidate.manageBin !== undefined &&
+    typeof candidate.manageBin !== 'boolean'
+  ) {
+    throw new WarehouseValidationError('manageBin must be boolean');
+  }
+
   return {
     code: candidate.code.trim(),
     name: candidate.name.trim(),
     address: normalizeOptionalNullableString(candidate.address),
     contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
     contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
+    manageBin: candidate.manageBin as boolean | undefined,
   };
 }
 
@@ -118,6 +126,13 @@ function parseUpdateWarehouseCommand(payload: unknown): UpdateWarehouseCommand {
   }
 
   if (
+    candidate.manageBin !== undefined &&
+    typeof candidate.manageBin !== 'boolean'
+  ) {
+    throw new WarehouseValidationError('manageBin must be boolean');
+  }
+
+  if (
     candidate.isActive !== undefined &&
     typeof candidate.isActive !== 'boolean'
   ) {
@@ -132,6 +147,7 @@ function parseUpdateWarehouseCommand(payload: unknown): UpdateWarehouseCommand {
     address: normalizeOptionalNullableString(candidate.address),
     contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
     contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
+    manageBin: candidate.manageBin as boolean | undefined,
     isActive: candidate.isActive,
   };
 }
@@ -148,12 +164,14 @@ export class WarehouseController {
   async list(
     @Query('code') code?: string,
     @Query('name') name?: string,
+    @Query('search') search?: string,
     @Query('isActive') isActive?: string,
   ) {
     const ctx = this.tenantContextService.getRequiredContext();
     const data = await this.warehouseService.findAll(ctx.tenantId, {
       code,
       name,
+      search,
       isActive: parseOptionalBoolean(isActive),
     });
 

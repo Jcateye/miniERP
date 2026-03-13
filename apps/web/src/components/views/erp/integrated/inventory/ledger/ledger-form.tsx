@@ -2,14 +2,18 @@
 
 import * as React from 'react';
 
+import { RemoteEntitySelect } from '@/components/shared/remote-entity-select';
 import { inventoryBalanceListFixtures, type InventoryBalanceListItem } from '@/lib/mocks/erp-list-fixtures';
 
 export interface LedgerFormData {
+  binId?: string;
+  binLabel?: string;
   quantity: string;
   reason?: string;
   skuId: string;
   type: '入库' | '出库' | '调整';
   warehouseId: string;
+  warehouseLabel?: string;
 }
 
 interface LedgerFormProps {
@@ -22,11 +26,14 @@ interface LedgerFormProps {
 }
 
 const EMPTY_FORM: LedgerFormData = {
+  binId: '',
+  binLabel: '',
   quantity: '',
   reason: '',
   skuId: '',
   type: '入库',
   warehouseId: '',
+  warehouseLabel: '',
 };
 
 export function LedgerForm({
@@ -46,11 +53,21 @@ export function LedgerForm({
   const currentRow = React.useMemo(() => {
     if (!formData.skuId || !formData.warehouseId) return null;
     return (
-      rows.find(r => r.sku === formData.skuId && r.warehouse === formData.warehouseId) ||
-      inventoryBalanceListFixtures.find(r => r.sku === formData.skuId && r.warehouse === formData.warehouseId) ||
+      rows.find(
+        (r) =>
+          r.sku === formData.skuId &&
+          r.warehouseId === formData.warehouseId &&
+          (r.binId ?? '') === (formData.binId ?? ''),
+      ) ||
+      inventoryBalanceListFixtures.find(
+        (r) =>
+          r.sku === formData.skuId &&
+          r.warehouseId === formData.warehouseId &&
+          (r.binId ?? '') === (formData.binId ?? ''),
+      ) ||
       null
     );
-  }, [formData.skuId, formData.warehouseId, rows]);
+  }, [formData.binId, formData.skuId, formData.warehouseId, rows]);
 
   React.useEffect(() => {
     if (!open) {
@@ -60,6 +77,16 @@ export function LedgerForm({
     setSubmitError('');
     setFormData(initialData ? { ...initialData } : { ...EMPTY_FORM });
   }, [initialData, open]);
+
+  React.useEffect(() => {
+    if (!formData.warehouseId) {
+      setFormData((current) => ({
+        ...current,
+        binId: '',
+        binLabel: '',
+      }));
+    }
+  }, [formData.warehouseId]);
 
   const validationMessage = React.useMemo(() => {
     if (!formData.skuId.trim()) {
@@ -94,11 +121,14 @@ export function LedgerForm({
 
     try {
       await onSubmit({
+        binId: formData.binId?.trim() ?? '',
+        binLabel: formData.binLabel?.trim() ?? '',
         quantity: formData.quantity.trim(),
         reason: formData.reason?.trim() ?? '',
         skuId: formData.skuId.trim(),
         type: formData.type,
         warehouseId: formData.warehouseId.trim(),
+        warehouseLabel: formData.warehouseLabel?.trim() ?? '',
       });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : '保存失败');
@@ -141,14 +171,40 @@ export function LedgerForm({
           />
         </Field>
 
-        <Field label="仓库 ID" required>
-          <input
-            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
-            onChange={(event) =>
-              setFormData((current) => ({ ...current, warehouseId: event.target.value }))
+        <Field label="仓库" required>
+          <RemoteEntitySelect
+            currentFallbackLabel={formData.warehouseLabel}
+            emptyLabel="请选择仓库"
+            endpoint="/warehouses"
+            onChange={(value, label) =>
+              setFormData((current) => ({
+                ...current,
+                warehouseId: value,
+                warehouseLabel: label ?? '',
+                binId: '',
+                binLabel: '',
+              }))
             }
-            placeholder="例如 深圳总仓 / WH-001"
+            open={open}
             value={formData.warehouseId}
+          />
+        </Field>
+
+        <Field label="仓位">
+          <RemoteEntitySelect
+            currentFallbackLabel={formData.binLabel}
+            disabled={!formData.warehouseId}
+            emptyLabel={formData.warehouseId ? '请选择仓位' : '请先选择仓库'}
+            endpoint={`/warehouse-bins?warehouseId=${encodeURIComponent(formData.warehouseId)}`}
+            onChange={(value, label) =>
+              setFormData((current) => ({
+                ...current,
+                binId: value,
+                binLabel: label ?? '',
+              }))
+            }
+            open={open}
+            value={formData.binId ?? ''}
           />
         </Field>
 
@@ -221,7 +277,10 @@ export function LedgerForm({
                 {formData.skuId || '未入选择 SKU'}
               </div>
               <div className="mt-2 inline-flex rounded-full border border-white/15 px-3 py-0.5 text-[10px] text-white/70">
-                {formData.warehouseId || '未选择仓库'}
+                {formData.warehouseLabel || formData.warehouseId || '未选择仓库'}
+              </div>
+              <div className="mt-2 inline-flex rounded-full border border-white/15 px-3 py-0.5 text-[10px] text-white/70">
+                {formData.binLabel || formData.binId || '未选择仓位'}
               </div>
             </div>
 

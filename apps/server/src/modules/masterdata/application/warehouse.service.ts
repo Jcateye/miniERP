@@ -44,6 +44,7 @@ export class WarehouseService {
       address: command.address ?? null,
       contactPerson: command.contactPerson ?? null,
       contactPhone: command.contactPhone ?? null,
+      manageBin: command.manageBin ?? false,
       isActive: true,
       createdAt: now,
       updatedAt: now,

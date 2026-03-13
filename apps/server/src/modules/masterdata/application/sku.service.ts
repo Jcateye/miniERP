@@ -45,6 +45,7 @@ export class SkuService {
       baseUnit: command.baseUnit,
       categoryId: command.categoryId ?? null,
       itemType: command.itemType ?? null,
+      taxCodeId: command.taxCodeId ?? null,
       taxRate: command.taxRate ?? null,
       barcode: command.barcode ?? null,
       batchManaged: command.batchManaged ?? false,

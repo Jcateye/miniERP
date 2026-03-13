@@ -16,6 +16,8 @@ import {
 import {
   inventoryBalanceListFixtures,
   type InventoryBalanceListItem,
+  warehouseBinLabelById,
+  warehouseLabelById,
 } from '@/lib/mocks/erp-list-fixtures';
 import { mergeInventoryBalanceItems, upsertInventoryBalanceDraft } from './_store';
 import {
@@ -25,17 +27,12 @@ import {
 
 type SortField = 'available' | 'balance' | 'name' | 'safe' | 'sku';
 
-const WAREHOUSE_LABELS: Record<string, string> = {
-  'WH-001': '深圳 A 仓',
-  'WH-002': '青岛 B 仓',
-  'WH-003': '苏州 周转仓',
-};
-
 function mapBackendBalance(item: InventoryBalanceSnapshot): InventoryBalanceListItem {
-  const warehouse = WAREHOUSE_LABELS[item.warehouseId] ?? item.warehouseId;
+  const warehouseId = item.warehouseId;
+  const warehouse = warehouseLabelById[warehouseId] ?? item.warehouseId;
   const fixture = inventoryBalanceListFixtures.find(
     (candidate) =>
-      candidate.sku === item.skuId && candidate.warehouse === warehouse,
+      candidate.sku === item.skuId && candidate.warehouseId === warehouseId,
   );
 
   const reserved = fixture?.reserved ?? 0;
@@ -45,6 +42,9 @@ function mapBackendBalance(item: InventoryBalanceSnapshot): InventoryBalanceList
     sku: item.skuId,
     name: fixture?.name ?? item.skuId,
     warehouse,
+    warehouseId,
+    bin: fixture?.bin ?? null,
+    binId: fixture?.binId ?? null,
     balance,
     available: fixture?.available ?? Math.max(balance - reserved, 0),
     reserved,
@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
   const q = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
   const stockState = (searchParams.get('stockState') || '').trim();
   const warehouse = (searchParams.get('warehouse') || '').trim();
+  const bin = (searchParams.get('bin') || '').trim();
   const sortBy = (searchParams.get('sortBy') || 'balance') as SortField;
   const sortOrder = normalizeSortDirection(searchParams.get('sortOrder'), 'desc');
   let source: readonly InventoryBalanceListItem[] = inventoryBalanceListFixtures;
@@ -92,7 +93,11 @@ export async function GET(request: NextRequest) {
 
   const filtered = mergeInventoryBalanceItems(source)
     .filter((item) => {
-      if (warehouse && item.warehouse !== warehouse) {
+      if (warehouse && item.warehouseId !== warehouse) {
+        return false;
+      }
+
+      if (bin && (item.binId ?? '') !== bin) {
         return false;
       }
 
@@ -108,7 +113,7 @@ export async function GET(request: NextRequest) {
         return true;
       }
 
-      return [item.sku, item.name, item.warehouse]
+      return [item.sku, item.name, item.warehouse, item.bin ?? '']
         .some((value) => value.toLowerCase().includes(q));
     })
     .toSorted((left, right) => {
@@ -158,6 +163,12 @@ export async function POST(request: NextRequest) {
       throw new Error('warehouseId is required');
     }
 
+    const binId =
+      typeof candidate.binId === 'string' && candidate.binId.trim()
+        ? candidate.binId.trim()
+        : null;
+    const warehouseId = candidate.warehouseId.trim();
+
     const quantity = Number(candidate.quantity);
     if (!Number.isFinite(quantity)) {
       throw new Error('quantity must be a valid number');
@@ -176,7 +187,18 @@ export async function POST(request: NextRequest) {
       quantity,
       skuId: candidate.skuId.trim(),
       threshold,
-      warehouseId: candidate.warehouseId.trim(),
+      warehouseId,
+      warehouseLabel:
+        typeof candidate.warehouseLabel === 'string' && candidate.warehouseLabel.trim()
+          ? candidate.warehouseLabel.trim()
+          : warehouseLabelById[warehouseId] ?? warehouseId,
+      binId,
+      binLabel:
+        typeof candidate.binLabel === 'string' && candidate.binLabel.trim()
+          ? candidate.binLabel.trim()
+          : binId
+            ? warehouseBinLabelById[binId] ?? binId
+            : null,
     });
 
     return Response.json(

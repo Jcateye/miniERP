@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { ArrowDown, ArrowUp, Pencil, Plus, Search, Trash2, Download, Upload } from 'lucide-react';
 
+import type { Warehouse, WarehouseBin } from '@minierp/shared';
+
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import {
   BalanceForm,
@@ -12,11 +14,13 @@ import {
   LedgerForm,
   type LedgerFormData,
 } from '@/components/views/erp/integrated/inventory/ledger/ledger-form';
+import { useBffGet } from '@/hooks/use-bff-get';
 import { buildPagination, parsePageParam, useUrlListState } from '@/hooks/use-url-list-state';
 import { useInventoryBalance } from '@/lib/hooks/use-inventory-balance';
 import type { InventoryBalanceListItem } from '@/lib/mocks/erp-list-fixtures';
 
 const DEFAULT_PARAMS = {
+  bin: '',
   order: 'desc',
   page: '1',
   q: '',
@@ -40,9 +44,19 @@ type Notice = {
   tone: 'error' | 'success';
 };
 
+type LookupPagePayload<T> = {
+  data?: T[];
+  total?: number;
+};
+
 export default function InvBalList() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
   const { data, error, loading, pagination, reload } = useInventoryBalance();
+  const warehousesState = useBffGet<LookupPagePayload<Warehouse>>('/warehouses?page=1&pageSize=100');
+  const binsState = useBffGet<LookupPagePayload<WarehouseBin>>(
+    params.warehouse ? `/warehouse-bins?warehouseId=${encodeURIComponent(params.warehouse)}` : '/warehouse-bins?warehouseId=__none__',
+    Boolean(params.warehouse),
+  );
   const [draftQuery, setDraftQuery] = React.useState(params.q);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
@@ -100,6 +114,12 @@ export default function InvBalList() {
 
   const currentPage = pagination.page;
   const totalPages = Math.max(1, pagination.totalPages);
+  const warehouses = warehousesState.data?.data ?? [];
+  const bins = binsState.data?.data ?? [];
+  const selectedWarehouseLabel =
+    warehouses.find((item) => item.id === params.warehouse)?.name ?? params.warehouse;
+  const selectedBinLabel =
+    bins.find((item) => item.id === params.bin)?.name ?? params.bin;
   const pageNumbers = buildPagination(currentPage, totalPages);
   const rangeStart = pagination.total === 0 ? 0 : (currentPage - 1) * pagination.pageSize + 1;
   const rangeEnd = pagination.total === 0 ? 0 : rangeStart + data.length - 1;
@@ -305,17 +325,45 @@ export default function InvBalList() {
               variant="outline"
             />
             <div className="flex-1" />
-            <div className="text-[#888888]">共 {pagination.total} 条 · 显示 {rangeStart}-{rangeEnd}</div>
+            <select
+              className="h-9 rounded-sm border border-[#D1CCC4] bg-white px-3 text-[12px] text-[#1a1a1a]"
+              onChange={(event) => updateParams({ bin: '', page: '1', warehouse: event.target.value })}
+              value={params.warehouse}
+            >
+              <option value="">全部仓库</option>
+              {warehouses.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.code} · {item.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="h-9 rounded-sm border border-[#D1CCC4] bg-white px-3 text-[12px] text-[#1a1a1a] disabled:bg-[#F5F3EF] disabled:text-[#AAAAAA]"
+              disabled={!params.warehouse}
+              onChange={(event) => updateParams({ bin: event.target.value, page: '1' })}
+              value={params.bin}
+            >
+              <option value="">{params.warehouse ? '全部仓位' : '先选仓库'}</option>
+              {bins.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.code} · {item.name}
+                </option>
+              ))}
+            </select>
+            <div className="text-[#888888]">
+              仓库 {selectedWarehouseLabel || '全部'} / 仓位 {selectedBinLabel || '全部'} · 共 {pagination.total} 条 · 显示 {rangeStart}-{rangeEnd}
+            </div>
           </div>
         </div>
 
         {/* Table Container - Corner 4, Stroke #E8E4DD */}
-        <div className="mt-2 flex min-w-[960px] flex-1 flex-col overflow-hidden rounded-[4px] border border-[#E8E4DD] bg-white shadow-sm">
+        <div className="mt-2 flex min-w-[1080px] flex-1 flex-col overflow-hidden rounded-[4px] border border-[#E8E4DD] bg-white shadow-sm">
           {/* Table Header - BG #F5F3EF */}
-          <div className="grid h-[44px] grid-cols-[120px_140px_100px_80px_80px_80px_80px_100px_1fr] items-center border-b border-[#E8E4DD] bg-[#F5F3EF] px-4 text-[12px] font-semibold text-[#888888]">
+          <div className="grid h-[44px] grid-cols-[120px_140px_100px_160px_80px_80px_80px_80px_100px_1fr] items-center border-b border-[#E8E4DD] bg-[#F5F3EF] px-4 text-[12px] font-semibold text-[#888888]">
             <div className="px-1"><SortButton active={params.sort === 'sku'} direction={params.order} label="物料编号" onClick={() => handleSort('sku')} /></div>
             <div className="px-1"><SortButton active={params.sort === 'name'} direction={params.order} label="物料名称" onClick={() => handleSort('name')} /></div>
             <div className="px-1">仓库</div>
+            <div className="px-1">仓位</div>
             <div className="px-1 text-center">在库数量</div>
             <div className="px-1 text-center">可用数量</div>
             <div className="px-1 text-center">预留数量</div>
@@ -337,12 +385,13 @@ export default function InvBalList() {
             {!loading && !error
               ? pageRows.map((row) => (
                   <div
-                    className="grid grid-cols-[120px_140px_100px_80px_80px_80px_80px_100px_1fr] items-center border-b border-[#E8E4DD] px-4 py-[14px] transition-colors hover:bg-gray-50 bg-white"
+                    className="grid grid-cols-[120px_140px_100px_160px_80px_80px_80px_80px_100px_1fr] items-center border-b border-[#E8E4DD] px-4 py-[14px] transition-colors hover:bg-gray-50 bg-white"
                     key={row.id}
                   >
                     <div className="px-1 font-['var(--font-space-grotesk)'] font-bold text-[#C05A3C]">{row.sku}</div>
                     <div className="px-1 text-[#1a1a1a] truncate">{row.name}</div>
                     <div className="px-1 text-[#1a1a1a]">{row.warehouse}</div>
+                    <div className="px-1 text-[#666666]">{row.bin ?? '未分仓位'}</div>
                     <div className="px-1 text-center font-['var(--font-space-grotesk)'] text-[#1a1a1a]">{row.balance}</div>
                     <div className="px-1 text-center font-['var(--font-space-grotesk)'] text-[#1a1a1a]">{row.available}</div>
                     <div className="px-1 text-center font-['var(--font-space-grotesk)'] text-[#1a1a1a]">{row.reserved}</div>
@@ -460,10 +509,13 @@ export default function InvBalList() {
           selectedRow
             ? {
                 quantity: '',
+                binId: selectedRow.binId ?? '',
+                binLabel: selectedRow.bin ?? '',
                 reason: '',
                 skuId: selectedRow.sku,
                 type: ledgerMode === 'stock-out' ? '出库' : '入库',
-                warehouseId: selectedRow.warehouse,
+                warehouseId: selectedRow.warehouseId,
+                warehouseLabel: selectedRow.warehouse,
               }
             : undefined
         }
@@ -477,7 +529,7 @@ export default function InvBalList() {
       <DeleteConfirmDialog
         description={
           selectedRow
-            ? `将删除库存记录「${selectedRow.sku} / ${selectedRow.warehouse}」，此操作无法撤销。`
+            ? `将删除库存记录「${selectedRow.sku} / ${selectedRow.warehouse}${selectedRow.bin ? ` / ${selectedRow.bin}` : ''}」，此操作无法撤销。`
             : '此操作无法撤销。'
         }
         loading={deleteLoading}
@@ -492,15 +544,18 @@ export default function InvBalList() {
 
 function toBalanceFormData(row: BalanceRow): BalanceFormData {
   return {
+    binId: row.binId ?? '',
+    binLabel: row.bin ?? '',
     quantity: String(row.balance),
     skuId: row.sku,
     threshold: String(row.safe),
-    warehouseId: row.warehouse,
+    warehouseId: row.warehouseId,
+    warehouseLabel: row.warehouse,
   };
 }
 
 function createBalanceRowId(row: InventoryBalanceListItem) {
-  return `${row.sku}::${row.warehouse}`;
+  return `${row.sku}::${row.warehouseId}::${row.binId ?? ''}`;
 }
 
 function getSortLabel(field: BalanceSortField) {

@@ -18,6 +18,7 @@ export function useInventoryBalance() {
       const order = searchParams.get('order') === 'asc' ? 'asc' : 'desc';
       const stockState = searchParams.get('stockState') || '';
       const warehouse = searchParams.get('warehouse') || '';
+      const bin = searchParams.get('bin') || '';
 
       const request: PaginationParams & FilterParams & SortParams = {
         page,
@@ -30,6 +31,7 @@ export function useInventoryBalance() {
       return {
         base: request,
         extras: {
+          bin,
           q,
           stockState,
           warehouse,

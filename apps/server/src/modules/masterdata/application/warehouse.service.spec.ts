@@ -32,6 +32,7 @@ describe('WarehouseService', () => {
       expect(result.code).toBe('WH-001');
       expect(result.name).toBe('Main Warehouse');
       expect(result.isActive).toBe(true);
+      expect(result.manageBin).toBe(false);
       expect(result.tenantId).toBe(tenantId);
     });
 
@@ -42,11 +43,13 @@ describe('WarehouseService', () => {
         address: '123 Main St',
         contactPerson: 'John Doe',
         contactPhone: '+1-555-0100',
+        manageBin: true,
       });
 
       expect(result.address).toBe('123 Main St');
       expect(result.contactPerson).toBe('John Doe');
       expect(result.contactPhone).toBe('+1-555-0100');
+      expect(result.manageBin).toBe(true);
     });
 
     it('rejects duplicate code', async () => {
@@ -140,6 +143,12 @@ describe('WarehouseService', () => {
       expect(results).toHaveLength(1);
     });
 
+    it('filters by search', async () => {
+      const results = await service.findAll(tenantId, { search: 'Gamma' });
+      expect(results).toHaveLength(1);
+      expect(results[0]?.code).toBe('WH-C');
+    });
+
     it('filters by isActive', async () => {
       const all = await service.findAll(tenantId);
       await service.update(tenantId, all[0].id, { isActive: false });
@@ -171,6 +180,18 @@ describe('WarehouseService', () => {
         isActive: false,
       });
       expect(updated?.isActive).toBe(false);
+    });
+
+    it('updates manageBin', async () => {
+      const created = await service.create(tenantId, {
+        code: 'WH-BIN',
+        name: 'Bin Warehouse',
+      });
+
+      const updated = await service.update(tenantId, created.id, {
+        manageBin: true,
+      });
+      expect(updated?.manageBin).toBe(true);
     });
 
     it('throws when not found', async () => {

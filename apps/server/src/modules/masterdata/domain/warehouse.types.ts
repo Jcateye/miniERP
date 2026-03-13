@@ -10,6 +10,7 @@ export interface WarehouseEntity {
   readonly address: string | null;
   readonly contactPerson: string | null;
   readonly contactPhone: string | null;
+  readonly manageBin: boolean;
   readonly isActive: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -21,6 +22,7 @@ export interface CreateWarehouseCommand {
   readonly address?: string | null;
   readonly contactPerson?: string | null;
   readonly contactPhone?: string | null;
+  readonly manageBin?: boolean;
 }
 
 export interface UpdateWarehouseCommand {
@@ -28,12 +30,14 @@ export interface UpdateWarehouseCommand {
   readonly address?: string | null;
   readonly contactPerson?: string | null;
   readonly contactPhone?: string | null;
+  readonly manageBin?: boolean;
   readonly isActive?: boolean;
 }
 
 export interface WarehouseQueryFilter {
   readonly code?: string;
   readonly name?: string;
+  readonly search?: string;
   readonly isActive?: boolean;
 }
 

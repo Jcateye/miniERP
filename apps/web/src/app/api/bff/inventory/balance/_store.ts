@@ -1,9 +1,13 @@
 import {
   inventoryBalanceListFixtures,
   type InventoryBalanceListItem,
+  warehouseBinLabelById,
+  warehouseLabelById,
 } from '@/lib/mocks/erp-list-fixtures';
 
 export interface InventoryBalanceDraft {
+  readonly binId?: string | null;
+  readonly binLabel?: string | null;
   readonly id: string;
   readonly name?: string;
   readonly reserved?: number;
@@ -11,6 +15,7 @@ export interface InventoryBalanceDraft {
   readonly skuId: string;
   readonly threshold: number;
   readonly warehouseId: string;
+  readonly warehouseLabel?: string;
 }
 
 type InventoryBalanceStoreState = {
@@ -35,15 +40,19 @@ function getStore(): InventoryBalanceStoreState {
   return globalStore[STORE_KEY]!;
 }
 
-export function createInventoryBalanceId(skuId: string, warehouseId: string) {
-  return `${skuId}::${warehouseId}`;
+export function createInventoryBalanceId(
+  skuId: string,
+  warehouseId: string,
+  binId?: string | null,
+) {
+  return `${skuId}::${warehouseId}::${binId ?? ''}`;
 }
 
 export function upsertInventoryBalanceDraft(
   draft: Omit<InventoryBalanceDraft, 'id'> & { id?: string },
 ) {
   const store = getStore();
-  const id = draft.id ?? createInventoryBalanceId(draft.skuId, draft.warehouseId);
+  const id = draft.id ?? createInventoryBalanceId(draft.skuId, draft.warehouseId, draft.binId);
 
   store.deleted.delete(id);
   store.upserts.set(id, {
@@ -66,11 +75,14 @@ function toListItem(draft: InventoryBalanceDraft): InventoryBalanceListItem {
   return {
     available: Math.max(draft.quantity - reserved, 0),
     balance: draft.quantity,
+    bin: draft.binLabel ?? (draft.binId ? warehouseBinLabelById[draft.binId] ?? draft.binId : null),
+    binId: draft.binId ?? null,
     name: draft.name?.trim() || draft.skuId,
     reserved,
     safe: draft.threshold,
     sku: draft.skuId,
-    warehouse: draft.warehouseId,
+    warehouse: draft.warehouseLabel ?? warehouseLabelById[draft.warehouseId] ?? draft.warehouseId,
+    warehouseId: draft.warehouseId,
   };
 }
 
@@ -81,15 +93,19 @@ export function mergeInventoryBalanceItems(
   const merged = new Map<string, InventoryBalanceListItem>();
 
   for (const item of source) {
-    const normalizedWarehouseId = normalizeWarehouseForBalance(item.warehouse);
-    const id = createInventoryBalanceId(item.sku, normalizedWarehouseId);
+    const normalizedWarehouseId = normalizeWarehouseForBalance(item.warehouseId ?? item.warehouse);
+    const normalizedBinId = normalizeBinForBalance(item.binId);
+    const id = createInventoryBalanceId(item.sku, normalizedWarehouseId, normalizedBinId);
     if (store.deleted.has(id)) {
       continue;
     }
 
     merged.set(id, {
       ...item,
-      warehouse: normalizedWarehouseId,
+      bin: normalizedBinId ? warehouseBinLabelById[normalizedBinId] ?? item.bin ?? normalizedBinId : null,
+      binId: normalizedBinId ?? null,
+      warehouse: warehouseLabelById[normalizedWarehouseId] ?? item.warehouse,
+      warehouseId: normalizedWarehouseId,
     });
   }
 
@@ -101,16 +117,21 @@ export function mergeInventoryBalanceItems(
 }
 
 export function applyInventoryBalanceDelta(input: {
+  binId?: string | null;
   quantityDelta: number;
   skuId: string;
   warehouseId: string;
 }) {
   const normalizedWarehouseId = normalizeWarehouseForBalance(input.warehouseId);
+  const normalizedBinId = normalizeBinForBalance(input.binId);
   const store = getStore();
-  const existingId = createInventoryBalanceId(input.skuId, normalizedWarehouseId);
+  const existingId = createInventoryBalanceId(input.skuId, normalizedWarehouseId, normalizedBinId);
   const existingDraft = store.upserts.get(existingId);
   const fixture = inventoryBalanceListFixtures.find(
-    (candidate) => candidate.sku === input.skuId && candidate.warehouse === normalizedWarehouseId,
+    (candidate) =>
+      candidate.sku === input.skuId &&
+      candidate.warehouseId === normalizedWarehouseId &&
+      (candidate.binId ?? null) === (normalizedBinId ?? null),
   );
 
   const baselineQuantity = existingDraft?.quantity ?? fixture?.balance ?? 0;
@@ -122,11 +143,14 @@ export function applyInventoryBalanceDelta(input: {
 
   return upsertInventoryBalanceDraft({
     name: baselineName,
+    binId: normalizedBinId,
+    binLabel: normalizedBinId ? warehouseBinLabelById[normalizedBinId] ?? normalizedBinId : null,
     reserved: baselineReserved,
     quantity: nextQuantity,
     skuId: input.skuId,
     threshold: baselineThreshold,
     warehouseId: normalizedWarehouseId,
+    warehouseLabel: warehouseLabelById[normalizedWarehouseId] ?? normalizedWarehouseId,
   });
 }
 
@@ -156,4 +180,13 @@ function normalizeWarehouseForBalance(value: string) {
   }
 
   return trimmed;
+}
+
+function normalizeBinForBalance(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || null;
 }

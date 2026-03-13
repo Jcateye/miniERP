@@ -45,6 +45,7 @@ describe('SkuService', () => {
         specification: '100g per unit',
         categoryId: 'cat-1',
         itemType: 'finished_goods',
+        taxCodeId: '1013',
         taxRate: '13.00',
         barcode: '6901001000999',
         batchManaged: true,
@@ -58,6 +59,7 @@ describe('SkuService', () => {
       expect(result.specification).toBe('100g per unit');
       expect(result.categoryId).toBe('cat-1');
       expect(result.itemType).toBe('finished_goods');
+      expect(result.taxCodeId).toBe('1013');
       expect(result.taxRate).toBe('13.00');
       expect(result.barcode).toBe('6901001000999');
       expect(result.batchManaged).toBe(true);
@@ -262,6 +264,7 @@ describe('SkuService', () => {
 
       const updated = await service.update(tenantId, created.id, {
         itemType: 'consumable',
+        taxCodeId: '1009',
         taxRate: '9.00',
         barcode: '6901001888888',
         batchManaged: true,
@@ -273,6 +276,7 @@ describe('SkuService', () => {
       });
 
       expect(updated.itemType).toBe('consumable');
+      expect(updated.taxCodeId).toBe('1009');
       expect(updated.taxRate).toBe('9.00');
       expect(updated.barcode).toBe('6901001888888');
       expect(updated.batchManaged).toBe(true);

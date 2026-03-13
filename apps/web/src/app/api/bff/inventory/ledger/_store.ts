@@ -1,6 +1,12 @@
 import type { InventoryLedgerListItem } from '@/lib/mocks/erp-list-fixtures';
+import {
+  warehouseBinLabelById,
+  warehouseLabelById,
+} from '@/lib/mocks/erp-list-fixtures';
 
 export interface InventoryLedgerDraft {
+  readonly binId?: string | null;
+  readonly binLabel?: string | null;
   readonly date: string;
   readonly id: string;
   readonly quantity: number;
@@ -8,6 +14,7 @@ export interface InventoryLedgerDraft {
   readonly skuId: string;
   readonly type: InventoryLedgerListItem['type'];
   readonly warehouseId: string;
+  readonly warehouseLabel?: string;
 }
 
 type InventoryLedgerStoreState = {
@@ -33,12 +40,13 @@ function getStore(): InventoryLedgerStoreState {
 }
 
 export function createInventoryLedgerId(input: {
+  binId?: string | null;
   date: string;
   skuId: string;
   source: string;
-  warehouse: string;
+  warehouseId: string;
 }) {
-  return `${input.date}::${input.skuId}::${input.warehouse}::${input.source}`;
+  return `${input.date}::${input.skuId}::${input.warehouseId}::${input.binId ?? ''}::${input.source}`;
 }
 
 export function upsertInventoryLedgerDraft(
@@ -55,10 +63,11 @@ export function upsertInventoryLedgerDraft(
   const id =
     draft.id ??
     createInventoryLedgerId({
+      binId: draft.binId,
       date,
       skuId: draft.skuId,
       source,
-      warehouse: draft.warehouseId,
+      warehouseId: draft.warehouseId,
     });
 
   store.deleted.delete(id);
@@ -81,13 +90,16 @@ export function removeInventoryLedgerDraft(id: string) {
 function toListItem(draft: InventoryLedgerDraft): InventoryLedgerListItem {
   return {
     balance: draft.quantity,
+    bin: draft.binLabel ?? (draft.binId ? warehouseBinLabelById[draft.binId] ?? draft.binId : null),
+    binId: draft.binId ?? null,
     date: draft.date,
     direction: `${draft.quantity >= 0 ? '+' : ''}${draft.quantity}`,
     operator: '系统',
     skuId: draft.skuId,
     source: draft.reason?.trim() || `MANUAL-${draft.type}`,
     type: draft.type,
-    warehouse: draft.warehouseId,
+    warehouse: draft.warehouseLabel ?? warehouseLabelById[draft.warehouseId] ?? draft.warehouseId,
+    warehouseId: draft.warehouseId,
   };
 }
 
@@ -99,10 +111,11 @@ export function mergeInventoryLedgerItems(
 
   for (const item of source) {
     const id = createInventoryLedgerId({
+      binId: item.binId,
       date: item.date,
       skuId: item.skuId,
       source: item.source,
-      warehouse: item.warehouse,
+      warehouseId: item.warehouseId,
     });
 
     if (store.deleted.has(id)) {

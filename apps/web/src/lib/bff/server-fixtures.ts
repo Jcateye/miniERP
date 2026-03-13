@@ -189,6 +189,10 @@ export function createServerHeaders() {
       'masterdata.customer.write',
       'masterdata.sku.read',
       'masterdata.sku.write',
+      'masterdata.uom.read',
+      'masterdata.tax-code.read',
+      'masterdata.warehouse-bin.read',
+      'masterdata.warehouse-bin.write',
     ],
     role: 'tenant_admin',
   };

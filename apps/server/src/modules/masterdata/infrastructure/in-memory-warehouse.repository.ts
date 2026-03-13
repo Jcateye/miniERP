@@ -48,6 +48,14 @@ export class InMemoryWarehouseRepository implements WarehouseRepository {
       if (filter.name) {
         results = results.filter((e) => e.name.includes(filter.name!));
       }
+      if (filter.search) {
+        const keyword = filter.search.toLowerCase();
+        results = results.filter((e) =>
+          [e.code, e.name, e.address ?? '', e.contactPerson ?? ''].some((value) =>
+            value.toLowerCase().includes(keyword),
+          ),
+        );
+      }
       if (filter.isActive !== undefined) {
         results = results.filter((e) => e.isActive === filter.isActive);
       }

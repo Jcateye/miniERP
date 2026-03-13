@@ -28,6 +28,9 @@ import { SupplierController } from './controllers/supplier.controller';
 import { CustomerController } from './controllers/customer.controller';
 import { SkuController } from './controllers/sku.controller';
 import { ItemController } from './controllers/item.controller';
+import { UomController } from './controllers/uom.controller';
+import { TaxCodeController } from './controllers/tax-code.controller';
+import { WarehouseBinController } from './controllers/warehouse-bin.controller';
 
 @Module({
   imports: [AuditModule, TenantModule, PlatformModule],
@@ -37,6 +40,9 @@ import { ItemController } from './controllers/item.controller';
     WarehouseController,
     SupplierController,
     CustomerController,
+    UomController,
+    TaxCodeController,
+    WarehouseBinController,
   ],
   providers: [
     InMemorySkuRepository,

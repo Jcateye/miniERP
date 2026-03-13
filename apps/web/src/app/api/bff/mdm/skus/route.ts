@@ -30,6 +30,7 @@ interface BackendSkuDto {
   baseUnit: string;
   categoryId: string | null;
   itemType?: string | null;
+  taxCodeId?: string | null;
   taxRate?: string | null;
   barcode?: string | null;
   batchManaged?: boolean;
@@ -50,6 +51,7 @@ interface SkuMutationPayload {
   readonly baseUnit?: string;
   readonly category?: string | null;
   readonly itemType?: string | null;
+  readonly taxCodeId?: string | null;
   readonly taxRate?: string | null;
   readonly barcode?: string | null;
   readonly batchManaged?: boolean;
@@ -85,6 +87,7 @@ function mapBackendSku(item: BackendSkuDto): Sku {
       item.categoryId ??
       (meta ? skuCategoryIdByLabel[meta.categoryLabel] ?? null : null),
     itemType: item.itemType ?? null,
+    taxCodeId: item.taxCodeId ?? null,
     taxRate: item.taxRate ?? null,
     barcode: item.barcode ?? null,
     batchManaged: item.batchManaged ?? false,
@@ -170,6 +173,7 @@ function parseCreateSkuPayload(
         readonly specification: string | null;
         readonly baseUnit: string;
         readonly itemType: string | null;
+        readonly taxCodeId: string | null;
         readonly taxRate: string | null;
         readonly barcode: string | null;
         readonly batchManaged: boolean;
@@ -207,6 +211,9 @@ function parseCreateSkuPayload(
   }
   if (!isOptionalNullableString(payload.itemType)) {
     return { ok: false, message: 'itemType must be string or null' };
+  }
+  if (!isOptionalNullableString(payload.taxCodeId)) {
+    return { ok: false, message: 'taxCodeId must be string or null' };
   }
   if (!isOptionalNullableString(payload.taxRate)) {
     return { ok: false, message: 'taxRate must be string or null' };
@@ -253,6 +260,7 @@ function parseCreateSkuPayload(
       specification: normalizeOptionalNullableString(payload.specification),
       baseUnit: payload.baseUnit.trim(),
       itemType: normalizeOptionalNullableString(payload.itemType),
+      taxCodeId: normalizeOptionalNullableString(payload.taxCodeId),
       taxRate: normalizeOptionalNullableString(payload.taxRate),
       barcode: normalizeOptionalNullableString(payload.barcode),
       batchManaged: payload.batchManaged === true,

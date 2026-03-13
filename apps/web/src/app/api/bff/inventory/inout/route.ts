@@ -15,10 +15,13 @@ import {
 type InventoryOperation = 'INBOUND' | 'OUTBOUND';
 
 type InventoryCommandPayload = {
+  binId?: string | null;
+  binLabel?: string | null;
   operation: InventoryOperation;
   quantity: number;
   skuId: string;
   warehouseId: string;
+  warehouseLabel?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -79,7 +82,9 @@ export async function POST(request: NextRequest) {
 
   const current = mergeInventoryBalanceItems(inventoryBalanceListFixtures).find(
     (item) =>
-      item.sku === command.skuId && item.warehouse === command.warehouseId,
+      item.sku === command.skuId &&
+      item.warehouseId === command.warehouseId &&
+      (item.binId ?? null) === (command.binId ?? null),
   );
   const balanceBefore = current?.balance ?? 0;
 
@@ -107,9 +112,11 @@ export async function POST(request: NextRequest) {
 
   const balanceId =
     current
-      ? createInventoryBalanceId(current.sku, current.warehouse)
-      : createInventoryBalanceId(command.skuId, command.warehouseId);
+      ? createInventoryBalanceId(current.sku, current.warehouseId, current.binId)
+      : createInventoryBalanceId(command.skuId, command.warehouseId, command.binId);
   const ledgerId = upsertInventoryLedgerDraft({
+    binId: command.binId,
+    binLabel: command.binLabel,
     quantity:
       command.operation === 'OUTBOUND'
         ? -command.quantity
@@ -118,16 +125,20 @@ export async function POST(request: NextRequest) {
     skuId: command.skuId,
     type: command.operation === 'INBOUND' ? '入库' : '出库',
     warehouseId: command.warehouseId,
+    warehouseLabel: command.warehouseLabel,
   });
 
   upsertInventoryBalanceDraft({
     id: balanceId,
+    binId: command.binId,
+    binLabel: command.binLabel,
     name: current?.name ?? sku?.name ?? command.skuId,
     quantity: balanceAfter,
     reserved: current?.reserved ?? 0,
     skuId: command.skuId,
     threshold: current?.safe ?? meta?.threshold ?? 0,
     warehouseId: command.warehouseId,
+    warehouseLabel: command.warehouseLabel,
   });
 
   const body: SuccessPayload = {
@@ -139,6 +150,7 @@ export async function POST(request: NextRequest) {
       operation: command.operation,
       quantity: command.quantity,
       skuId: command.skuId,
+      binId: command.binId ?? null,
       warehouseId: command.warehouseId,
     },
     message: command.operation === 'INBOUND' ? '入库成功' : '出库成功',
@@ -180,9 +192,21 @@ function parseCommand(payload: unknown): InventoryCommandPayload {
   }
 
   return {
+    binId:
+      typeof candidate.binId === 'string' && candidate.binId.trim()
+        ? candidate.binId.trim()
+        : null,
+    binLabel:
+      typeof candidate.binLabel === 'string' && candidate.binLabel.trim()
+        ? candidate.binLabel.trim()
+        : null,
     operation: candidate.operation,
     quantity,
     skuId: candidate.skuId.trim(),
     warehouseId: candidate.warehouseId.trim(),
+    warehouseLabel:
+      typeof candidate.warehouseLabel === 'string' && candidate.warehouseLabel.trim()
+        ? candidate.warehouseLabel.trim()
+        : undefined,
   };
 }
