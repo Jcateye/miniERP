@@ -559,6 +559,48 @@ describe('DocumentsService', () => {
         }),
       });
     });
+
+    it('should preserve line binId in in-memory document detail', async () => {
+      const created = await service.create(
+        'ADJ',
+        {
+          lines: [{ skuId: 'SKU-DEMO-001', qty: '2', binId: 'BIN-A-01-01' }],
+        },
+        '1001',
+        'user-001',
+        'req-001',
+        'idem-create-adj-bin',
+      );
+
+      const detail = await service.getDetail('ADJ', created.id, '1001');
+
+      expect(detail?.lines).toEqual([
+        expect.objectContaining({
+          skuId: 'SKU-DEMO-001',
+          qty: '2',
+          binId: 'BIN-A-01-01',
+        }),
+      ]);
+    });
+
+    it('should reject blank line binId', async () => {
+      await expect(
+        service.create(
+          'ADJ',
+          {
+            lines: [{ skuId: 'SKU-DEMO-001', qty: '2', binId: '   ' }],
+          },
+          '1001',
+          'user-001',
+          'req-001',
+          'idem-create-adj-bin-invalid',
+        ),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: 'VALIDATION_DOCUMENT_LINE_BIN_INVALID',
+        }),
+      });
+    });
   });
 
   describe('stream D persisted sales/outbound', () => {
@@ -637,6 +679,7 @@ describe('DocumentsService', () => {
           id: BigInt(1),
           lineNo: 1,
           skuId: BigInt(11),
+          binId: BigInt(7001),
           qty: { toString: () => '5' },
         },
       ]);
@@ -691,7 +734,7 @@ describe('DocumentsService', () => {
       });
 
       mockInventoryPostingService.postInTransaction.mockRejectedValue(
-        new InventoryInsufficientStockError('11', 'WH-001', 0, 5),
+        new InventoryInsufficientStockError('11', 'WH-001', '7001', 0, 5),
       );
 
       await expect(
@@ -705,6 +748,21 @@ describe('DocumentsService', () => {
           'req-001',
         ),
       ).rejects.toThrow('Insufficient stock');
+
+      expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalledWith(
+        '1001',
+        expect.objectContaining({
+          lines: [
+            expect.objectContaining({
+              skuId: '11',
+              warehouseId: 'WH-001',
+              binId: '7001',
+            }),
+          ],
+        }),
+        'req-001',
+        expect.anything(),
+      );
     });
   });
 
@@ -761,7 +819,7 @@ describe('DocumentsService', () => {
         deletedAt: null,
       });
       mockPrisma.grnLine.findMany.mockResolvedValue([
-        { lineNo: 1, skuId: BigInt(9001), qty: decimalLike('3') },
+        { lineNo: 1, skuId: BigInt(9001), binId: BigInt(7101), qty: decimalLike('3') },
       ]);
       mockPrisma.purchaseOrder.findFirst.mockResolvedValue({
         id: BigInt(4001),
@@ -866,7 +924,20 @@ describe('DocumentsService', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalled();
+      expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalledWith(
+        '1001',
+        expect.objectContaining({
+          lines: [
+            expect.objectContaining({
+              skuId: '9001',
+              warehouseId: '2001',
+              binId: '7101',
+            }),
+          ],
+        }),
+        'req-001',
+        expect.anything(),
+      );
       expect(mockPrisma.stateTransitionLog.create).toHaveBeenCalled();
       const outboxCreateCalls = mockPrisma.outboxEvent.create.mock
         .calls as ReadonlyArray<

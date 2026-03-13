@@ -65,6 +65,8 @@ function parseCreateDocumentPayload(
       row.qty ?? row.quantity ?? row.expected ?? row.actual ?? row.diff,
     ).trim();
     const unitPrice = toStringValue(row.unitPrice ?? row.price).trim();
+    const rawBinValue = row.binId ?? row.bin ?? row.binCode;
+    const binId = toStringValue(row.binId ?? row.bin ?? row.binCode).trim();
 
     if (!isNonEmptyString(skuId)) {
       throw new Error(`lines[${index}].skuId is required`);
@@ -74,7 +76,18 @@ function parseCreateDocumentPayload(
       throw new Error(`lines[${index}].qty is required`);
     }
 
+    if (
+      rawBinValue !== undefined &&
+      rawBinValue !== null &&
+      !isNonEmptyString(binId)
+    ) {
+      throw new Error(
+        `lines[${index}].binId must be a non-empty string when provided`,
+      );
+    }
+
     return {
+      binId: binId.length > 0 ? binId : undefined,
       skuId,
       qty,
       unitPrice: unitPrice.length > 0 ? unitPrice : undefined,

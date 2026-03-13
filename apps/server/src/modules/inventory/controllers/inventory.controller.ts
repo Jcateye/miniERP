@@ -105,6 +105,7 @@ function parseMovementPayload(payload: unknown): InventoryMovementCommand {
   const candidate = payload as Record<string, unknown>;
   const skuId = candidate.skuId;
   const warehouseId = candidate.warehouseId;
+  const binId = candidate.binId;
   const referenceId = candidate.referenceId;
 
   if (!isNonEmptyString(skuId)) {
@@ -113,6 +114,14 @@ function parseMovementPayload(payload: unknown): InventoryMovementCommand {
 
   if (!isNonEmptyString(warehouseId)) {
     throw validationError('warehouseId is required');
+  }
+
+  if (
+    binId !== undefined &&
+    binId !== null &&
+    !isNonEmptyString(binId)
+  ) {
+    throw validationError('binId must be a non-empty string');
   }
 
   let quantity: number;
@@ -133,6 +142,7 @@ function parseMovementPayload(payload: unknown): InventoryMovementCommand {
   }
 
   return {
+    binId: isNonEmptyString(binId) ? binId.trim() : undefined,
     skuId: skuId.trim(),
     warehouseId: warehouseId.trim(),
     quantity,
@@ -197,6 +207,7 @@ export class InventoryController {
   async getBalances(
     @Query('skuId') skuId?: string,
     @Query('warehouseId') warehouseId?: string,
+    @Query('binId') binId?: string,
   ): Promise<InventoryBalanceResponse> {
     const ctx = this.tenantContextService.getRequiredContext();
 
@@ -216,10 +227,18 @@ export class InventoryController {
       });
     }
 
+    if (binId && (!skuId || !warehouseId)) {
+      throw new BadRequestException({
+        category: 'validation',
+        code: 'VALIDATION_INVALID_QUERY',
+        message: 'skuId and warehouseId are required when binId is provided',
+      });
+    }
+
     if (skuId && warehouseId) {
       const snapshots = await this.inventoryPostingService.getBalanceSnapshot(
         ctx.tenantId,
-        [{ skuId, warehouseId }],
+        [{ skuId, warehouseId, binId: binId?.trim() || null }],
       );
 
       return {
@@ -241,6 +260,7 @@ export class InventoryController {
   async getLedger(
     @Query('skuId') skuId?: string,
     @Query('warehouseId') warehouseId?: string,
+    @Query('binId') binId?: string,
     @Query('docType') docType?: string,
     @Query('page') pageRaw?: string,
     @Query('pageSize') pageSizeRaw?: string,
@@ -263,6 +283,9 @@ export class InventoryController {
         return false;
       }
       if (warehouseId && entry.warehouseId !== warehouseId) {
+        return false;
+      }
+      if (binId && entry.binId !== binId) {
         return false;
       }
       if (docType && entry.referenceType !== docType) {
@@ -321,6 +344,7 @@ export class InventoryController {
             {
               skuId: input.skuId,
               warehouseId: input.warehouseId,
+              binId: input.binId?.trim() || null,
               quantityDelta:
                 referenceType === 'GRN' ? input.quantity : -input.quantity,
             },
@@ -334,6 +358,7 @@ export class InventoryController {
         ({
           skuId: input.skuId,
           warehouseId: input.warehouseId,
+          binId: input.binId?.trim() || null,
           onHand: 0,
         } satisfies InventoryBalanceSnapshot);
 
@@ -362,6 +387,7 @@ export class InventoryController {
       throw conflictError('CONFLICT_INSUFFICIENT_STOCK', '库存不足', {
         skuId: error.skuId,
         warehouseId: error.warehouseId,
+        binId: error.binId,
         available: error.available,
         required: error.required,
       });

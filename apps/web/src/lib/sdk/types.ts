@@ -81,6 +81,7 @@ export interface DfpDocumentLineRecord {
   docId: BigIntString;
   lineNo: number;
   skuId: BigIntString;
+  binId?: BigIntString | null;
   itemNameSnapshot?: string | null;
   specModelSnapshot?: string | null;
   uom?: string | null;
@@ -107,6 +108,7 @@ export interface DocumentCommandAck {
 }
 
 export interface DocumentCreateLineInput {
+  binId?: string;
   skuId: string;
   qty: DecimalString;
   unitPrice?: DecimalString;

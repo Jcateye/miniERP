@@ -39,7 +39,7 @@ describe('InventoryPostingService', () => {
     expect(result.ledgerEntries).toHaveLength(1);
     expect(result.ledgerEntries[0]?.quantityDelta).toBe(10);
     expect(result.balanceSnapshots).toEqual([
-      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 10 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 10 },
     ]);
   });
 
@@ -135,13 +135,13 @@ describe('InventoryPostingService', () => {
     ).rejects.toBeInstanceOf(InventoryInsufficientStockError);
 
     const snapshot = await service.getBalanceSnapshot(tenantId, [
-      { skuId: 'SKU-1', warehouseId: 'WH-1' },
-      { skuId: 'SKU-2', warehouseId: 'WH-1' },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null },
+      { skuId: 'SKU-2', warehouseId: 'WH-1', binId: null },
     ]);
 
     expect(snapshot).toEqual([
-      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 10 },
-      { skuId: 'SKU-2', warehouseId: 'WH-1', onHand: 0 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 10 },
+      { skuId: 'SKU-2', warehouseId: 'WH-1', binId: null, onHand: 0 },
     ]);
   });
 
@@ -219,7 +219,7 @@ describe('InventoryPostingService', () => {
 
     expect(reversal.ledgerEntries[0]?.reversalOfLedgerId).toBe(ledgerId);
     expect(reversal.balanceSnapshots).toEqual([
-      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 0 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 0 },
     ]);
 
     await expect(
@@ -262,11 +262,11 @@ describe('InventoryPostingService', () => {
     ]);
 
     const snapshot = await service.getBalanceSnapshot(tenantId, [
-      { skuId: 'SKU-1', warehouseId: 'WH-1' },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null },
     ]);
 
     expect(snapshot).toEqual([
-      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 20 },
     ]);
   });
 
@@ -288,11 +288,39 @@ describe('InventoryPostingService', () => {
     expect(second).toEqual(first);
 
     const snapshot = await service.getBalanceSnapshot(tenantId, [
-      { skuId: 'SKU-1', warehouseId: 'WH-1' },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null },
     ]);
 
     expect(snapshot).toEqual([
-      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 7 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 7 },
+    ]);
+  });
+
+  it('tracks balances independently per bin in the same warehouse', async () => {
+    const { service } = createService();
+
+    await service.post(
+      tenantId,
+      {
+        idempotencyKey: 'idem-bin-1',
+        referenceType: 'GRN',
+        referenceId: 'GRN-BIN-1',
+        lines: [
+          { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-A', quantityDelta: 5 },
+          { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-B', quantityDelta: 3 },
+        ],
+      },
+      'request-bin-1',
+    );
+
+    const snapshot = await service.getBalanceSnapshot(tenantId, [
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-A' },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-B' },
+    ]);
+
+    expect(snapshot).toEqual([
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-A', onHand: 5 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-B', onHand: 3 },
     ]);
   });
 });

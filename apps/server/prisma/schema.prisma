@@ -1034,7 +1034,7 @@ model InventoryBalance {
   orgId             BigInt?   @map("org_id")
   skuId             String    @map("sku_id")
   warehouseId       String    @map("warehouse_id")
-  binId             String?   @map("bin_id")
+  binId             String    @default("") @map("bin_id")
   batchNo           String?   @map("batch_no")
   serialNo          String?   @map("serial_no")
   onHand            Int       @default(0) @map("on_hand")
@@ -1044,7 +1044,7 @@ model InventoryBalance {
   ext               Json?
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  @@unique([tenantId, skuId, warehouseId])
+  @@unique([tenantId, skuId, warehouseId, binId])
   @@index([tenantId, warehouseId])
   @@map("inventory_balance")
 }

@@ -319,16 +319,7 @@ export class TradingDocumentsReadService {
 
     return {
       ...this.mapPersistedHeaderToListItem(row, 'OUT', tenantId, lines.length),
-      lines: lines.map((line) => ({
-        id: line.id.toString(),
-        docId: row.id.toString(),
-        lineNo: line.lineNo,
-        skuId: line.skuId.toString(),
-        qty: line.qty.toString(),
-        unitPrice: line.unitPrice?.toString() ?? '0',
-        amount: line.amount?.toString() ?? '0',
-        taxAmount: line.taxAmount?.toString() ?? '0',
-      })),
+      lines: lines.map((line) => this.toDocumentLine(row.id, line)),
     };
   }
 
@@ -385,12 +376,14 @@ export class TradingDocumentsReadService {
       id: bigint;
       lineNo: number;
       skuId: bigint;
+      binId?: bigint | null;
       itemNameSnapshot?: string | null;
       specModelSnapshot?: string | null;
       uom?: string | null;
       qty: { toString(): string };
       unitPrice: { toString(): string };
       amount: { toString(): string };
+      taxAmount?: { toString(): string } | null;
     },
   ): DocumentLine {
     return {
@@ -398,13 +391,14 @@ export class TradingDocumentsReadService {
       docId: docId.toString(),
       lineNo: line.lineNo,
       skuId: line.skuId.toString(),
+      binId: line.binId?.toString() ?? null,
       itemNameSnapshot: line.itemNameSnapshot ?? null,
       specModelSnapshot: line.specModelSnapshot ?? null,
       uom: line.uom ?? null,
       qty: line.qty.toString(),
       unitPrice: line.unitPrice.toString(),
       amount: line.amount.toString(),
-      taxAmount: '0',
+      taxAmount: line.taxAmount?.toString() ?? '0',
     };
   }
 

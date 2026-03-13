@@ -79,6 +79,7 @@ export class PurchaseInboundWriteService {
         const qty = new Decimal(line.qty);
         const unitPrice = new Decimal(line.unitPrice ?? '0');
         return {
+          inputBinId: typeof line.binId === 'string' ? line.binId.trim() : '',
           lineNo: index + 1,
           skuId: await this.resolveSkuId(tenantDbId, line.skuId),
           qty,
@@ -161,6 +162,16 @@ export class PurchaseInboundWriteService {
       tenantDbId,
       input.warehouseId,
     );
+    const persistedLines = await Promise.all(
+      lines.map(async (line) => ({
+        ...line,
+        binId: await this.resolveWarehouseBinId(
+          tenantDbId,
+          warehouseId,
+          line.inputBinId,
+        ),
+      })),
+    );
 
     const header = await this.prisma.grn.create({
       data: {
@@ -179,11 +190,12 @@ export class PurchaseInboundWriteService {
     });
 
     await this.prisma.grnLine.createMany({
-      data: lines.map((line) => ({
+      data: persistedLines.map((line) => ({
         tenantId: tenantDbId,
         grnId: header.id,
         lineNo: line.lineNo,
         skuId: line.skuId,
+        binId: line.binId,
         qty: line.qty.toString(),
         unitPrice: line.unitPrice.toString(),
         amount: line.amount.toString(),
@@ -205,10 +217,10 @@ export class PurchaseInboundWriteService {
       id: header.id.toString(),
       docNo,
       docType,
-      status: 'draft',
-      docDate: header.docDate.toISOString().slice(0, 10),
-      lineCount: lines.length,
-    };
+        status: 'draft',
+        docDate: header.docDate.toISOString().slice(0, 10),
+        lineCount: persistedLines.length,
+      };
   }
 
   async executeAction(
@@ -413,6 +425,7 @@ export class PurchaseInboundWriteService {
               lines: lines.map((line) => {
                 const qty = new Decimal(line.qty.toString());
                 return {
+                  binId: line.binId?.toString() ?? null,
                   skuId: line.skuId.toString(),
                   warehouseId: transactionalDoc.warehouseId!.toString(),
                   quantityDelta: qty.toNumber(),
@@ -822,6 +835,39 @@ export class PurchaseInboundWriteService {
           code: 'VALIDATION_WAREHOUSE_NOT_FOUND',
           category: 'validation',
           message: `Warehouse not found: ${raw}`,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return row.id;
+  }
+
+  private async resolveWarehouseBinId(
+    tenantDbId: bigint,
+    warehouseId: bigint | null,
+    raw?: string,
+  ): Promise<bigint | null> {
+    if (!this.prisma || !warehouseId || !raw || raw.trim().length === 0) {
+      return null;
+    }
+
+    const value = raw.trim();
+    const parsed = this.toBigintOrNull(value);
+    const row = await this.prisma.warehouseBin.findFirst({
+      where:
+        parsed !== null
+          ? { tenantId: tenantDbId, warehouseId, id: parsed, deletedAt: null }
+          : { tenantId: tenantDbId, warehouseId, binCode: value, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!row) {
+      throw new HttpException(
+        {
+          code: 'VALIDATION_WAREHOUSE_BIN_NOT_FOUND',
+          category: 'validation',
+          message: `Warehouse bin not found: ${raw}`,
         },
         HttpStatus.BAD_REQUEST,
       );

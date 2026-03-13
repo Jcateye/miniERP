@@ -20,6 +20,7 @@ describe('DocumentsController', () => {
   const mockDocumentsService = {
     list: jest.fn(),
     getDetail: jest.fn(),
+    create: jest.fn(),
     executeAction: jest.fn(),
   };
 
@@ -253,6 +254,76 @@ describe('DocumentsController', () => {
           category: 'conflict',
         },
       });
+    });
+  });
+
+  describe('createDocument', () => {
+    it('should parse line-level binId and delegate create to service', async () => {
+      const mockResult = {
+        id: '3001',
+        docNo: 'DOC-GRN-20260313-001',
+        docType: 'GRN',
+        status: 'draft',
+        docDate: '2026-03-13',
+        lineCount: 1,
+      };
+
+      mockDocumentsService.create.mockResolvedValue(mockResult);
+
+      const result = await controller.createDocument('idem-create-001', {
+        docType: 'GRN',
+        warehouseId: 'WH-001',
+        lines: [
+          {
+            skuId: 'SKU-001',
+            qty: '8',
+            unitPrice: '12.5',
+            binId: 'BIN-A-01-01',
+          },
+        ],
+      });
+
+      expect(mockDocumentsService.create).toHaveBeenCalledWith(
+        'GRN',
+        {
+          warehouseId: 'WH-001',
+          docDate: undefined,
+          remarks: undefined,
+          supplierId: undefined,
+          customerId: undefined,
+          sourceDocId: undefined,
+          lines: [
+            {
+              skuId: 'SKU-001',
+              qty: '8',
+              unitPrice: '12.5',
+              binId: 'BIN-A-01-01',
+            },
+          ],
+        },
+        '1001',
+        'user-001',
+        'req-001',
+        'idem-create-001',
+      );
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should reject invalid payload before service create', async () => {
+      const result = await controller.createDocument('idem-create-002', {
+        docType: 'OUT',
+        warehouseId: 'WH-001',
+        lines: [{ skuId: 'SKU-001', qty: '3', binId: '   ' }],
+      });
+
+      expect(result).toEqual({
+        error: {
+          code: 'VALIDATION_INVALID_PAYLOAD',
+          message: 'lines[0].binId must be a non-empty string when provided',
+          category: 'validation',
+        },
+      });
+      expect(mockDocumentsService.create).not.toHaveBeenCalled();
     });
   });
 });

@@ -54,17 +54,17 @@ describe('InventoryController', () => {
 
   it('should return filtered balances when skuId and warehouseId provided', async () => {
     mockInventoryPostingService.getBalanceSnapshot.mockResolvedValue([
-      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 20 },
     ]);
 
     const result = await controller.getBalances('SKU-1', 'WH-1');
 
     expect(mockInventoryPostingService.getBalanceSnapshot).toHaveBeenCalledWith(
       '1001',
-      [{ skuId: 'SKU-1', warehouseId: 'WH-1' }],
+      [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null }],
     );
     expect(result).toEqual({
-      data: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 }],
+      data: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 20 }],
       total: 1,
     });
   });
@@ -77,6 +77,7 @@ describe('InventoryController', () => {
           tenantId: '1001',
           skuId: 'SKU-1',
           warehouseId: 'WH-1',
+          binId: null,
           quantityDelta: 100,
           referenceType: 'GRN',
           referenceId: 'DOC-GRN-20260312-000001',
@@ -84,7 +85,7 @@ describe('InventoryController', () => {
           reversalOfLedgerId: null,
         },
       ],
-      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 100 }],
+      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 100 }],
     });
 
     const result = await controller.createInbound('idem-in-1', {
@@ -98,7 +99,7 @@ describe('InventoryController', () => {
       expect.objectContaining({
         idempotencyKey: 'idem-in-1',
         referenceType: 'GRN',
-        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: 100 }],
+        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, quantityDelta: 100 }],
         referenceId: expect.stringMatching(/^DOC-GRN-\d{8}-\d{6}$/),
       }),
       'req-001',
@@ -112,10 +113,11 @@ describe('InventoryController', () => {
         expect.objectContaining({
           skuId: 'SKU-1',
           warehouseId: 'WH-1',
+          binId: null,
           quantityDelta: 100,
         }),
       ],
-      balance: { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 100 },
+      balance: { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 100 },
     });
   });
 
@@ -127,6 +129,7 @@ describe('InventoryController', () => {
           tenantId: '1001',
           skuId: 'SKU-1',
           warehouseId: 'WH-1',
+          binId: null,
           quantityDelta: -30,
           referenceType: 'OUT',
           referenceId: 'DOC-OUT-20260312-000001',
@@ -134,7 +137,7 @@ describe('InventoryController', () => {
           reversalOfLedgerId: null,
         },
       ],
-      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 70 }],
+      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 70 }],
     });
 
     const result = await controller.createOutbound('idem-out-1', {
@@ -148,7 +151,7 @@ describe('InventoryController', () => {
       expect.objectContaining({
         idempotencyKey: 'idem-out-1',
         referenceType: 'OUT',
-        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', quantityDelta: -30 }],
+        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, quantityDelta: -30 }],
         referenceId: expect.stringMatching(/^DOC-OUT-\d{8}-\d{6}$/),
       }),
       'req-001',
@@ -168,7 +171,7 @@ describe('InventoryController', () => {
 
   it('should map insufficient stock to conflict exception with details', async () => {
     mockInventoryPostingService.post.mockRejectedValue(
-      new InventoryInsufficientStockError('SKU-1', 'WH-1', 70, 80),
+      new InventoryInsufficientStockError('SKU-1', 'WH-1', null, 70, 80),
     );
 
     try {
@@ -190,6 +193,7 @@ describe('InventoryController', () => {
       expect(response.details).toEqual({
         skuId: 'SKU-1',
         warehouseId: 'WH-1',
+        binId: null,
         available: 70,
         required: 80,
       });
@@ -198,8 +202,8 @@ describe('InventoryController', () => {
 
   it('should return all balances when no filters provided', async () => {
     mockInventoryStore.getAllBalanceSnapshots.mockResolvedValue([
-      { skuId: 'SKU-1', warehouseId: 'WH-1', onHand: 20 },
-      { skuId: 'SKU-2', warehouseId: 'WH-1', onHand: 10 },
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 20 },
+      { skuId: 'SKU-2', warehouseId: 'WH-1', binId: null, onHand: 10 },
     ]);
 
     const result = await controller.getBalances();
@@ -223,6 +227,7 @@ describe('InventoryController', () => {
         tenantId: '1001',
         skuId: 'SKU-1',
         warehouseId: 'WH-1',
+        binId: null,
         quantityDelta: -2,
         referenceType: 'OUT',
         referenceId: 'OUT-1',
@@ -234,6 +239,7 @@ describe('InventoryController', () => {
         tenantId: '1001',
         skuId: 'SKU-1',
         warehouseId: 'WH-1',
+        binId: null,
         quantityDelta: 10,
         referenceType: 'GRN',
         referenceId: 'GRN-1',
@@ -243,6 +249,7 @@ describe('InventoryController', () => {
     ]);
 
     const result = await controller.getLedger(
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -264,6 +271,7 @@ describe('InventoryController', () => {
         tenantId: '1001',
         skuId: 'SKU-1',
         warehouseId: 'WH-1',
+        binId: null,
         quantityDelta: 10,
         referenceType: 'GRN',
         referenceId: 'GRN-1',
@@ -275,6 +283,7 @@ describe('InventoryController', () => {
         tenantId: '1001',
         skuId: 'SKU-1',
         warehouseId: 'WH-1',
+        binId: null,
         quantityDelta: -2,
         referenceType: 'OUT',
         referenceId: 'OUT-1',
@@ -283,7 +292,7 @@ describe('InventoryController', () => {
       },
     ]);
 
-    const result = await controller.getLedger(undefined, undefined, 'GRN');
+    const result = await controller.getLedger(undefined, undefined, undefined, 'GRN');
 
     expect(result.total).toBe(1);
     expect(result.data[0]?.referenceType).toBe('GRN');
@@ -291,13 +300,27 @@ describe('InventoryController', () => {
 
   it('should reject non-numeric page value', async () => {
     await expect(
-      controller.getLedger(undefined, undefined, undefined, '1abc'),
+      controller.getLedger(undefined, undefined, undefined, undefined, '1abc'),
     ).rejects.toThrow('page must be a positive integer');
+  });
+
+  it('should pass binId to filtered balance query', async () => {
+    mockInventoryPostingService.getBalanceSnapshot.mockResolvedValue([
+      { skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-1', onHand: 6 },
+    ]);
+
+    const result = await controller.getBalances('SKU-1', 'WH-1', 'BIN-1');
+
+    expect(mockInventoryPostingService.getBalanceSnapshot).toHaveBeenCalledWith(
+      '1001',
+      [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: 'BIN-1' }],
+    );
+    expect(result.data[0]?.binId).toBe('BIN-1');
   });
 
   it('should reject pageSize overflow', async () => {
     await expect(
-      controller.getLedger(undefined, undefined, undefined, '1', '201'),
+      controller.getLedger(undefined, undefined, undefined, undefined, '1', '201'),
     ).rejects.toThrow('pageSize must be <= 200');
   });
 });

@@ -49,6 +49,7 @@ export interface DocumentLine {
   docId: string;
   lineNo: number;
   skuId: string;
+  binId?: string | null;
   itemNameSnapshot?: string | null;
   specModelSnapshot?: string | null;
   uom?: string | null;
@@ -77,6 +78,7 @@ export interface ListDocumentsQuery {
 }
 
 export interface DocumentCreateLineInput {
+  binId?: string;
   skuId: string;
   qty: string;
   unitPrice?: string;
@@ -286,6 +288,7 @@ export class DocumentsService {
             docId: demo.id,
             lineNo: 1,
             skuId: 'CAB-HDMI-2M',
+            binId: demo.docType === 'GRN' || demo.docType === 'OUT' ? 'BIN-A-01-01' : null,
             itemNameSnapshot: 'HDMI 高清视频线 2米',
             specModelSnapshot: 'HDMI 2.0 / 编织外被 / 镀金',
             uom: 'PCS',
@@ -299,6 +302,7 @@ export class DocumentsService {
             docId: demo.id,
             lineNo: 2,
             skuId: 'ADP-USB-C-DP',
+            binId: demo.docType === 'GRN' ? 'BIN-A-01-02' : null,
             itemNameSnapshot: 'USB-C 转 VGA 转换器',
             specModelSnapshot: '1080P / 铝合金 / 15cm',
             uom: 'PCS',
@@ -520,6 +524,9 @@ export class DocumentsService {
             referenceType,
             referenceId: id,
             lines: doc.lines.map((line) => ({
+              binId: 'binId' in line && typeof line.binId === 'string' && line.binId.trim().length > 0
+                ? line.binId.trim()
+                : null,
               skuId: line.skuId,
               warehouseId: 'WH-001',
               quantityDelta:
@@ -639,6 +646,21 @@ export class DocumentsService {
         );
       }
 
+      if (
+        line.binId !== undefined &&
+        line.binId !== null &&
+        line.binId.trim().length === 0
+      ) {
+        throw new HttpException(
+          {
+            code: 'VALIDATION_DOCUMENT_LINE_BIN_INVALID',
+            category: 'validation',
+            message: `line[${index}].binId must be a non-empty string when provided`,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       let qty: Decimal;
       try {
         qty = new Decimal(line.qty);
@@ -745,6 +767,10 @@ export class DocumentsService {
         docId: id,
         lineNo: index + 1,
         skuId: line.skuId.trim(),
+        binId:
+          typeof line.binId === 'string' && line.binId.trim().length > 0
+            ? line.binId.trim()
+            : null,
         qty: qty.toString(),
         unitPrice: unitPrice.toString(),
         amount: qty.mul(unitPrice).toString(),

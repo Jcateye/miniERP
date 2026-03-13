@@ -43,12 +43,17 @@ function mapLedgerEntry(entry: PrismaInventoryLedger): InventoryLedgerEntry {
     tenantId: entry.tenantId.toString(),
     skuId: entry.skuId,
     warehouseId: entry.warehouseId,
+    binId: entry.binId,
     quantityDelta: entry.quantityDelta,
     referenceType: entry.referenceType as InventoryLedgerEntry['referenceType'],
     referenceId: entry.referenceId,
     reversalOfLedgerId: entry.reversalOfLedgerId?.toString() ?? null,
     postedAt: entry.postedAt.toISOString(),
   };
+}
+
+function normalizeBalanceBinId(binId: string | null): string {
+  return binId ?? '';
 }
 
 function decodePostingResult(payload: unknown): InventoryPostingResult {
@@ -146,12 +151,13 @@ export class PrismaInventoryConsistencyStore implements InventoryConsistencyStor
     const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
     const rows = await this.prisma.inventoryBalance.findMany({
       where: { tenantId: tenantDbId },
-      orderBy: [{ warehouseId: 'asc' }, { skuId: 'asc' }],
+      orderBy: [{ warehouseId: 'asc' }, { binId: 'asc' }, { skuId: 'asc' }],
     });
 
     return rows.map((row) => ({
       skuId: row.skuId,
       warehouseId: row.warehouseId,
+      binId: row.binId || null,
       onHand: row.onHand,
     }));
   }
@@ -263,6 +269,7 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
         tenantId: this.tenantDbId,
         skuId: entry.skuId,
         warehouseId: entry.warehouseId,
+        binId: entry.binId,
         quantityDelta: entry.quantityDelta,
         referenceType: entry.referenceType,
         referenceId: entry.referenceId,
@@ -324,7 +331,7 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
       },
     });
 
-    this.balanceCache.set(`${key.skuId}::${key.warehouseId}`, {
+    this.balanceCache.set(`${key.skuId}::${key.warehouseId}::${key.binId ?? ''}`, {
       id: cached.id,
       onHand,
     });
@@ -351,7 +358,7 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
   private async ensureBalanceRowLocked(
     key: InventoryKey,
   ): Promise<{ id: bigint; onHand: number }> {
-    const mapKey = `${key.skuId}::${key.warehouseId}`;
+    const mapKey = `${key.skuId}::${key.warehouseId}::${key.binId ?? ''}`;
     const cached = this.balanceCache.get(mapKey);
     if (cached) {
       return cached;
@@ -364,15 +371,15 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
     }
 
     await this.tx.$executeRaw`
-      INSERT INTO "inventory_balance" ("tenant_id", "sku_id", "warehouse_id", "on_hand", "updated_at")
-      VALUES (${this.tenantDbId}, ${key.skuId}, ${key.warehouseId}, 0, NOW())
-      ON CONFLICT ("tenant_id", "sku_id", "warehouse_id") DO NOTHING
+      INSERT INTO "inventory_balance" ("tenant_id", "sku_id", "warehouse_id", "bin_id", "on_hand", "updated_at")
+      VALUES (${this.tenantDbId}, ${key.skuId}, ${key.warehouseId}, ${normalizeBalanceBinId(key.binId)}, 0, NOW())
+      ON CONFLICT ("tenant_id", "sku_id", "warehouse_id", "bin_id") DO NOTHING
     `;
 
     const ensured = await this.selectBalanceRowForUpdate(key);
     if (!ensured) {
       throw new InventoryValidationError(
-        `Unable to initialize inventory balance for ${key.skuId}/${key.warehouseId}`,
+        `Unable to initialize inventory balance for ${key.skuId}/${key.warehouseId}/${key.binId ?? 'null'}`,
       );
     }
 
@@ -391,6 +398,7 @@ export class PrismaInventoryTenantTransaction implements InventoryTenantTransact
       WHERE "tenant_id" = ${this.tenantDbId}
         AND "sku_id" = ${key.skuId}
         AND "warehouse_id" = ${key.warehouseId}
+        AND "bin_id" = ${normalizeBalanceBinId(key.binId)}
       FOR UPDATE
     `;
 

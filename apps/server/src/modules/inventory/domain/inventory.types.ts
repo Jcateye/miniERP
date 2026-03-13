@@ -8,6 +8,7 @@ export type InventoryReferenceType =
 export interface InventoryPostingLine {
   readonly skuId: string;
   readonly warehouseId: string;
+  readonly binId?: string | null;
   readonly quantityDelta: number;
 }
 
@@ -29,6 +30,7 @@ export interface InventoryLedgerEntry {
   readonly tenantId: string;
   readonly skuId: string;
   readonly warehouseId: string;
+  readonly binId: string | null;
   readonly quantityDelta: number;
   readonly referenceType: InventoryReferenceType;
   readonly referenceId: string;
@@ -39,6 +41,7 @@ export interface InventoryLedgerEntry {
 export interface InventoryBalanceSnapshot {
   readonly skuId: string;
   readonly warehouseId: string;
+  readonly binId: string | null;
   readonly onHand: number;
 }
 
@@ -52,6 +55,7 @@ export type InventoryIdempotencyAction = 'inventory.post' | 'inventory.reverse';
 export interface InventoryKey {
   readonly skuId: string;
   readonly warehouseId: string;
+  readonly binId: string | null;
 }
 
 export interface IdempotencyRecord {

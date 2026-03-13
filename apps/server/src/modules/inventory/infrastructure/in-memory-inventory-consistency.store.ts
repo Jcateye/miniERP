@@ -27,7 +27,7 @@ function createTenantState(): TenantState {
 }
 
 function keyToString(key: InventoryKey): string {
-  return `${key.skuId}::${key.warehouseId}`;
+  return `${key.skuId}::${key.warehouseId}::${key.binId ?? ''}`;
 }
 
 function idempotencyMapKey(
@@ -96,10 +96,11 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
 
     return Promise.resolve(
       [...state.balanceByKey.entries()].map(([rawKey, onHand]) => {
-        const [skuId, warehouseId] = rawKey.split('::');
+        const [skuId, warehouseId, rawBinId = ''] = rawKey.split('::');
         return {
           skuId,
           warehouseId,
+          binId: rawBinId || null,
           onHand,
         };
       }),

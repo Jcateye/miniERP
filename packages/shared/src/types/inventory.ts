@@ -25,6 +25,7 @@ export type InventoryReferenceType =
 export interface InventoryKey {
   skuId: string;
   warehouseId: string;
+  binId?: string | null;
 }
 
 // 库存过账行
@@ -53,6 +54,7 @@ export interface InventoryLedgerEntry {
   tenantId: string;
   skuId: string;
   warehouseId: string;
+  binId?: string | null;
   quantityDelta: number;
   referenceType: InventoryReferenceType;
   referenceId: string;
@@ -75,6 +77,7 @@ export interface InventoryPostingResult {
 export interface InventoryMovementCommand {
   skuId: string;
   warehouseId: string;
+  binId?: string | null;
   quantity: number;
   referenceId?: string;
 }

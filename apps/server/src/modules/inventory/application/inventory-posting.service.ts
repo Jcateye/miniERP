@@ -24,8 +24,8 @@ function normalizeLines(
   lines: readonly InventoryPostingLine[],
 ): InventoryPostingLine[] {
   return [...lines].sort((left, right) => {
-    const keyCompare = `${left.skuId}:${left.warehouseId}`.localeCompare(
-      `${right.skuId}:${right.warehouseId}`,
+    const keyCompare = `${left.skuId}:${left.warehouseId}:${left.binId ?? ''}`.localeCompare(
+      `${right.skuId}:${right.warehouseId}:${right.binId ?? ''}`,
     );
     if (keyCompare !== 0) {
       return keyCompare;
@@ -44,7 +44,8 @@ function aggregateLines(
   lines: readonly InventoryPostingLine[],
 ): Map<string, { key: InventoryKey; quantityDelta: number }> {
   return lines.reduce((acc, line) => {
-    const mapKey = `${line.skuId}::${line.warehouseId}`;
+    const normalizedBinId = line.binId?.trim() || null;
+    const mapKey = `${line.skuId}::${line.warehouseId}::${normalizedBinId ?? ''}`;
     const existing = acc.get(mapKey);
 
     if (existing) {
@@ -56,7 +57,7 @@ function aggregateLines(
     }
 
     acc.set(mapKey, {
-      key: { skuId: line.skuId, warehouseId: line.warehouseId },
+      key: { skuId: line.skuId, warehouseId: line.warehouseId, binId: normalizedBinId },
       quantityDelta: line.quantityDelta,
     });
     return acc;
@@ -128,6 +129,7 @@ export class InventoryPostingService {
         throw new InventoryInsufficientStockError(
           item.key.skuId,
           item.key.warehouseId,
+          item.key.binId,
           current,
           Math.abs(item.quantityDelta),
         );
@@ -140,6 +142,7 @@ export class InventoryPostingService {
           tenantId,
           skuId: line.skuId,
           warehouseId: line.warehouseId,
+          binId: line.binId?.trim() || null,
           quantityDelta: line.quantityDelta,
           referenceType: command.referenceType,
           referenceId: command.referenceId,
@@ -250,6 +253,7 @@ export class InventoryPostingService {
         throw new InventoryInsufficientStockError(
           item.key.skuId,
           item.key.warehouseId,
+          item.key.binId,
           current,
           Math.abs(item.quantityDelta),
         );
@@ -262,6 +266,7 @@ export class InventoryPostingService {
           tenantId,
           skuId: sourceEntry.skuId,
           warehouseId: sourceEntry.warehouseId,
+          binId: sourceEntry.binId,
           quantityDelta: -sourceEntry.quantityDelta,
           referenceType: 'REVERSAL',
           referenceId: command.referenceId,
@@ -318,13 +323,14 @@ export class InventoryPostingService {
     const unique = new Map<string, InventoryKey>();
 
     for (const key of keys) {
-      unique.set(`${key.skuId}::${key.warehouseId}`, key);
+      unique.set(`${key.skuId}::${key.warehouseId}::${key.binId ?? ''}`, key);
     }
 
     return Promise.all(
       [...unique.values()].map(async (key) => ({
         skuId: key.skuId,
         warehouseId: key.warehouseId,
+        binId: key.binId,
         onHand: await tx.findBalance(key),
       })),
     );
@@ -363,6 +369,14 @@ export class InventoryPostingService {
         line.warehouseId.trim().length === 0
       ) {
         throw new InventoryValidationError('line.warehouseId is required');
+      }
+
+      if (
+        line.binId !== undefined &&
+        line.binId !== null &&
+        (typeof line.binId !== 'string' || line.binId.trim().length === 0)
+      ) {
+        throw new InventoryValidationError('line.binId must be a non-empty string when provided');
       }
 
       if (!Number.isFinite(line.quantityDelta) || line.quantityDelta === 0) {
