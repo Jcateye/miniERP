@@ -8,7 +8,7 @@ import { useListResource } from './use-list-resource';
 
 export function useSkuList() {
   return useListResource<Sku>({
-    path: '/mdm/skus',
+    path: '/items',
     buildRequest: React.useCallback((searchParams) => {
       const page = Number.parseInt(searchParams.get('page') || '1', 10) || 1;
       const q = searchParams.get('q') || '';

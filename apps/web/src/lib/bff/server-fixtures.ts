@@ -82,9 +82,17 @@ export function getDocumentFixture(docType: DocumentType, id: BigIntString): Doc
 
   return {
     ...header,
+    counterpartyId:
+      docType === 'PO'
+        ? 'sup_001'
+        : docType === 'SO'
+          ? 'cust_001'
+          : null,
+    supplierId: docType === 'PO' ? 'sup_001' : null,
+    customerId: docType === 'SO' ? 'cust_001' : null,
     lines: [
-      { id: '1', docId: id, lineNo: 1, skuId: 'CAB-HDMI-2M', qty: '120', unitPrice: '320', amount: '38400', taxAmount: '0' },
-      { id: '2', docId: id, lineNo: 2, skuId: 'ADP-USB-C-DP', qty: '80', unitPrice: '420', amount: '33600', taxAmount: '0' },
+      { id: '1', docId: id, lineNo: 1, skuId: 'CAB-HDMI-2M', itemNameSnapshot: 'HDMI 高清视频线 2米', specModelSnapshot: 'HDMI 2.0 / 编织外被 / 镀金', uom: 'PCS', qty: '120', unitPrice: '320', amount: '38400', taxAmount: '0' },
+      { id: '2', docId: id, lineNo: 2, skuId: 'ADP-USB-C-DP', itemNameSnapshot: 'USB-C 转 VGA 转换器', specModelSnapshot: '1080P / 铝合金 / 15cm', uom: 'PCS', qty: '80', unitPrice: '420', amount: '33600', taxAmount: '0' },
     ],
   };
 }

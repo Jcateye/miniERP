@@ -21,7 +21,7 @@ const DEFAULT_PARAMS = {
 };
 
 type PurchaseOrderSortField = 'amount' | 'date' | 'po' | 'skuCount' | 'supplier';
-type PurchaseOrderRow = PurchaseOrderListItem & { id: string };
+type PurchaseOrderRow = PurchaseOrderListItem;
 type Notice = {
   id: number;
   message: string;
@@ -37,10 +37,12 @@ export default function PoManage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice | null>(null);
+  const [editInitialData, setEditInitialData] = React.useState<PurchaseOrderFormData | undefined>();
   const [selectedRow, setSelectedRow] = React.useState<PurchaseOrderRow | null>(null);
+  const editLoadVersionRef = React.useRef(0);
 
   const pageRows = React.useMemo<PurchaseOrderRow[]>(
-    () => data.map((row) => ({ ...row, id: row.po })),
+    () => data,
     [data],
   );
 
@@ -75,6 +77,15 @@ export default function PoManage() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  React.useEffect(() => {
+    if (editDialogOpen) {
+      return;
+    }
+
+    editLoadVersionRef.current += 1;
+    setEditInitialData(undefined);
+  }, [editDialogOpen]);
+
   const currentPage = pagination.page;
   const totalPages = Math.max(1, pagination.totalPages);
   const pageNumbers = buildPagination(currentPage, totalPages);
@@ -94,7 +105,7 @@ export default function PoManage() {
   };
 
   const handleCreate = async (formData: PurchaseOrderFormData) => {
-    const response = await requestPurchaseOrderMutation('/api/bff/procure/purchase-orders', {
+    const response = await requestPurchaseOrderMutation('/api/bff/purchase-orders', {
       body: JSON.stringify(formData),
       headers: {
         'Content-Type': 'application/json',
@@ -119,7 +130,7 @@ export default function PoManage() {
     }
 
     const response = await requestPurchaseOrderMutation(
-      `/api/bff/procure/purchase-orders/${encodeURIComponent(selectedRow.id)}`,
+      `/api/bff/purchase-orders/${encodeURIComponent(selectedRow.id)}`,
       {
         body: JSON.stringify(formData),
         headers: {
@@ -148,7 +159,7 @@ export default function PoManage() {
 
     setDeleteLoading(true);
     const response = await requestPurchaseOrderMutation(
-      `/api/bff/procure/purchase-orders/${encodeURIComponent(selectedRow.id)}`,
+      `/api/bff/purchase-orders/${encodeURIComponent(selectedRow.id)}`,
       {
         method: 'DELETE',
       },
@@ -165,6 +176,22 @@ export default function PoManage() {
     reload();
     showNotice('删除成功', 'success');
   };
+
+  const handleEditOpen = React.useCallback(async (row: PurchaseOrderRow) => {
+    const currentLoadVersion = editLoadVersionRef.current + 1;
+    editLoadVersionRef.current = currentLoadVersion;
+    setSelectedRow(row);
+    setEditInitialData(toPurchaseOrderFallbackFormData(row));
+    setEditDialogOpen(true);
+
+    const detail = await requestPurchaseOrderDetail(
+      row.id,
+      toPurchaseOrderFallbackFormData(row),
+    );
+    if (detail && editLoadVersionRef.current === currentLoadVersion) {
+      setEditInitialData(detail);
+    }
+  }, []);
 
   return (
     <>
@@ -295,8 +322,7 @@ export default function PoManage() {
                       <button
                         className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
                         onClick={() => {
-                          setSelectedRow(row);
-                          setEditDialogOpen(true);
+                          void handleEditOpen(row);
                         }}
                         type="button"
                       >
@@ -372,7 +398,7 @@ export default function PoManage() {
       />
 
       <PurchaseOrderForm
-        initialData={selectedRow ? toPurchaseOrderFormData(selectedRow) : undefined}
+        initialData={editInitialData}
         mode="edit"
         onOpenChange={setEditDialogOpen}
         onSubmit={handleUpdate}
@@ -395,14 +421,62 @@ export default function PoManage() {
   );
 }
 
-function toPurchaseOrderFormData(row: PurchaseOrderRow): PurchaseOrderFormData {
+function toPurchaseOrderFallbackFormData(row: PurchaseOrderRow): PurchaseOrderFormData {
+  const fallbackQty = Math.max(1, row.skuCount);
+
   return {
     amount: String(row.amount),
+    lines: [
+      {
+        itemId: `legacy-summary:${row.po}`,
+        itemLabel: '兼容摘要行',
+        qty: String(fallbackQty),
+        unitPrice: fallbackQty > 0 ? String(row.amount / fallbackQty) : String(row.amount),
+      },
+    ],
     orderDate: row.date,
     orderNo: row.po,
     status: mapPurchaseOrderStatusToCode(row.status),
     supplierId: row.supplier,
+    supplierLabel: row.supplier,
   };
+}
+
+async function requestPurchaseOrderDetail(
+  id: string,
+  fallback: PurchaseOrderFormData,
+): Promise<PurchaseOrderFormData | null> {
+  try {
+    const response = await fetch(`/api/bff/purchase-orders/${encodeURIComponent(id)}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as {
+      data?: PurchaseOrderFormData;
+    };
+
+    if (!payload.data) {
+      return null;
+    }
+
+    const supplierLabel =
+      payload.data.supplierLabel && payload.data.supplierLabel !== payload.data.supplierId
+        ? payload.data.supplierLabel
+        : fallback.supplierLabel;
+
+    return {
+      ...fallback,
+      ...payload.data,
+      supplierId: payload.data.supplierId || fallback.supplierId,
+      supplierLabel,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function mapPurchaseOrderStatusToCode(

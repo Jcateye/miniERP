@@ -3,10 +3,19 @@ import type { SalesOrderListItem } from '@/lib/mocks/erp-list-fixtures';
 export interface SalesOrderDraft {
   readonly amount: number;
   readonly customerId: string;
+  readonly customerLabel?: string;
   readonly id: string;
+  readonly lines: readonly SalesOrderDraftLine[];
   readonly orderDate: string;
   readonly orderNo: string;
   readonly status: SalesOrderListItem['status'];
+}
+
+export interface SalesOrderDraftLine {
+  readonly itemId: string;
+  readonly itemLabel?: string;
+  readonly qty: string;
+  readonly unitPrice: string;
 }
 
 type SalesOrderStoreState = {
@@ -50,12 +59,18 @@ export function removeSalesOrderDraft(id: string) {
   store.deleted.add(id);
 }
 
+export function getSalesOrderDraft(id: string): SalesOrderDraft | null {
+  const store = getStore();
+  return store.upserts.get(id) ?? null;
+}
+
 function toListItem(draft: SalesOrderDraft): SalesOrderListItem {
   return {
     amount: draft.amount,
-    customer: draft.customerId,
+    customer: draft.customerLabel || draft.customerId,
     date: draft.orderDate,
-    skuCount: 1,
+    id: draft.id,
+    skuCount: draft.lines.length,
     so: draft.orderNo,
     status: draft.status,
   };
@@ -66,11 +81,11 @@ export function mergeSalesOrderItems(source: readonly SalesOrderListItem[]) {
   const merged = new Map<string, SalesOrderListItem>();
 
   for (const item of source) {
-    if (store.deleted.has(item.so)) {
+    if (store.deleted.has(item.id)) {
       continue;
     }
 
-    merged.set(item.so, item);
+    merged.set(item.id, item);
   }
 
   for (const draft of store.upserts.values()) {

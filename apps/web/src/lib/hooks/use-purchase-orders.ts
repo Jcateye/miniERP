@@ -10,7 +10,7 @@ import { useListResource } from './use-list-resource';
 
 export function usePurchaseOrders() {
   return useListResource<PurchaseOrderListItem>({
-    path: '/procure/purchase-orders',
+    path: '/purchase-orders',
     buildRequest: React.useCallback((searchParams) => {
       const page = Number.parseInt(searchParams.get('page') || '1', 10) || 1;
       const q = searchParams.get('q') || '';

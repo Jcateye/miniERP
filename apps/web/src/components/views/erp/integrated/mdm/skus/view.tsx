@@ -41,12 +41,18 @@ const DEFAULT_PARAMS = {
 type SkuRow = {
   activities: readonly SkuActivity[];
   baseUnit: string;
+  batchManaged: boolean;
+  barcode: string;
   cat: string;
   categoryId: string | null;
   code: string;
   desc: string;
   id: string;
+  leadTimeDays: number | null;
+  maxStockQty: string;
+  minStockQty: string;
   name: string;
+  serialManaged: boolean;
   specification: string;
   status: Sku['status'];
   statusLabel: string;
@@ -65,6 +71,25 @@ type Notice = {
   tone: 'error' | 'success';
 };
 
+type ItemDetailPayload = {
+  barcode?: string | null;
+  batchManaged?: boolean;
+  baseUnit?: string | null;
+  categoryId?: string | null;
+  code?: string | null;
+  isActive?: boolean;
+  leadTimeDays?: number | null;
+  maxStockQty?: string | null;
+  minStockQty?: string | null;
+  name?: string | null;
+  serialManaged?: boolean;
+  specification?: string | null;
+};
+
+function isItemDetailPayload(value: unknown): value is ItemDetailPayload {
+  return typeof value === 'object' && value !== null;
+}
+
 export default function SkuList() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
   const { data, error, loading, pagination, reload } = useSkuList();
@@ -74,6 +99,9 @@ export default function SkuList() {
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [selectedSku, setSelectedSku] = React.useState<SkuRow | null>(null);
+  const [editInitialData, setEditInitialData] = React.useState<SkuFormData | undefined>(
+    undefined,
+  );
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice | null>(null);
 
@@ -112,12 +140,18 @@ export default function SkuList() {
         return {
           activities: meta?.activities ?? [],
           baseUnit: item.unit,
+          batchManaged: item.batchManaged,
+          barcode: item.barcode ?? '',
           cat: categoryLabel,
           categoryId: item.categoryId,
           code: item.code,
           desc: item.specification ?? '-',
           id: item.id,
+          leadTimeDays: item.leadTimeDays ?? null,
+          maxStockQty: item.maxStockQty ?? '',
+          minStockQty: item.minStockQty ?? '',
           name: item.name,
+          serialManaged: item.serialManaged,
           specification: item.specification ?? '',
           status: item.status,
           statusLabel: getSkuStatusLabel(item.status),
@@ -163,6 +197,28 @@ export default function SkuList() {
     setSelectedSku(pageRows.find((row) => row.id === selectedId) ?? pageRows[0] ?? null);
   }, [pageRows, selectedId]);
 
+  React.useEffect(() => {
+    if (!editDialogOpen || !selectedSku) {
+      return undefined;
+    }
+
+    let disposed = false;
+    setEditInitialData(toSkuFormData(selectedSku));
+
+    void (async () => {
+      const detail = await fetchItemDetail(selectedSku.id);
+      if (!detail || disposed) {
+        return;
+      }
+
+      setEditInitialData(toSkuFormDataFromDetail(detail, selectedSku));
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [editDialogOpen, selectedSku]);
+
   const isEmpty = !loading && !error && pagination.total === 0;
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -191,7 +247,7 @@ export default function SkuList() {
   };
 
   const handleCreate = async (formData: SkuFormData) => {
-    const response = await requestSkuMutation('/api/bff/mdm/skus', {
+    const response = await requestSkuMutation('/api/bff/items', {
       body: JSON.stringify(formData),
       headers: {
         'Content-Type': 'application/json',
@@ -216,7 +272,7 @@ export default function SkuList() {
       throw new Error('未选择要编辑的 SKU');
     }
 
-    const response = await requestSkuMutation(`/api/bff/mdm/skus/${selectedSku.id}`, {
+    const response = await requestSkuMutation(`/api/bff/items/${selectedSku.id}`, {
       body: JSON.stringify(formData),
       headers: {
         'Content-Type': 'application/json',
@@ -243,7 +299,7 @@ export default function SkuList() {
     }
 
     setDeleteLoading(true);
-    const response = await requestSkuMutation(`/api/bff/mdm/skus/${selectedSku.id}`, {
+    const response = await requestSkuMutation(`/api/bff/items/${selectedSku.id}`, {
       method: 'DELETE',
     });
 
@@ -464,6 +520,7 @@ export default function SkuList() {
                         }}
                         onEdit={() => {
                           setSelectedSku(row);
+                          setEditInitialData(toSkuFormData(row));
                           setEditDialogOpen(true);
                         }}
                         row={row}
@@ -551,6 +608,20 @@ export default function SkuList() {
                       <span className="text-muted">安全库存</span>
                       <span className="font-medium">{selectedSku.threshold}</span>
                     </div>
+                    <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
+                      <span className="text-muted">最小库存</span>
+                      <span className="font-medium">{selectedSku.minStockQty || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
+                      <span className="text-muted">最大库存</span>
+                      <span className="font-medium">{selectedSku.maxStockQty || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-gray-100 py-2 text-sm">
+                      <span className="text-muted">采购提前期</span>
+                      <span className="font-medium">
+                        {selectedSku.leadTimeDays === null ? '-' : `${selectedSku.leadTimeDays} 天`}
+                      </span>
+                    </div>
                     <div className="flex items-center justify-between bg-gray-50 px-2 py-2 text-sm font-bold">
                       <span>状态</span>
                       <span>{selectedSku.statusLabel}</span>
@@ -560,6 +631,13 @@ export default function SkuList() {
                   <div className="mt-2 flex flex-col gap-3">
                     <div className="text-xs text-muted">供应商货号/条码</div>
                     <div className="text-sm">{selectedSku.supplierSku}</div>
+                    <div className="text-xs text-muted">条码 / 管理模式</div>
+                    <div className="text-sm">
+                      {selectedSku.barcode || '-'}
+                      <span className="ml-2 text-xs text-muted">
+                        {selectedSku.batchManaged ? '批次' : '非批次'} / {selectedSku.serialManaged ? '序列号' : '非序列号'}
+                      </span>
+                    </div>
 
                     <div className="mt-2 text-xs text-muted">快捷操作</div>
                     <div className="mt-1 grid grid-cols-2 gap-2">
@@ -610,9 +688,14 @@ export default function SkuList() {
       />
 
       <SkuForm
-        initialData={selectedSku ? toSkuFormData(selectedSku) : undefined}
+        initialData={editInitialData}
         mode="edit"
-        onOpenChange={setEditDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setEditInitialData(undefined);
+          }
+        }}
         onSubmit={handleUpdate}
         open={editDialogOpen}
       />
@@ -644,12 +727,50 @@ export default function SkuList() {
  */
 function toSkuFormData(row: SkuRow): SkuFormData {
   return {
+    barcode: row.barcode,
+    batchManaged: row.batchManaged,
     code: row.code,
     name: row.name,
     specification: row.specification,
     baseUnit: row.baseUnit,
     category: row.categoryId ?? (row.cat === '-' ? '' : row.cat),
+    leadTimeDays: row.leadTimeDays,
+    maxStockQty: row.maxStockQty,
+    minStockQty: row.minStockQty,
+    serialManaged: row.serialManaged,
     status: row.status,
+  };
+}
+
+function toSkuFormDataFromDetail(
+  detail: ItemDetailPayload,
+  fallbackRow: SkuRow,
+): SkuFormData {
+  const category =
+    detail.categoryId === undefined || detail.categoryId === null
+      ? fallbackRow.categoryId ?? (fallbackRow.cat === '-' ? '' : fallbackRow.cat)
+      : skuCategoryLabelById[detail.categoryId] ?? detail.categoryId;
+
+  return {
+    baseUnit: detail.baseUnit ?? fallbackRow.baseUnit,
+    barcode: detail.barcode ?? fallbackRow.barcode,
+    batchManaged: detail.batchManaged ?? fallbackRow.batchManaged,
+    category,
+    code: detail.code ?? fallbackRow.code,
+    leadTimeDays: detail.leadTimeDays ?? fallbackRow.leadTimeDays,
+    maxStockQty: detail.maxStockQty ?? fallbackRow.maxStockQty,
+    minStockQty: detail.minStockQty ?? fallbackRow.minStockQty,
+    name: detail.name ?? fallbackRow.name,
+    serialManaged: detail.serialManaged ?? fallbackRow.serialManaged,
+    specification: detail.specification ?? fallbackRow.specification,
+    status:
+      detail.isActive === undefined
+        ? fallbackRow.status
+        : detail.isActive
+          ? fallbackRow.status === 'disabled'
+            ? 'normal'
+            : fallbackRow.status
+          : 'disabled',
   };
 }
 
@@ -703,6 +824,30 @@ async function extractErrorMessage(response: Response, fallbackMessage: string) 
     return payload.error?.message || payload.message || fallbackMessage;
   } catch {
     return fallbackMessage;
+  }
+}
+
+async function fetchItemDetail(id: string): Promise<ItemDetailPayload | null> {
+  try {
+    const response = await fetch(`/api/bff/items/${id}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as
+      | ItemDetailPayload
+      | { data?: ItemDetailPayload };
+
+    if (payload && typeof payload === 'object' && 'data' in payload) {
+      return payload.data ?? null;
+    }
+
+    return isItemDetailPayload(payload) ? payload : null;
+  } catch {
+    return null;
   }
 }
 

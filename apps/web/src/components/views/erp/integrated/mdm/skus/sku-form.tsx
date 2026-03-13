@@ -18,6 +18,12 @@ export interface SkuFormData {
   specification?: string;
   baseUnit: string;
   category?: string;
+  barcode?: string;
+  batchManaged: boolean;
+  serialManaged: boolean;
+  minStockQty?: string;
+  maxStockQty?: string;
+  leadTimeDays?: number | null;
   status: 'normal' | 'warning' | 'disabled';
 }
 
@@ -35,6 +41,12 @@ const EMPTY_FORM: SkuFormData = {
   specification: '',
   baseUnit: 'PCS',
   category: '',
+  barcode: '',
+  batchManaged: false,
+  serialManaged: false,
+  minStockQty: '',
+  maxStockQty: '',
+  leadTimeDays: null,
   status: 'normal',
 };
 
@@ -71,8 +83,31 @@ export function SkuForm({
       return '基本单位为必填项';
     }
 
+    if (formData.minStockQty?.trim() && Number.isNaN(Number(formData.minStockQty))) {
+      return '最小库存必须为数字';
+    }
+
+    if (formData.maxStockQty?.trim() && Number.isNaN(Number(formData.maxStockQty))) {
+      return '最大库存必须为数字';
+    }
+
+    if (
+      formData.leadTimeDays !== null &&
+      formData.leadTimeDays !== undefined &&
+      (!Number.isInteger(formData.leadTimeDays) || formData.leadTimeDays < 0)
+    ) {
+      return '采购提前期必须为大于等于 0 的整数';
+    }
+
     return '';
-  }, [formData.baseUnit, formData.code, formData.name]);
+  }, [
+    formData.baseUnit,
+    formData.code,
+    formData.leadTimeDays,
+    formData.maxStockQty,
+    formData.minStockQty,
+    formData.name,
+  ]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -88,8 +123,12 @@ export function SkuForm({
     try {
       await onSubmit({
         ...formData,
+        barcode: formData.barcode?.trim() ?? '',
+        leadTimeDays: formData.leadTimeDays ?? null,
         category: formData.category?.trim() ?? '',
         code: formData.code.trim(),
+        maxStockQty: formData.maxStockQty?.trim() ?? '',
+        minStockQty: formData.minStockQty?.trim() ?? '',
         name: formData.name.trim(),
         specification: formData.specification?.trim() ?? '',
       });
@@ -180,6 +219,54 @@ export function SkuForm({
           </datalist>
         </Field>
 
+        <Field label="条码">
+          <input
+            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
+            onChange={(event) => setFormData((current) => ({ ...current, barcode: event.target.value }))}
+            placeholder="可选"
+            value={formData.barcode ?? ''}
+          />
+        </Field>
+
+        <Field label="最小库存">
+          <input
+            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
+            inputMode="decimal"
+            onChange={(event) =>
+              setFormData((current) => ({ ...current, minStockQty: event.target.value }))
+            }
+            placeholder="可选"
+            value={formData.minStockQty ?? ''}
+          />
+        </Field>
+
+        <Field label="最大库存">
+          <input
+            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
+            inputMode="decimal"
+            onChange={(event) =>
+              setFormData((current) => ({ ...current, maxStockQty: event.target.value }))
+            }
+            placeholder="可选"
+            value={formData.maxStockQty ?? ''}
+          />
+        </Field>
+
+        <Field label="采购提前期(天)">
+          <input
+            className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
+            inputMode="numeric"
+            onChange={(event) =>
+              setFormData((current) => ({
+                ...current,
+                leadTimeDays: event.target.value.trim() === '' ? null : Number(event.target.value),
+              }))
+            }
+            placeholder="可选"
+            value={formData.leadTimeDays ?? ''}
+          />
+        </Field>
+
         <Field label="状态" required>
           <select
             className="h-10 w-full border border-border bg-white px-3 text-sm outline-none transition-colors focus:border-primary"
@@ -202,6 +289,38 @@ export function SkuForm({
           </p>
         </Field>
       </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label="批次管理">
+          <label className="flex h-10 items-center gap-2 border border-border bg-white px-3 text-sm">
+            <input
+              checked={formData.batchManaged}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, batchManaged: event.target.checked }))
+              }
+              type="checkbox"
+            />
+            启用批次管理
+          </label>
+        </Field>
+
+        <Field label="序列号管理">
+          <label className="flex h-10 items-center gap-2 border border-border bg-white px-3 text-sm">
+            <input
+              checked={formData.serialManaged}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, serialManaged: event.target.checked }))
+              }
+              type="checkbox"
+            />
+            启用序列号管理
+          </label>
+        </Field>
+      </div>
+
+      <p className="text-xs text-muted">
+        条码、批次/序列、库存阈值、采购提前期已纳入 canonical item 表单字段；是否被上游完整持久化取决于当前 backend 能力。
+      </p>
     </FormDialog>
   );
 }

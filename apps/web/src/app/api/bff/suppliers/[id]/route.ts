@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 
 import {
-  buildBackendUrl,
-  createServerHeaders,
   toUpstreamErrorResponse,
   toUpstreamUnavailableResponse,
+} from '@/lib/bff/server-fixtures';
+import { fetchMasterdataEntityResult } from '../../_shared/masterdata-detail-resolvers';
+import {
+  buildBackendUrl,
+  createServerHeaders,
 } from '@/lib/bff/server-fixtures';
 
 const ALLOWED_PATCH_FIELDS = [
@@ -164,6 +167,34 @@ export async function PATCH(
   } catch {
     return toUpstreamUnavailableResponse('Backend suppliers update is unavailable');
   }
+}
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+
+  const result = await fetchMasterdataEntityResult('suppliers', id);
+
+  if (result.kind === 'ok') {
+    return NextResponse.json(result.data);
+  }
+
+  if (result.kind === 'unavailable') {
+    return toUpstreamUnavailableResponse('Backend suppliers detail is unavailable');
+  }
+
+  return NextResponse.json(
+    {
+      error: {
+        code: 'RESOURCE_NOT_FOUND',
+        category: 'not_found',
+        message: 'Supplier detail was not found',
+      },
+    },
+    { status: 404 },
+  );
 }
 
 export async function DELETE(

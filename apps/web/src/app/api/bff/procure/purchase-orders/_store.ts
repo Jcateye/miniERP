@@ -3,10 +3,19 @@ import type { PurchaseOrderListItem } from '@/lib/mocks/erp-list-fixtures';
 export interface PurchaseOrderDraft {
   readonly amount: number;
   readonly id: string;
+  readonly lines: readonly PurchaseOrderDraftLine[];
   readonly orderDate: string;
   readonly orderNo: string;
   readonly status: PurchaseOrderListItem['status'];
   readonly supplierId: string;
+  readonly supplierLabel?: string;
+}
+
+export interface PurchaseOrderDraftLine {
+  readonly itemId: string;
+  readonly itemLabel?: string;
+  readonly qty: string;
+  readonly unitPrice: string;
 }
 
 type PurchaseOrderStoreState = {
@@ -52,14 +61,20 @@ export function removePurchaseOrderDraft(id: string) {
   store.deleted.add(id);
 }
 
+export function getPurchaseOrderDraft(id: string): PurchaseOrderDraft | null {
+  const store = getStore();
+  return store.upserts.get(id) ?? null;
+}
+
 function toListItem(draft: PurchaseOrderDraft): PurchaseOrderListItem {
   return {
     amount: draft.amount,
     date: draft.orderDate,
+    id: draft.id,
     po: draft.orderNo,
-    skuCount: 1,
+    skuCount: draft.lines.length,
     status: draft.status,
-    supplier: draft.supplierId,
+    supplier: draft.supplierLabel || draft.supplierId,
   };
 }
 
@@ -68,11 +83,11 @@ export function mergePurchaseOrderItems(source: readonly PurchaseOrderListItem[]
   const merged = new Map<string, PurchaseOrderListItem>();
 
   for (const item of source) {
-    if (store.deleted.has(item.po)) {
+    if (store.deleted.has(item.id)) {
       continue;
     }
 
-    merged.set(item.po, item);
+    merged.set(item.id, item);
   }
 
   for (const draft of store.upserts.values()) {

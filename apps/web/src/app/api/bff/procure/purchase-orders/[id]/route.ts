@@ -1,11 +1,32 @@
 import { NextResponse } from 'next/server';
-
-import type { PurchaseOrderListItem } from '@/lib/mocks/erp-list-fixtures';
+import {
+  mapBackendPurchaseOrderDetail,
+  mapPurchaseOrderDraftStatusCodeToLabel,
+  mapPurchaseOrderDraftToDetail,
+  type PurchaseOrderStatusCode,
+} from '../../../_shared/trading-order-mappers';
+import {
+  enrichLookupLinesWithItemLabels,
+  resolveSupplierLookupLabel,
+} from '../../../_shared/masterdata-detail-resolvers';
+import type { DocumentDetailDto } from '@/lib/sdk/types';
+import {
+  buildBackendUrl,
+  createServerHeaders,
+} from '@/lib/bff/server-fixtures';
 
 import {
+  getPurchaseOrderDraft,
   removePurchaseOrderDraft,
   upsertPurchaseOrderDraft,
 } from '../_store';
+
+type PurchaseOrderDraftLinePayload = {
+  itemId: string;
+  itemLabel?: string;
+  qty: string;
+  unitPrice: string;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -13,21 +34,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
-}
-
-function parseAmount(value: unknown) {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  throw new Error('amount must be a valid number');
 }
 
 function parsePurchaseOrderPayload(payload: unknown) {
@@ -51,13 +57,149 @@ function parsePurchaseOrderPayload(payload: unknown) {
     throw new Error('status is required');
   }
 
+  if (!Array.isArray(payload.lines) || payload.lines.length === 0) {
+    throw new Error('lines must contain at least one item');
+  }
+
+  const lines = payload.lines.map((line, index) =>
+    parsePurchaseOrderLine(line, index),
+  );
+
   return {
-    amount: parseAmount(payload.amount),
+    amount: lines.reduce(
+      (sum, line) => sum + Number(line.qty) * Number(line.unitPrice),
+      0,
+    ),
+    lines,
     orderDate: payload.orderDate.trim(),
     orderNo: payload.orderNo.trim(),
-    status: payload.status.trim() as PurchaseOrderListItem['status'],
+    status: mapPurchaseOrderDraftStatusCodeToLabel(
+      payload.status.trim() as PurchaseOrderStatusCode,
+    ),
     supplierId: payload.supplierId.trim(),
+    supplierLabel:
+      typeof payload.supplierLabel === 'string' ? payload.supplierLabel.trim() : undefined,
   };
+}
+
+function parsePurchaseOrderLine(
+  payload: unknown,
+  index: number,
+): PurchaseOrderDraftLinePayload {
+  if (!isRecord(payload)) {
+    throw new Error(`line[${index}] must be an object`);
+  }
+
+  if (!isNonEmptyString(payload.itemId)) {
+    throw new Error(`line[${index}].itemId is required`);
+  }
+
+  if (!isNonEmptyString(payload.qty)) {
+    throw new Error(`line[${index}].qty is required`);
+  }
+
+  if (!isNonEmptyString(payload.unitPrice)) {
+    throw new Error(`line[${index}].unitPrice is required`);
+  }
+
+  const qty = Number(payload.qty);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    throw new Error(`line[${index}].qty must be greater than 0`);
+  }
+
+  const unitPrice = Number(payload.unitPrice);
+  if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+    throw new Error(`line[${index}].unitPrice must be a valid number`);
+  }
+
+  return {
+    itemId: payload.itemId.trim(),
+    itemLabel: isNonEmptyString(payload.itemLabel)
+      ? payload.itemLabel.trim()
+      : undefined,
+    qty: payload.qty.trim(),
+    unitPrice: payload.unitPrice.trim(),
+  };
+}
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  const draft = getPurchaseOrderDraft(id);
+
+  if (draft) {
+    return NextResponse.json({
+      data: mapPurchaseOrderDraftToDetail(draft),
+    });
+  }
+
+  if (/^\d+$/.test(id)) {
+    try {
+      const response = await fetch(buildBackendUrl(`/documents/PO/${id}`), {
+        headers: createServerHeaders(),
+        cache: 'no-store',
+      });
+
+      if (response.ok) {
+        const payload = (await response.json()) as { data?: DocumentDetailDto } | DocumentDetailDto;
+        const detail =
+          payload && typeof payload === 'object' && 'data' in payload
+            ? payload.data
+            : payload;
+
+        if (detail) {
+          const mappedDetail = mapBackendPurchaseOrderDetail(detail as DocumentDetailDto);
+          const lines = await enrichLookupLinesWithItemLabels(mappedDetail.lines);
+          const supplierLabel = mappedDetail.supplierId
+            ? await resolveSupplierLookupLabel(mappedDetail.supplierId)
+            : null;
+
+          return NextResponse.json({
+            data: {
+              ...mappedDetail,
+              lines,
+              supplierLabel: supplierLabel ?? mappedDetail.supplierLabel,
+            },
+          });
+        }
+      }
+
+      return NextResponse.json(
+        {
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            category: 'not_found',
+            message: 'Purchase order detail was not found',
+          },
+        },
+        { status: response.status === 404 ? 404 : 502 },
+      );
+    } catch {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UPSTREAM_UNAVAILABLE',
+            category: 'upstream',
+            message: 'Purchase order detail is unavailable',
+          },
+        },
+        { status: 503 },
+      );
+    }
+  }
+
+  return NextResponse.json(
+    {
+      error: {
+        code: 'RESOURCE_NOT_FOUND',
+        category: 'not_found',
+        message: 'Purchase order detail was not found',
+      },
+    },
+    { status: 404 },
+  );
 }
 
 export async function PUT(

@@ -21,7 +21,7 @@ const DEFAULT_PARAMS = {
 };
 
 type SalesOrderSortField = 'amount' | 'customer' | 'date' | 'skuCount' | 'so';
-type SalesOrderRow = SalesOrderListItem & { id: string };
+type SalesOrderRow = SalesOrderListItem;
 type Notice = {
   id: number;
   message: string;
@@ -37,10 +37,12 @@ export default function SoList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice | null>(null);
+  const [editInitialData, setEditInitialData] = React.useState<SalesOrderFormData | undefined>();
   const [selectedRow, setSelectedRow] = React.useState<SalesOrderRow | null>(null);
+  const editLoadVersionRef = React.useRef(0);
 
   const pageRows = React.useMemo<SalesOrderRow[]>(
-    () => data.map((row) => ({ ...row, id: row.so })),
+    () => data,
     [data],
   );
 
@@ -75,6 +77,15 @@ export default function SoList() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  React.useEffect(() => {
+    if (editDialogOpen) {
+      return;
+    }
+
+    editLoadVersionRef.current += 1;
+    setEditInitialData(undefined);
+  }, [editDialogOpen]);
+
   const currentPage = pagination.page;
   const totalPages = Math.max(1, pagination.totalPages);
   const pageNumbers = buildPagination(currentPage, totalPages);
@@ -94,7 +105,7 @@ export default function SoList() {
   };
 
   const handleCreate = async (formData: SalesOrderFormData) => {
-    const response = await requestSalesOrderMutation('/api/bff/sales/orders', {
+    const response = await requestSalesOrderMutation('/api/bff/sales-orders', {
       body: JSON.stringify(formData),
       headers: {
         'Content-Type': 'application/json',
@@ -119,7 +130,7 @@ export default function SoList() {
     }
 
     const response = await requestSalesOrderMutation(
-      `/api/bff/sales/orders/${encodeURIComponent(selectedRow.id)}`,
+      `/api/bff/sales-orders/${encodeURIComponent(selectedRow.id)}`,
       {
         body: JSON.stringify(formData),
         headers: {
@@ -148,7 +159,7 @@ export default function SoList() {
 
     setDeleteLoading(true);
     const response = await requestSalesOrderMutation(
-      `/api/bff/sales/orders/${encodeURIComponent(selectedRow.id)}`,
+      `/api/bff/sales-orders/${encodeURIComponent(selectedRow.id)}`,
       {
         method: 'DELETE',
       },
@@ -165,6 +176,22 @@ export default function SoList() {
     reload();
     showNotice('删除成功', 'success');
   };
+
+  const handleEditOpen = React.useCallback(async (row: SalesOrderRow) => {
+    const currentLoadVersion = editLoadVersionRef.current + 1;
+    editLoadVersionRef.current = currentLoadVersion;
+    setSelectedRow(row);
+    setEditInitialData(toSalesOrderFallbackFormData(row));
+    setEditDialogOpen(true);
+
+    const detail = await requestSalesOrderDetail(
+      row.id,
+      toSalesOrderFallbackFormData(row),
+    );
+    if (detail && editLoadVersionRef.current === currentLoadVersion) {
+      setEditInitialData(detail);
+    }
+  }, []);
 
   return (
     <>
@@ -292,8 +319,7 @@ export default function SoList() {
                       <button
                         className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
                         onClick={() => {
-                          setSelectedRow(row);
-                          setEditDialogOpen(true);
+                          void handleEditOpen(row);
                         }}
                         type="button"
                       >
@@ -369,7 +395,7 @@ export default function SoList() {
       />
 
       <SalesOrderForm
-        initialData={selectedRow ? toSalesOrderFormData(selectedRow) : undefined}
+        initialData={editInitialData}
         mode="edit"
         onOpenChange={setEditDialogOpen}
         onSubmit={handleUpdate}
@@ -392,14 +418,62 @@ export default function SoList() {
   );
 }
 
-function toSalesOrderFormData(row: SalesOrderRow): SalesOrderFormData {
+function toSalesOrderFallbackFormData(row: SalesOrderRow): SalesOrderFormData {
+  const fallbackQty = Math.max(1, row.skuCount);
+
   return {
     amount: String(row.amount),
     customerId: row.customer,
+    customerLabel: row.customer,
+    lines: [
+      {
+        itemId: `legacy-summary:${row.so}`,
+        itemLabel: '兼容摘要行',
+        qty: String(fallbackQty),
+        unitPrice: fallbackQty > 0 ? String(row.amount / fallbackQty) : String(row.amount),
+      },
+    ],
     orderDate: row.date,
     orderNo: row.so,
     status: mapSalesOrderStatusToCode(row.status),
   };
+}
+
+async function requestSalesOrderDetail(
+  id: string,
+  fallback: SalesOrderFormData,
+): Promise<SalesOrderFormData | null> {
+  try {
+    const response = await fetch(`/api/bff/sales-orders/${encodeURIComponent(id)}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as {
+      data?: SalesOrderFormData;
+    };
+
+    if (!payload.data) {
+      return null;
+    }
+
+    const customerLabel =
+      payload.data.customerLabel && payload.data.customerLabel !== payload.data.customerId
+        ? payload.data.customerLabel
+        : fallback.customerLabel;
+
+    return {
+      ...fallback,
+      ...payload.data,
+      customerId: payload.data.customerId || fallback.customerId,
+      customerLabel,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function mapSalesOrderStatusToCode(

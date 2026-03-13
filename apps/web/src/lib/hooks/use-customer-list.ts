@@ -13,7 +13,7 @@ import { useListResource } from './use-list-resource';
 
 export function useCustomerList() {
   return useListResource<Customer>({
-    path: '/mdm/customers',
+    path: '/customers',
     buildRequest: React.useCallback((searchParams) => {
       const page = Number.parseInt(searchParams.get('page') || '1', 10) || 1;
       const q = searchParams.get('q') || '';

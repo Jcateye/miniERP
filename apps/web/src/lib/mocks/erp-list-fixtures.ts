@@ -45,6 +45,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000012',
     batchManaged: false,
     serialManaged: false,
+    minStockQty: '50',
+    maxStockQty: '500',
+    leadTimeDays: 7,
     status: 'normal',
     createdAt: '2026-03-01T08:00:00.000Z',
     updatedAt: '2026-03-08T08:00:00.000Z',
@@ -60,6 +63,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000013',
     batchManaged: false,
     serialManaged: false,
+    minStockQty: '100',
+    maxStockQty: '1000',
+    leadTimeDays: 5,
     status: 'warning',
     createdAt: '2026-03-01T08:00:00.000Z',
     updatedAt: '2026-03-08T08:00:00.000Z',
@@ -75,6 +81,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000014',
     batchManaged: false,
     serialManaged: false,
+    minStockQty: '30',
+    maxStockQty: '200',
+    leadTimeDays: 9,
     status: 'normal',
     createdAt: '2026-03-02T08:00:00.000Z',
     updatedAt: '2026-03-09T08:00:00.000Z',
@@ -90,6 +99,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000015',
     batchManaged: true,
     serialManaged: false,
+    minStockQty: '20',
+    maxStockQty: '120',
+    leadTimeDays: 14,
     status: 'normal',
     createdAt: '2026-03-03T08:00:00.000Z',
     updatedAt: '2026-03-09T08:00:00.000Z',
@@ -105,6 +117,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000016',
     batchManaged: false,
     serialManaged: false,
+    minStockQty: '10',
+    maxStockQty: '80',
+    leadTimeDays: 12,
     status: 'disabled',
     createdAt: '2026-03-03T08:00:00.000Z',
     updatedAt: '2026-03-10T08:00:00.000Z',
@@ -120,6 +135,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000017',
     batchManaged: false,
     serialManaged: false,
+    minStockQty: '40',
+    maxStockQty: '300',
+    leadTimeDays: 6,
     status: 'normal',
     createdAt: '2026-03-04T08:00:00.000Z',
     updatedAt: '2026-03-10T08:00:00.000Z',
@@ -135,6 +153,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000018',
     batchManaged: true,
     serialManaged: false,
+    minStockQty: '60',
+    maxStockQty: '360',
+    leadTimeDays: 18,
     status: 'warning',
     createdAt: '2026-03-05T08:00:00.000Z',
     updatedAt: '2026-03-10T08:00:00.000Z',
@@ -150,6 +171,9 @@ export const skuListFixtures: readonly Sku[] = [
     barcode: '6901001000019',
     batchManaged: false,
     serialManaged: true,
+    minStockQty: '8',
+    maxStockQty: '60',
+    leadTimeDays: 21,
     status: 'normal',
     createdAt: '2026-03-06T08:00:00.000Z',
     updatedAt: '2026-03-11T08:00:00.000Z',
@@ -461,23 +485,25 @@ export type SalesOrderListItem = {
   amount: number;
   customer: string;
   date: string;
+  id: string;
   skuCount: number;
   so: string;
   status: '待发货' | '已发货' | '草稿';
 };
 
 export const salesOrderListFixtures: readonly SalesOrderListItem[] = [
-  { so: 'SO-20260216-088', customer: '海外极客电子', date: '2026-02-16', amount: 26500, skuCount: 62, status: '待发货' },
-  { so: 'SO-20260215-021', customer: '武汉星光网咖', date: '2026-02-15', amount: 7020, skuCount: 25, status: '已发货' },
-  { so: 'SO-20260214-017', customer: '南京云帆科技', date: '2026-02-14', amount: 19800, skuCount: 14, status: '草稿' },
-  { so: 'SO-20260213-006', customer: '深湾智能设备', date: '2026-02-13', amount: 12500, skuCount: 8, status: '待发货' },
-  { so: 'SO-20260212-002', customer: '青鸟数字贸易', date: '2026-02-12', amount: 45800, skuCount: 30, status: '已发货' },
-  { so: 'SO-20260211-112', customer: '东海数据网络', date: '2026-02-11', amount: 8900, skuCount: 6, status: '草稿' },
+  { id: 'SO-20260216-088', so: 'SO-20260216-088', customer: '海外极客电子', date: '2026-02-16', amount: 26500, skuCount: 62, status: '待发货' },
+  { id: 'SO-20260215-021', so: 'SO-20260215-021', customer: '武汉星光网咖', date: '2026-02-15', amount: 7020, skuCount: 25, status: '已发货' },
+  { id: 'SO-20260214-017', so: 'SO-20260214-017', customer: '南京云帆科技', date: '2026-02-14', amount: 19800, skuCount: 14, status: '草稿' },
+  { id: 'SO-20260213-006', so: 'SO-20260213-006', customer: '深湾智能设备', date: '2026-02-13', amount: 12500, skuCount: 8, status: '待发货' },
+  { id: 'SO-20260212-002', so: 'SO-20260212-002', customer: '青鸟数字贸易', date: '2026-02-12', amount: 45800, skuCount: 30, status: '已发货' },
+  { id: 'SO-20260211-112', so: 'SO-20260211-112', customer: '东海数据网络', date: '2026-02-11', amount: 8900, skuCount: 6, status: '草稿' },
 ] as const;
 
 export type PurchaseOrderListItem = {
   amount: number;
   date: string;
+  id: string;
   po: string;
   skuCount: number;
   status: '待收货' | '已完成' | '待审批' | '草稿';
@@ -485,10 +511,10 @@ export type PurchaseOrderListItem = {
 };
 
 export const purchaseOrderListFixtures: readonly PurchaseOrderListItem[] = [
-  { po: 'PO-20260216-015', supplier: '南方光电科技有限公司', date: '2026-02-16', amount: 40500, skuCount: 5, status: '待收货' },
-  { po: 'PO-20260216-002', supplier: '捷科包装建材厂', date: '2026-02-04', amount: 8280, skuCount: 2, status: '已完成' },
-  { po: 'PO-20260215-028', supplier: '金源光电重镇', date: '2026-02-25', amount: 12400, skuCount: 11, status: '待审批' },
-  { po: 'PO-20260211-049', supplier: '广州极客五金', date: '2026-02-21', amount: 52190, skuCount: 4, status: '草稿' },
-  { po: 'PO-20260208-102', supplier: '鸿鹏电子器件', date: '2026-02-08', amount: 19880, skuCount: 7, status: '待收货' },
-  { po: 'PO-20260207-008', supplier: '蓝海包装科技', date: '2026-02-07', amount: 9600, skuCount: 3, status: '已完成' },
+  { id: 'PO-20260216-015', po: 'PO-20260216-015', supplier: '南方光电科技有限公司', date: '2026-02-16', amount: 40500, skuCount: 5, status: '待收货' },
+  { id: 'PO-20260216-002', po: 'PO-20260216-002', supplier: '捷科包装建材厂', date: '2026-02-04', amount: 8280, skuCount: 2, status: '已完成' },
+  { id: 'PO-20260215-028', po: 'PO-20260215-028', supplier: '金源光电重镇', date: '2026-02-25', amount: 12400, skuCount: 11, status: '待审批' },
+  { id: 'PO-20260211-049', po: 'PO-20260211-049', supplier: '广州极客五金', date: '2026-02-21', amount: 52190, skuCount: 4, status: '草稿' },
+  { id: 'PO-20260208-102', po: 'PO-20260208-102', supplier: '鸿鹏电子器件', date: '2026-02-08', amount: 19880, skuCount: 7, status: '待收货' },
+  { id: 'PO-20260207-008', po: 'PO-20260207-008', supplier: '蓝海包装科技', date: '2026-02-07', amount: 9600, skuCount: 3, status: '已完成' },
 ] as const;

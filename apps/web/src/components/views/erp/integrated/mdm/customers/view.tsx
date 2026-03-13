@@ -41,6 +41,20 @@ type Notice = {
   tone: 'error' | 'success';
 };
 
+type CustomerDetailPayload = {
+  address?: string | null;
+  code?: string | null;
+  contactPerson?: string | null;
+  contactPhone?: string | null;
+  creditLimit?: string | null;
+  email?: string | null;
+  name?: string | null;
+};
+
+function isCustomerDetailPayload(value: unknown): value is CustomerDetailPayload {
+  return typeof value === 'object' && value !== null;
+}
+
 export default function CustomersPage() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
   const { data, error, loading, pagination, reload } = useCustomerList();
@@ -51,6 +65,9 @@ export default function CustomersPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice | null>(null);
   const [selectedCustomer, setSelectedCustomer] = React.useState<CustomerRow | null>(null);
+  const [editInitialData, setEditInitialData] = React.useState<CustomerFormData | undefined>(
+    undefined,
+  );
 
   const pageRows = React.useMemo<CustomerRow[]>(
     () =>
@@ -104,6 +121,28 @@ export default function CustomersPage() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  React.useEffect(() => {
+    if (!editDialogOpen || !selectedCustomer) {
+      return undefined;
+    }
+
+    let disposed = false;
+    setEditInitialData(toCustomerFormData(selectedCustomer));
+
+    void (async () => {
+      const detail = await fetchCustomerDetail(selectedCustomer.id);
+      if (!detail || disposed) {
+        return;
+      }
+
+      setEditInitialData(toCustomerFormDataFromDetail(detail, selectedCustomer));
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [editDialogOpen, selectedCustomer]);
+
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     updateParams({ page: '1', q: draftQuery });
@@ -117,7 +156,7 @@ export default function CustomersPage() {
   };
 
   const handleCreate = async (formData: CustomerFormData) => {
-    const response = await requestCustomerMutation('/api/bff/mdm/customers', {
+    const response = await requestCustomerMutation('/api/bff/customers', {
       body: JSON.stringify(formData),
       headers: {
         'Content-Type': 'application/json',
@@ -142,13 +181,19 @@ export default function CustomersPage() {
     }
 
     const response = await requestCustomerMutation(
-      `/api/bff/mdm/customers/${selectedCustomer.id}`,
+      `/api/bff/customers/${selectedCustomer.id}`,
       {
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          address: formData.address?.trim() || null,
+          contactPerson: formData.contact?.trim() || null,
+          contactPhone: formData.phone?.trim() || null,
+          email: formData.email?.trim() || null,
+          name: formData.name.trim(),
+        }),
         headers: {
           'Content-Type': 'application/json',
         },
-        method: 'PUT',
+        method: 'PATCH',
       },
     );
 
@@ -171,7 +216,7 @@ export default function CustomersPage() {
 
     setDeleteLoading(true);
     const response = await requestCustomerMutation(
-      `/api/bff/mdm/customers/${selectedCustomer.id}`,
+      `/api/bff/customers/${selectedCustomer.id}`,
       {
         method: 'DELETE',
       },
@@ -343,6 +388,7 @@ export default function CustomersPage() {
                             className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
                             onClick={() => {
                               setSelectedCustomer(item);
+                              setEditInitialData(toCustomerFormData(item));
                               setEditDialogOpen(true);
                             }}
                             type="button"
@@ -424,9 +470,14 @@ export default function CustomersPage() {
       />
 
       <CustomerForm
-        initialData={selectedCustomer ? toCustomerFormData(selectedCustomer) : undefined}
+        initialData={editInitialData}
         mode="edit"
-        onOpenChange={setEditDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setEditInitialData(undefined);
+          }
+        }}
         onSubmit={handleUpdate}
         open={editDialogOpen}
       />
@@ -456,6 +507,21 @@ function toCustomerFormData(row: CustomerRow): CustomerFormData {
     email: row.email === '-' ? '' : row.email,
     name: row.name,
     phone: row.phone === '-' ? '' : row.phone,
+  };
+}
+
+function toCustomerFormDataFromDetail(
+  detail: CustomerDetailPayload,
+  fallbackRow: CustomerRow,
+): CustomerFormData {
+  return {
+    address: detail.address ?? fallbackRow.address,
+    code: detail.code ?? fallbackRow.code,
+    contact: detail.contactPerson ?? (fallbackRow.contact === '-' ? '' : fallbackRow.contact),
+    credit: detail.creditLimit ?? fallbackRow.credit,
+    email: detail.email ?? (fallbackRow.email === '-' ? '' : fallbackRow.email),
+    name: detail.name ?? fallbackRow.name,
+    phone: detail.contactPhone ?? (fallbackRow.phone === '-' ? '' : fallbackRow.phone),
   };
 }
 
@@ -567,5 +633,29 @@ async function extractErrorMessage(response: Response, fallbackMessage: string) 
     return payload.error?.message || payload.message || fallbackMessage;
   } catch {
     return fallbackMessage;
+  }
+}
+
+async function fetchCustomerDetail(id: string): Promise<CustomerDetailPayload | null> {
+  try {
+    const response = await fetch(`/api/bff/customers/${id}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as
+      | CustomerDetailPayload
+      | { data?: CustomerDetailPayload };
+
+    if (payload && typeof payload === 'object' && 'data' in payload) {
+      return payload.data ?? null;
+    }
+
+    return isCustomerDetailPayload(payload) ? payload : null;
+  } catch {
+    return null;
   }
 }

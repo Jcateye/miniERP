@@ -70,6 +70,9 @@ export interface DfpDocumentHeaderRecord extends DfpAuditFields {
   docType: DocumentType;
   docDate: string;
   status: DocumentStatus | string;
+  counterpartyId?: BigIntString | null;
+  supplierId?: BigIntString | null;
+  customerId?: BigIntString | null;
   remarks?: string | null;
 }
 
@@ -78,6 +81,9 @@ export interface DfpDocumentLineRecord {
   docId: BigIntString;
   lineNo: number;
   skuId: BigIntString;
+  itemNameSnapshot?: string | null;
+  specModelSnapshot?: string | null;
+  uom?: string | null;
   qty: DecimalString;
   unitPrice: DecimalString;
   amount: DecimalString;

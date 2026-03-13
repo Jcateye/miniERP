@@ -13,7 +13,7 @@ import { useListResource } from './use-list-resource';
 
 export function useSupplierList() {
   return useListResource<Supplier>({
-    path: '/mdm/suppliers',
+    path: '/suppliers',
     buildRequest: React.useCallback((searchParams) => {
       const page = Number.parseInt(searchParams.get('page') || '1', 10) || 1;
       const q = searchParams.get('q') || '';

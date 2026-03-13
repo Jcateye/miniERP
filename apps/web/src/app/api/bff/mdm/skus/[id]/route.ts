@@ -16,6 +16,18 @@ function isOptionalNullableString(value: unknown): value is string | null | unde
   return value === undefined || value === null || typeof value === 'string';
 }
 
+function isOptionalNullableBoolean(value: unknown): value is boolean | null | undefined {
+  return value === undefined || value === null || typeof value === 'boolean';
+}
+
+function isOptionalNullableInteger(value: unknown): value is number | null | undefined {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === 'number' && Number.isInteger(value))
+  );
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -49,6 +61,12 @@ function parseUpdateSkuPayload(
         readonly specification?: string | null;
         readonly baseUnit?: string;
         readonly categoryId?: string | null;
+        readonly barcode?: string | null;
+        readonly batchManaged?: boolean;
+        readonly serialManaged?: boolean;
+        readonly minStockQty?: string | null;
+        readonly maxStockQty?: string | null;
+        readonly leadTimeDays?: number | null;
         readonly isActive?: boolean;
       };
     }
@@ -73,6 +91,30 @@ function parseUpdateSkuPayload(
     return { ok: false, message: 'category must be string or null' };
   }
 
+  if (!isOptionalNullableString(payload.barcode)) {
+    return { ok: false, message: 'barcode must be string or null' };
+  }
+
+  if (!isOptionalNullableBoolean(payload.batchManaged)) {
+    return { ok: false, message: 'batchManaged must be boolean or null' };
+  }
+
+  if (!isOptionalNullableBoolean(payload.serialManaged)) {
+    return { ok: false, message: 'serialManaged must be boolean or null' };
+  }
+
+  if (!isOptionalNullableString(payload.minStockQty)) {
+    return { ok: false, message: 'minStockQty must be string or null' };
+  }
+
+  if (!isOptionalNullableString(payload.maxStockQty)) {
+    return { ok: false, message: 'maxStockQty must be string or null' };
+  }
+
+  if (!isOptionalNullableInteger(payload.leadTimeDays)) {
+    return { ok: false, message: 'leadTimeDays must be integer or null' };
+  }
+
   if (
     payload.status !== undefined &&
     payload.status !== 'normal' &&
@@ -95,6 +137,21 @@ function parseUpdateSkuPayload(
           ? undefined
           : payload.baseUnit.trim(),
       categoryId: normalizeCategoryId(payload.category),
+      barcode: normalizeOptionalNullableString(payload.barcode),
+      batchManaged:
+        payload.batchManaged === undefined || payload.batchManaged === null
+          ? undefined
+          : payload.batchManaged,
+      serialManaged:
+        payload.serialManaged === undefined || payload.serialManaged === null
+          ? undefined
+          : payload.serialManaged,
+      minStockQty: normalizeOptionalNullableString(payload.minStockQty),
+      maxStockQty: normalizeOptionalNullableString(payload.maxStockQty),
+      leadTimeDays:
+        payload.leadTimeDays === undefined || payload.leadTimeDays === null
+          ? undefined
+          : payload.leadTimeDays,
       isActive:
         payload.status === undefined
           ? undefined

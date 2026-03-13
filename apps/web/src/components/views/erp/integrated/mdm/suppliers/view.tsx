@@ -43,6 +43,19 @@ type Notice = {
   tone: 'error' | 'success';
 };
 
+type SupplierDetailPayload = {
+  address?: string | null;
+  code?: string | null;
+  contactPerson?: string | null;
+  contactPhone?: string | null;
+  email?: string | null;
+  name?: string | null;
+};
+
+function isSupplierDetailPayload(value: unknown): value is SupplierDetailPayload {
+  return typeof value === 'object' && value !== null;
+}
+
 export default function SuppliersPage() {
   const { params, updateParams } = useUrlListState(DEFAULT_PARAMS);
   const { data, error, loading, pagination, reload } = useSupplierList();
@@ -53,6 +66,9 @@ export default function SuppliersPage() {
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [notice, setNotice] = React.useState<Notice | null>(null);
   const [selectedSupplier, setSelectedSupplier] = React.useState<SupplierRow | null>(null);
+  const [editInitialData, setEditInitialData] = React.useState<SupplierFormData | undefined>(
+    undefined,
+  );
 
   const pageRows = React.useMemo<SupplierRow[]>(
     () =>
@@ -111,6 +127,28 @@ export default function SuppliersPage() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  React.useEffect(() => {
+    if (!editDialogOpen || !selectedSupplier) {
+      return undefined;
+    }
+
+    let disposed = false;
+    setEditInitialData(toSupplierFormData(selectedSupplier));
+
+    void (async () => {
+      const detail = await fetchSupplierDetail(selectedSupplier.id);
+      if (!detail || disposed) {
+        return;
+      }
+
+      setEditInitialData(toSupplierFormDataFromDetail(detail, selectedSupplier));
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [editDialogOpen, selectedSupplier]);
+
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     updateParams({ page: '1', q: draftQuery });
@@ -124,7 +162,7 @@ export default function SuppliersPage() {
   };
 
   const handleCreate = async (formData: SupplierFormData) => {
-    const response = await requestSupplierMutation('/api/bff/mdm/suppliers', {
+    const response = await requestSupplierMutation('/api/bff/suppliers', {
       body: JSON.stringify(formData),
       headers: {
         'Content-Type': 'application/json',
@@ -149,13 +187,19 @@ export default function SuppliersPage() {
     }
 
     const response = await requestSupplierMutation(
-      `/api/bff/mdm/suppliers/${selectedSupplier.id}`,
+      `/api/bff/suppliers/${selectedSupplier.id}`,
       {
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          address: formData.address?.trim() || null,
+          contactPerson: formData.contact?.trim() || null,
+          contactPhone: formData.phone?.trim() || null,
+          email: formData.email?.trim() || null,
+          name: formData.name.trim(),
+        }),
         headers: {
           'Content-Type': 'application/json',
         },
-        method: 'PUT',
+        method: 'PATCH',
       },
     );
 
@@ -178,7 +222,7 @@ export default function SuppliersPage() {
 
     setDeleteLoading(true);
     const response = await requestSupplierMutation(
-      `/api/bff/mdm/suppliers/${selectedSupplier.id}`,
+      `/api/bff/suppliers/${selectedSupplier.id}`,
       {
         method: 'DELETE',
       },
@@ -354,6 +398,7 @@ export default function SuppliersPage() {
                             className="inline-flex h-8 items-center gap-1 border border-border bg-white px-3 text-xs font-medium transition-colors hover:bg-gray-50"
                             onClick={() => {
                               setSelectedSupplier(item);
+                              setEditInitialData(toSupplierFormData(item));
                               setEditDialogOpen(true);
                             }}
                             type="button"
@@ -435,9 +480,14 @@ export default function SuppliersPage() {
       />
 
       <SupplierForm
-        initialData={selectedSupplier ? toSupplierFormData(selectedSupplier) : undefined}
+        initialData={editInitialData}
         mode="edit"
-        onOpenChange={setEditDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setEditInitialData(undefined);
+          }
+        }}
         onSubmit={handleUpdate}
         open={editDialogOpen}
       />
@@ -466,6 +516,20 @@ function toSupplierFormData(row: SupplierRow): SupplierFormData {
     email: row.email,
     name: row.name,
     phone: row.phone,
+  };
+}
+
+function toSupplierFormDataFromDetail(
+  detail: SupplierDetailPayload,
+  fallbackRow: SupplierRow,
+): SupplierFormData {
+  return {
+    address: detail.address ?? fallbackRow.address,
+    code: detail.code ?? fallbackRow.code,
+    contact: detail.contactPerson ?? (fallbackRow.contact === '-' ? '' : fallbackRow.contact),
+    email: detail.email ?? fallbackRow.email,
+    name: detail.name ?? fallbackRow.name,
+    phone: detail.contactPhone ?? fallbackRow.phone,
   };
 }
 
@@ -572,5 +636,29 @@ async function extractErrorMessage(response: Response, fallbackMessage: string) 
     return payload.error?.message || payload.message || fallbackMessage;
   } catch {
     return fallbackMessage;
+  }
+}
+
+async function fetchSupplierDetail(id: string): Promise<SupplierDetailPayload | null> {
+  try {
+    const response = await fetch(`/api/bff/suppliers/${id}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as
+      | SupplierDetailPayload
+      | { data?: SupplierDetailPayload };
+
+    if (payload && typeof payload === 'object' && 'data' in payload) {
+      return payload.data ?? null;
+    }
+
+    return isSupplierDetailPayload(payload) ? payload : null;
+  } catch {
+    return null;
   }
 }

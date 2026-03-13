@@ -29,6 +29,12 @@ interface BackendSkuDto {
   specification: string | null;
   baseUnit: string;
   categoryId: string | null;
+  barcode?: string | null;
+  batchManaged?: boolean;
+  serialManaged?: boolean;
+  minStockQty?: string | null;
+  maxStockQty?: string | null;
+  leadTimeDays?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -40,6 +46,12 @@ interface SkuMutationPayload {
   readonly specification?: string | null;
   readonly baseUnit?: string;
   readonly category?: string | null;
+  readonly barcode?: string | null;
+  readonly batchManaged?: boolean;
+  readonly serialManaged?: boolean;
+  readonly minStockQty?: string | null;
+  readonly maxStockQty?: string | null;
+  readonly leadTimeDays?: number | null;
   readonly status?: 'normal' | 'warning' | 'disabled';
 }
 
@@ -66,9 +78,12 @@ function mapBackendSku(item: BackendSkuDto): Sku {
     categoryId:
       item.categoryId ??
       (meta ? skuCategoryIdByLabel[meta.categoryLabel] ?? null : null),
-    barcode: null,
-    batchManaged: false,
-    serialManaged: false,
+    barcode: item.barcode ?? null,
+    batchManaged: item.batchManaged ?? false,
+    serialManaged: item.serialManaged ?? false,
+    minStockQty: item.minStockQty ?? null,
+    maxStockQty: item.maxStockQty ?? null,
+    leadTimeDays: item.leadTimeDays ?? null,
     status: item.isActive
       ? meta && meta.stock <= meta.threshold
         ? 'warning'
@@ -85,6 +100,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isOptionalNullableString(value: unknown): value is string | null | undefined {
   return value === undefined || value === null || typeof value === 'string';
+}
+
+function isOptionalNullableBoolean(value: unknown): value is boolean | null | undefined {
+  return value === undefined || value === null || typeof value === 'boolean';
+}
+
+function isOptionalNullableInteger(value: unknown): value is number | null | undefined {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === 'number' && Number.isInteger(value))
+  );
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -133,6 +160,12 @@ function parseCreateSkuPayload(
         readonly name: string;
         readonly specification: string | null;
         readonly baseUnit: string;
+        readonly barcode: string | null;
+        readonly batchManaged: boolean;
+        readonly serialManaged: boolean;
+        readonly minStockQty: string | null;
+        readonly maxStockQty: string | null;
+        readonly leadTimeDays: number | null;
       };
       readonly status: NonNullable<SkuMutationPayload['status']>;
     }
@@ -161,6 +194,30 @@ function parseCreateSkuPayload(
     return { ok: false, message: 'category must be string or null' };
   }
 
+  if (!isOptionalNullableString(payload.barcode)) {
+    return { ok: false, message: 'barcode must be string or null' };
+  }
+
+  if (!isOptionalNullableBoolean(payload.batchManaged)) {
+    return { ok: false, message: 'batchManaged must be boolean or null' };
+  }
+
+  if (!isOptionalNullableBoolean(payload.serialManaged)) {
+    return { ok: false, message: 'serialManaged must be boolean or null' };
+  }
+
+  if (!isOptionalNullableString(payload.minStockQty)) {
+    return { ok: false, message: 'minStockQty must be string or null' };
+  }
+
+  if (!isOptionalNullableString(payload.maxStockQty)) {
+    return { ok: false, message: 'maxStockQty must be string or null' };
+  }
+
+  if (!isOptionalNullableInteger(payload.leadTimeDays)) {
+    return { ok: false, message: 'leadTimeDays must be integer or null' };
+  }
+
   const status = parseStatus(payload.status);
   if (!status) {
     return { ok: false, message: 'status must be normal, warning or disabled' };
@@ -174,6 +231,15 @@ function parseCreateSkuPayload(
       name: payload.name.trim(),
       specification: normalizeOptionalNullableString(payload.specification),
       baseUnit: payload.baseUnit.trim(),
+      barcode: normalizeOptionalNullableString(payload.barcode),
+      batchManaged: payload.batchManaged === true,
+      serialManaged: payload.serialManaged === true,
+      minStockQty: normalizeOptionalNullableString(payload.minStockQty),
+      maxStockQty: normalizeOptionalNullableString(payload.maxStockQty),
+      leadTimeDays:
+        payload.leadTimeDays === undefined || payload.leadTimeDays === null
+          ? null
+          : payload.leadTimeDays,
     },
     status,
   };

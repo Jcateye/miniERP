@@ -17,6 +17,11 @@ import {
   salesOrderListFixtures,
   type SalesOrderListItem,
 } from '@/lib/mocks/erp-list-fixtures';
+import {
+  mapBackendSalesOrder,
+  mapSalesOrderDraftStatusCodeToLabel,
+  type SalesOrderStatusCode,
+} from '../../_shared/trading-order-mappers';
 import { mergeSalesOrderItems, upsertSalesOrderDraft } from './_store';
 import {
   fetchBackendArray,
@@ -25,41 +30,12 @@ import {
 
 type SortField = 'amount' | 'customer' | 'date' | 'skuCount' | 'so';
 
-type SalesOrderDraftStatusCode = 'draft' | 'confirmed' | 'posted';
-
-const SALES_ORDER_STATUS_LABEL_BY_CODE: Record<
-  SalesOrderDraftStatusCode,
-  SalesOrderListItem['status']
-> = {
-  confirmed: '待发货',
-  draft: '草稿',
-  posted: '已发货',
+type SalesOrderDraftLinePayload = {
+  itemId: string;
+  itemLabel?: string;
+  qty: string;
+  unitPrice: string;
 };
-
-function mapSalesOrderStatus(status: DocumentListItemDto['status']): SalesOrderListItem['status'] {
-  switch (status) {
-    case 'posted':
-    case 'picking':
-    case 'closed':
-      return '已发货';
-    case 'draft':
-    case 'cancelled':
-      return '草稿';
-    default:
-      return '待发货';
-  }
-}
-
-function mapBackendSalesOrder(item: DocumentListItemDto): SalesOrderListItem {
-  return {
-    so: item.docNo,
-    customer: `客户 #${item.id}`,
-    date: item.docDate,
-    amount: Number(item.totalAmount),
-    skuCount: item.lineCount,
-    status: mapSalesOrderStatus(item.status),
-  };
-}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -157,6 +133,9 @@ export async function POST(request: NextRequest) {
       throw new Error('customerId is required');
     }
 
+    const customerLabel =
+      typeof candidate.customerLabel === 'string' ? candidate.customerLabel.trim() : '';
+
     if (typeof candidate.orderDate !== 'string' || candidate.orderDate.trim() === '') {
       throw new Error('orderDate is required');
     }
@@ -173,17 +152,28 @@ export async function POST(request: NextRequest) {
       throw new Error('status must be draft, confirmed, or posted');
     }
 
-    const amount = Number(candidate.amount);
-    if (!Number.isFinite(amount)) {
-      throw new Error('amount must be a valid number');
+    if (!Array.isArray(candidate.lines) || candidate.lines.length === 0) {
+      throw new Error('lines must contain at least one item');
     }
+
+    const lines = candidate.lines.map((line, index) =>
+      parseSalesOrderLine(line, index),
+    );
+    const amount = lines.reduce(
+      (sum, line) => sum + Number(line.qty) * Number(line.unitPrice),
+      0,
+    );
 
     const id = upsertSalesOrderDraft({
       amount,
       customerId: candidate.customerId.trim(),
+      customerLabel,
+      lines,
       orderDate: candidate.orderDate.trim(),
       orderNo: candidate.orderNo.trim(),
-      status: SALES_ORDER_STATUS_LABEL_BY_CODE[candidate.status as SalesOrderDraftStatusCode],
+      status: mapSalesOrderDraftStatusCodeToLabel(
+        candidate.status as SalesOrderStatusCode,
+      ),
     });
 
     return Response.json(
@@ -207,6 +197,46 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+}
+
+function parseSalesOrderLine(
+  payload: unknown,
+  index: number,
+): SalesOrderDraftLinePayload {
+  if (typeof payload !== 'object' || payload === null) {
+    throw new Error(`line[${index}] must be an object`);
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  if (typeof candidate.itemId !== 'string' || candidate.itemId.trim() === '') {
+    throw new Error(`line[${index}].itemId is required`);
+  }
+
+  if (typeof candidate.qty !== 'string' || candidate.qty.trim() === '') {
+    throw new Error(`line[${index}].qty is required`);
+  }
+
+  if (typeof candidate.unitPrice !== 'string' || candidate.unitPrice.trim() === '') {
+    throw new Error(`line[${index}].unitPrice is required`);
+  }
+
+  const qty = Number(candidate.qty);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    throw new Error(`line[${index}].qty must be greater than 0`);
+  }
+
+  const unitPrice = Number(candidate.unitPrice);
+  if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+    throw new Error(`line[${index}].unitPrice must be a valid number`);
+  }
+
+  return {
+    itemId: candidate.itemId.trim(),
+    itemLabel:
+      typeof candidate.itemLabel === 'string' ? candidate.itemLabel.trim() : undefined,
+    qty: candidate.qty.trim(),
+    unitPrice: candidate.unitPrice.trim(),
+  };
 }
 
 function getSortValue(
