@@ -5,6 +5,11 @@ import { InventoryPostingService } from '../../inventory/application/inventory-p
 import { InvalidStatusTransitionError } from '../../core-document/domain/status-transition';
 import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
 import { HttpException } from '@nestjs/common';
+import {
+  PurchaseInboundWriteService,
+  SalesShipmentWriteService,
+  TradingDocumentsReadService,
+} from '../../trading';
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
@@ -20,6 +25,26 @@ describe('DocumentsService', () => {
     reverseInTransaction: jest.fn(),
   };
 
+  function createPurchaseInboundWriteService(prisma?: unknown) {
+    return new PurchaseInboundWriteService(
+      mockAuditService as unknown as AuditService,
+      mockInventoryPostingService as unknown as InventoryPostingService,
+      prisma as never,
+    );
+  }
+
+  function createSalesShipmentWriteService(prisma?: unknown) {
+    return new SalesShipmentWriteService(
+      mockAuditService as unknown as AuditService,
+      mockInventoryPostingService as unknown as InventoryPostingService,
+      prisma as never,
+    );
+  }
+
+  function createTradingDocumentsReadService(prisma?: unknown) {
+    return new TradingDocumentsReadService(prisma as never);
+  }
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -32,6 +57,9 @@ describe('DocumentsService', () => {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
         },
+        PurchaseInboundWriteService,
+        SalesShipmentWriteService,
+        TradingDocumentsReadService,
       ],
     }).compile();
 
@@ -413,6 +441,9 @@ describe('DocumentsService', () => {
       const persistentService = new DocumentsService(
         mockAuditService as unknown as AuditService,
         mockInventoryPostingService as unknown as InventoryPostingService,
+        createPurchaseInboundWriteService(mockPrisma),
+        createSalesShipmentWriteService(mockPrisma),
+        createTradingDocumentsReadService(mockPrisma),
         mockPrisma as never,
       );
 
@@ -490,6 +521,9 @@ describe('DocumentsService', () => {
       const persistentService = new DocumentsService(
         mockAuditService as unknown as AuditService,
         mockInventoryPostingService as unknown as InventoryPostingService,
+        createPurchaseInboundWriteService(mockPrisma),
+        createSalesShipmentWriteService(mockPrisma),
+        createTradingDocumentsReadService(mockPrisma),
         mockPrisma as never,
       );
 
@@ -566,6 +600,9 @@ describe('DocumentsService', () => {
       streamDService = new DocumentsService(
         mockAuditService as unknown as AuditService,
         mockInventoryPostingService as unknown as InventoryPostingService,
+        createPurchaseInboundWriteService(mockSalesOutboundPrisma),
+        createSalesShipmentWriteService(mockSalesOutboundPrisma),
+        createTradingDocumentsReadService(mockSalesOutboundPrisma),
         mockSalesOutboundPrisma as never,
       );
 
@@ -708,6 +745,9 @@ describe('DocumentsService', () => {
       persistentService = new DocumentsService(
         mockAuditService as unknown as AuditService,
         mockInventoryPostingService as unknown as InventoryPostingService,
+        createPurchaseInboundWriteService(mockPrisma),
+        createSalesShipmentWriteService(mockPrisma),
+        createTradingDocumentsReadService(mockPrisma),
         mockPrisma as never,
       );
 
