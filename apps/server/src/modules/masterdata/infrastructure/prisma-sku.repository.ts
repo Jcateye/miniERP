@@ -16,9 +16,12 @@ function mapSkuEntity(row: {
   specification: string | null;
   categoryId: string | null;
   unit: string | null;
+  itemType: string | null;
+  taxRate: { toString(): string } | null;
   barcode: string | null;
   batchManaged: boolean;
   serialManaged: boolean;
+  shelfLifeDays: number | null;
   minStockQty: { toString(): string } | null;
   maxStockQty: { toString(): string } | null;
   leadTimeDays: number | null;
@@ -34,9 +37,12 @@ function mapSkuEntity(row: {
     specification: row.specification,
     baseUnit: row.unit ?? 'PCS',
     categoryId: row.categoryId,
+    itemType: row.itemType,
+    taxRate: row.taxRate?.toString() ?? null,
     barcode: row.barcode,
     batchManaged: row.batchManaged,
     serialManaged: row.serialManaged,
+    shelfLifeDays: row.shelfLifeDays,
     minStockQty: row.minStockQty?.toString() ?? null,
     maxStockQty: row.maxStockQty?.toString() ?? null,
     leadTimeDays: row.leadTimeDays,
@@ -127,9 +133,12 @@ export class PrismaSkuRepository implements SkuRepository {
         specification: entity.specification,
         categoryId: entity.categoryId,
         unit: entity.baseUnit,
+        itemType: entity.itemType,
+        taxRate: entity.taxRate,
         barcode: entity.barcode,
         batchManaged: entity.batchManaged,
         serialManaged: entity.serialManaged,
+        shelfLifeDays: entity.shelfLifeDays,
         minStockQty: entity.minStockQty,
         maxStockQty: entity.maxStockQty,
         leadTimeDays: entity.leadTimeDays,
@@ -171,9 +180,12 @@ export class PrismaSkuRepository implements SkuRepository {
         specification: updates.specification,
         categoryId: updates.categoryId,
         unit: updates.baseUnit,
+        itemType: updates.itemType,
+        taxRate: updates.taxRate,
         barcode: updates.barcode,
         batchManaged: updates.batchManaged,
         serialManaged: updates.serialManaged,
+        shelfLifeDays: updates.shelfLifeDays,
         minStockQty: updates.minStockQty,
         maxStockQty: updates.maxStockQty,
         leadTimeDays: updates.leadTimeDays,

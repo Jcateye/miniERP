@@ -96,6 +96,12 @@ function parseCreateItemCommand(payload: unknown): CreateSkuCommand {
   if (!isOptionalNullableString(candidate.categoryId)) {
     throw new SkuValidationError('categoryId must be string or null');
   }
+  if (!isOptionalNullableString(candidate.itemType)) {
+    throw new SkuValidationError('itemType must be string or null');
+  }
+  if (!isOptionalNullableString(candidate.taxRate)) {
+    throw new SkuValidationError('taxRate must be string or null');
+  }
 
   if (!isOptionalNullableString(candidate.barcode)) {
     throw new SkuValidationError('barcode must be string or null');
@@ -120,6 +126,9 @@ function parseCreateItemCommand(payload: unknown): CreateSkuCommand {
   if (!isOptionalNullableInteger(candidate.leadTimeDays)) {
     throw new SkuValidationError('leadTimeDays must be integer or null');
   }
+  if (!isOptionalNullableInteger(candidate.shelfLifeDays)) {
+    throw new SkuValidationError('shelfLifeDays must be integer or null');
+  }
 
   return {
     code: candidate.code.trim(),
@@ -127,6 +136,8 @@ function parseCreateItemCommand(payload: unknown): CreateSkuCommand {
     specification: normalizeOptionalNullableString(candidate.specification),
     baseUnit: candidate.baseUnit.trim(),
     categoryId: normalizeOptionalNullableString(candidate.categoryId),
+    itemType: normalizeOptionalNullableString(candidate.itemType),
+    taxRate: normalizeOptionalNullableString(candidate.taxRate),
     barcode: normalizeOptionalNullableString(candidate.barcode),
     batchManaged:
       candidate.batchManaged === undefined || candidate.batchManaged === null
@@ -138,6 +149,10 @@ function parseCreateItemCommand(payload: unknown): CreateSkuCommand {
         : candidate.serialManaged,
     minStockQty: normalizeOptionalNullableString(candidate.minStockQty),
     maxStockQty: normalizeOptionalNullableString(candidate.maxStockQty),
+    shelfLifeDays:
+      candidate.shelfLifeDays === undefined || candidate.shelfLifeDays === null
+        ? undefined
+        : candidate.shelfLifeDays,
     leadTimeDays:
       candidate.leadTimeDays === undefined || candidate.leadTimeDays === null
         ? undefined
@@ -175,6 +190,12 @@ function parseUpdateItemCommand(payload: unknown): UpdateSkuCommand {
   if (!isOptionalNullableString(candidate.categoryId)) {
     throw new SkuValidationError('categoryId must be string or null');
   }
+  if (!isOptionalNullableString(candidate.itemType)) {
+    throw new SkuValidationError('itemType must be string or null');
+  }
+  if (!isOptionalNullableString(candidate.taxRate)) {
+    throw new SkuValidationError('taxRate must be string or null');
+  }
 
   if (!isOptionalNullableString(candidate.barcode)) {
     throw new SkuValidationError('barcode must be string or null');
@@ -199,6 +220,9 @@ function parseUpdateItemCommand(payload: unknown): UpdateSkuCommand {
   if (!isOptionalNullableInteger(candidate.leadTimeDays)) {
     throw new SkuValidationError('leadTimeDays must be integer or null');
   }
+  if (!isOptionalNullableInteger(candidate.shelfLifeDays)) {
+    throw new SkuValidationError('shelfLifeDays must be integer or null');
+  }
 
   if (
     candidate.isActive !== undefined &&
@@ -218,6 +242,8 @@ function parseUpdateItemCommand(payload: unknown): UpdateSkuCommand {
         ? undefined
         : candidate.baseUnit.trim(),
     categoryId: normalizeOptionalNullableString(candidate.categoryId),
+    itemType: normalizeOptionalNullableString(candidate.itemType),
+    taxRate: normalizeOptionalNullableString(candidate.taxRate),
     barcode: normalizeOptionalNullableString(candidate.barcode),
     batchManaged:
       candidate.batchManaged === undefined || candidate.batchManaged === null
@@ -229,6 +255,10 @@ function parseUpdateItemCommand(payload: unknown): UpdateSkuCommand {
         : candidate.serialManaged,
     minStockQty: normalizeOptionalNullableString(candidate.minStockQty),
     maxStockQty: normalizeOptionalNullableString(candidate.maxStockQty),
+    shelfLifeDays:
+      candidate.shelfLifeDays === undefined || candidate.shelfLifeDays === null
+        ? undefined
+        : candidate.shelfLifeDays,
     leadTimeDays:
       candidate.leadTimeDays === undefined || candidate.leadTimeDays === null
         ? undefined

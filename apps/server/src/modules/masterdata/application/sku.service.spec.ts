@@ -44,9 +44,12 @@ describe('SkuService', () => {
         baseUnit: 'KG',
         specification: '100g per unit',
         categoryId: 'cat-1',
+        itemType: 'finished_goods',
+        taxRate: '13.00',
         barcode: '6901001000999',
         batchManaged: true,
         serialManaged: false,
+        shelfLifeDays: 365,
         minStockQty: '12.5',
         maxStockQty: '120.5',
         leadTimeDays: 7,
@@ -54,9 +57,12 @@ describe('SkuService', () => {
 
       expect(result.specification).toBe('100g per unit');
       expect(result.categoryId).toBe('cat-1');
+      expect(result.itemType).toBe('finished_goods');
+      expect(result.taxRate).toBe('13.00');
       expect(result.barcode).toBe('6901001000999');
       expect(result.batchManaged).toBe(true);
       expect(result.serialManaged).toBe(false);
+      expect(result.shelfLifeDays).toBe(365);
       expect(result.minStockQty).toBe('12.5');
       expect(result.maxStockQty).toBe('120.5');
       expect(result.leadTimeDays).toBe(7);
@@ -115,6 +121,17 @@ describe('SkuService', () => {
           name: 'Test',
           baseUnit: 'PCS',
           leadTimeDays: -1,
+        }),
+      ).rejects.toBeInstanceOf(SkuValidationError);
+    });
+
+    it('rejects negative shelfLifeDays', async () => {
+      await expect(
+        service.create(tenantId, {
+          code: 'SKU-NEG-SHELF',
+          name: 'Test',
+          baseUnit: 'PCS',
+          shelfLifeDays: -1,
         }),
       ).rejects.toBeInstanceOf(SkuValidationError);
     });
@@ -244,17 +261,23 @@ describe('SkuService', () => {
       });
 
       const updated = await service.update(tenantId, created.id, {
+        itemType: 'consumable',
+        taxRate: '9.00',
         barcode: '6901001888888',
         batchManaged: true,
         serialManaged: true,
+        shelfLifeDays: 180,
         minStockQty: '8',
         maxStockQty: '80',
         leadTimeDays: 15,
       });
 
+      expect(updated.itemType).toBe('consumable');
+      expect(updated.taxRate).toBe('9.00');
       expect(updated.barcode).toBe('6901001888888');
       expect(updated.batchManaged).toBe(true);
       expect(updated.serialManaged).toBe(true);
+      expect(updated.shelfLifeDays).toBe(180);
       expect(updated.minStockQty).toBe('8');
       expect(updated.maxStockQty).toBe('80');
       expect(updated.leadTimeDays).toBe(15);
@@ -287,6 +310,18 @@ describe('SkuService', () => {
 
       await expect(
         service.update(tenantId, created.id, { leadTimeDays: -3 }),
+      ).rejects.toBeInstanceOf(SkuValidationError);
+    });
+
+    it('rejects negative shelfLifeDays on update', async () => {
+      const created = await service.create(tenantId, {
+        code: 'SKU-NEG-SHELF-UPD',
+        name: 'Original',
+        baseUnit: 'PCS',
+      });
+
+      await expect(
+        service.update(tenantId, created.id, { shelfLifeDays: -2 }),
       ).rejects.toBeInstanceOf(SkuValidationError);
     });
   });

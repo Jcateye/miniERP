@@ -44,9 +44,12 @@ export class SkuService {
       specification: command.specification ?? null,
       baseUnit: command.baseUnit,
       categoryId: command.categoryId ?? null,
+      itemType: command.itemType ?? null,
+      taxRate: command.taxRate ?? null,
       barcode: command.barcode ?? null,
       batchManaged: command.batchManaged ?? false,
       serialManaged: command.serialManaged ?? false,
+      shelfLifeDays: command.shelfLifeDays ?? null,
       minStockQty: command.minStockQty ?? null,
       maxStockQty: command.maxStockQty ?? null,
       leadTimeDays: command.leadTimeDays ?? null,
@@ -116,6 +119,13 @@ export class SkuService {
       throw new SkuValidationError('baseUnit is required');
     }
     if (
+      command.shelfLifeDays !== undefined &&
+      command.shelfLifeDays !== null &&
+      (!Number.isInteger(command.shelfLifeDays) || command.shelfLifeDays < 0)
+    ) {
+      throw new SkuValidationError('shelfLifeDays must be a non-negative integer');
+    }
+    if (
       command.leadTimeDays !== undefined &&
       command.leadTimeDays !== null &&
       (!Number.isInteger(command.leadTimeDays) || command.leadTimeDays < 0)
@@ -130,6 +140,13 @@ export class SkuService {
     }
     if (command.baseUnit !== undefined && !command.baseUnit?.trim()) {
       throw new SkuValidationError('baseUnit cannot be empty');
+    }
+    if (
+      command.shelfLifeDays !== undefined &&
+      command.shelfLifeDays !== null &&
+      (!Number.isInteger(command.shelfLifeDays) || command.shelfLifeDays < 0)
+    ) {
+      throw new SkuValidationError('shelfLifeDays must be a non-negative integer');
     }
     if (
       command.leadTimeDays !== undefined &&

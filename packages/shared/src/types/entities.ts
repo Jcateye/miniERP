@@ -28,9 +28,12 @@ export interface Sku extends NamedEntity {
   readonly specification: string | null;
   readonly unit: string;
   readonly categoryId: string | null;
+  readonly itemType?: string | null;
+  readonly taxRate?: DecimalString | null;
   readonly barcode: string | null;
   readonly batchManaged: boolean;
   readonly serialManaged: boolean;
+  readonly shelfLifeDays?: number | null;
   readonly minStockQty?: DecimalString | null;
   readonly maxStockQty?: DecimalString | null;
   readonly leadTimeDays?: number | null;

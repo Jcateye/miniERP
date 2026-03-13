@@ -10,9 +10,12 @@ export interface SkuEntity {
   readonly specification: string | null;
   readonly baseUnit: string;
   readonly categoryId: string | null;
+  readonly itemType: string | null;
+  readonly taxRate: string | null;
   readonly barcode: string | null;
   readonly batchManaged: boolean;
   readonly serialManaged: boolean;
+  readonly shelfLifeDays: number | null;
   readonly minStockQty: string | null;
   readonly maxStockQty: string | null;
   readonly leadTimeDays: number | null;
@@ -27,9 +30,12 @@ export interface CreateSkuCommand {
   readonly specification?: string | null;
   readonly baseUnit: string;
   readonly categoryId?: string | null;
+  readonly itemType?: string | null;
+  readonly taxRate?: string | null;
   readonly barcode?: string | null;
   readonly batchManaged?: boolean;
   readonly serialManaged?: boolean;
+  readonly shelfLifeDays?: number | null;
   readonly minStockQty?: string | null;
   readonly maxStockQty?: string | null;
   readonly leadTimeDays?: number | null;
@@ -40,9 +46,12 @@ export interface UpdateSkuCommand {
   readonly specification?: string | null;
   readonly baseUnit?: string;
   readonly categoryId?: string | null;
+  readonly itemType?: string | null;
+  readonly taxRate?: string | null;
   readonly barcode?: string | null;
   readonly batchManaged?: boolean;
   readonly serialManaged?: boolean;
+  readonly shelfLifeDays?: number | null;
   readonly minStockQty?: string | null;
   readonly maxStockQty?: string | null;
   readonly leadTimeDays?: number | null;
