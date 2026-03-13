@@ -44,6 +44,12 @@ export class SkuService {
       specification: command.specification ?? null,
       baseUnit: command.baseUnit,
       categoryId: command.categoryId ?? null,
+      barcode: command.barcode ?? null,
+      batchManaged: command.batchManaged ?? false,
+      serialManaged: command.serialManaged ?? false,
+      minStockQty: command.minStockQty ?? null,
+      maxStockQty: command.maxStockQty ?? null,
+      leadTimeDays: command.leadTimeDays ?? null,
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -109,6 +115,13 @@ export class SkuService {
     if (!command.baseUnit?.trim()) {
       throw new SkuValidationError('baseUnit is required');
     }
+    if (
+      command.leadTimeDays !== undefined &&
+      command.leadTimeDays !== null &&
+      (!Number.isInteger(command.leadTimeDays) || command.leadTimeDays < 0)
+    ) {
+      throw new SkuValidationError('leadTimeDays must be a non-negative integer');
+    }
   }
 
   private validateUpdateCommand(command: UpdateSkuCommand): void {
@@ -117,6 +130,13 @@ export class SkuService {
     }
     if (command.baseUnit !== undefined && !command.baseUnit?.trim()) {
       throw new SkuValidationError('baseUnit cannot be empty');
+    }
+    if (
+      command.leadTimeDays !== undefined &&
+      command.leadTimeDays !== null &&
+      (!Number.isInteger(command.leadTimeDays) || command.leadTimeDays < 0)
+    ) {
+      throw new SkuValidationError('leadTimeDays must be a non-negative integer');
     }
   }
 

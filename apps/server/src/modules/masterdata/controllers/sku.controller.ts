@@ -23,6 +23,22 @@ function isOptionalNullableString(
   return value === undefined || value === null || typeof value === 'string';
 }
 
+function isOptionalNullableBoolean(
+  value: unknown,
+): value is boolean | null | undefined {
+  return value === undefined || value === null || typeof value === 'boolean';
+}
+
+function isOptionalNullableInteger(
+  value: unknown,
+): value is number | null | undefined {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === 'number' && Number.isInteger(value))
+  );
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -81,12 +97,51 @@ function parseCreateSkuCommand(payload: unknown): CreateSkuCommand {
     throw new SkuValidationError('categoryId must be string or null');
   }
 
+  if (!isOptionalNullableString(candidate.barcode)) {
+    throw new SkuValidationError('barcode must be string or null');
+  }
+
+  if (!isOptionalNullableBoolean(candidate.batchManaged)) {
+    throw new SkuValidationError('batchManaged must be boolean or null');
+  }
+
+  if (!isOptionalNullableBoolean(candidate.serialManaged)) {
+    throw new SkuValidationError('serialManaged must be boolean or null');
+  }
+
+  if (!isOptionalNullableString(candidate.minStockQty)) {
+    throw new SkuValidationError('minStockQty must be string or null');
+  }
+
+  if (!isOptionalNullableString(candidate.maxStockQty)) {
+    throw new SkuValidationError('maxStockQty must be string or null');
+  }
+
+  if (!isOptionalNullableInteger(candidate.leadTimeDays)) {
+    throw new SkuValidationError('leadTimeDays must be integer or null');
+  }
+
   return {
     code: candidate.code.trim(),
     name: candidate.name.trim(),
     specification: normalizeOptionalNullableString(candidate.specification),
     baseUnit: candidate.baseUnit.trim(),
     categoryId: normalizeOptionalNullableString(candidate.categoryId),
+    barcode: normalizeOptionalNullableString(candidate.barcode),
+    batchManaged:
+      candidate.batchManaged === undefined || candidate.batchManaged === null
+        ? undefined
+        : candidate.batchManaged,
+    serialManaged:
+      candidate.serialManaged === undefined || candidate.serialManaged === null
+        ? undefined
+        : candidate.serialManaged,
+    minStockQty: normalizeOptionalNullableString(candidate.minStockQty),
+    maxStockQty: normalizeOptionalNullableString(candidate.maxStockQty),
+    leadTimeDays:
+      candidate.leadTimeDays === undefined || candidate.leadTimeDays === null
+        ? undefined
+        : candidate.leadTimeDays,
   };
 }
 
@@ -121,6 +176,30 @@ function parseUpdateSkuCommand(payload: unknown): UpdateSkuCommand {
     throw new SkuValidationError('categoryId must be string or null');
   }
 
+  if (!isOptionalNullableString(candidate.barcode)) {
+    throw new SkuValidationError('barcode must be string or null');
+  }
+
+  if (!isOptionalNullableBoolean(candidate.batchManaged)) {
+    throw new SkuValidationError('batchManaged must be boolean or null');
+  }
+
+  if (!isOptionalNullableBoolean(candidate.serialManaged)) {
+    throw new SkuValidationError('serialManaged must be boolean or null');
+  }
+
+  if (!isOptionalNullableString(candidate.minStockQty)) {
+    throw new SkuValidationError('minStockQty must be string or null');
+  }
+
+  if (!isOptionalNullableString(candidate.maxStockQty)) {
+    throw new SkuValidationError('maxStockQty must be string or null');
+  }
+
+  if (!isOptionalNullableInteger(candidate.leadTimeDays)) {
+    throw new SkuValidationError('leadTimeDays must be integer or null');
+  }
+
   if (
     candidate.isActive !== undefined &&
     typeof candidate.isActive !== 'boolean'
@@ -139,6 +218,21 @@ function parseUpdateSkuCommand(payload: unknown): UpdateSkuCommand {
         ? undefined
         : candidate.baseUnit.trim(),
     categoryId: normalizeOptionalNullableString(candidate.categoryId),
+    barcode: normalizeOptionalNullableString(candidate.barcode),
+    batchManaged:
+      candidate.batchManaged === undefined || candidate.batchManaged === null
+        ? undefined
+        : candidate.batchManaged,
+    serialManaged:
+      candidate.serialManaged === undefined || candidate.serialManaged === null
+        ? undefined
+        : candidate.serialManaged,
+    minStockQty: normalizeOptionalNullableString(candidate.minStockQty),
+    maxStockQty: normalizeOptionalNullableString(candidate.maxStockQty),
+    leadTimeDays:
+      candidate.leadTimeDays === undefined || candidate.leadTimeDays === null
+        ? undefined
+        : candidate.leadTimeDays,
     isActive: candidate.isActive,
   };
 }

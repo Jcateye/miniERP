@@ -16,6 +16,12 @@ function mapSkuEntity(row: {
   specification: string | null;
   categoryId: string | null;
   unit: string | null;
+  barcode: string | null;
+  batchManaged: boolean;
+  serialManaged: boolean;
+  minStockQty: { toString(): string } | null;
+  maxStockQty: { toString(): string } | null;
+  leadTimeDays: number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +34,12 @@ function mapSkuEntity(row: {
     specification: row.specification,
     baseUnit: row.unit ?? 'PCS',
     categoryId: row.categoryId,
+    barcode: row.barcode,
+    batchManaged: row.batchManaged,
+    serialManaged: row.serialManaged,
+    minStockQty: row.minStockQty?.toString() ?? null,
+    maxStockQty: row.maxStockQty?.toString() ?? null,
+    leadTimeDays: row.leadTimeDays,
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -115,6 +127,12 @@ export class PrismaSkuRepository implements SkuRepository {
         specification: entity.specification,
         categoryId: entity.categoryId,
         unit: entity.baseUnit,
+        barcode: entity.barcode,
+        batchManaged: entity.batchManaged,
+        serialManaged: entity.serialManaged,
+        minStockQty: entity.minStockQty,
+        maxStockQty: entity.maxStockQty,
+        leadTimeDays: entity.leadTimeDays,
         isActive: entity.isActive,
       },
     });
@@ -153,6 +171,12 @@ export class PrismaSkuRepository implements SkuRepository {
         specification: updates.specification,
         categoryId: updates.categoryId,
         unit: updates.baseUnit,
+        barcode: updates.barcode,
+        batchManaged: updates.batchManaged,
+        serialManaged: updates.serialManaged,
+        minStockQty: updates.minStockQty,
+        maxStockQty: updates.maxStockQty,
+        leadTimeDays: updates.leadTimeDays,
         isActive: updates.isActive,
       },
     });

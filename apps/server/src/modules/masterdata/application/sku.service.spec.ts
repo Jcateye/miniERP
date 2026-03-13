@@ -44,10 +44,22 @@ describe('SkuService', () => {
         baseUnit: 'KG',
         specification: '100g per unit',
         categoryId: 'cat-1',
+        barcode: '6901001000999',
+        batchManaged: true,
+        serialManaged: false,
+        minStockQty: '12.5',
+        maxStockQty: '120.5',
+        leadTimeDays: 7,
       });
 
       expect(result.specification).toBe('100g per unit');
       expect(result.categoryId).toBe('cat-1');
+      expect(result.barcode).toBe('6901001000999');
+      expect(result.batchManaged).toBe(true);
+      expect(result.serialManaged).toBe(false);
+      expect(result.minStockQty).toBe('12.5');
+      expect(result.maxStockQty).toBe('120.5');
+      expect(result.leadTimeDays).toBe(7);
     });
 
     it('rejects duplicate code', async () => {
@@ -92,6 +104,17 @@ describe('SkuService', () => {
           code: 'SKU-NO-UNIT',
           name: 'Test',
           baseUnit: '',
+        }),
+      ).rejects.toBeInstanceOf(SkuValidationError);
+    });
+
+    it('rejects negative leadTimeDays', async () => {
+      await expect(
+        service.create(tenantId, {
+          code: 'SKU-NEG-LEAD',
+          name: 'Test',
+          baseUnit: 'PCS',
+          leadTimeDays: -1,
         }),
       ).rejects.toBeInstanceOf(SkuValidationError);
     });
@@ -213,6 +236,30 @@ describe('SkuService', () => {
       expect(updated?.isActive).toBe(false);
     });
 
+    it('updates richer item fields', async () => {
+      const created = await service.create(tenantId, {
+        code: 'SKU-RICH-UPD',
+        name: 'Rich Fields',
+        baseUnit: 'PCS',
+      });
+
+      const updated = await service.update(tenantId, created.id, {
+        barcode: '6901001888888',
+        batchManaged: true,
+        serialManaged: true,
+        minStockQty: '8',
+        maxStockQty: '80',
+        leadTimeDays: 15,
+      });
+
+      expect(updated.barcode).toBe('6901001888888');
+      expect(updated.batchManaged).toBe(true);
+      expect(updated.serialManaged).toBe(true);
+      expect(updated.minStockQty).toBe('8');
+      expect(updated.maxStockQty).toBe('80');
+      expect(updated.leadTimeDays).toBe(15);
+    });
+
     it('throws when not found', async () => {
       await expect(
         service.update(tenantId, 'nonexistent', { name: 'Updated' }),
@@ -228,6 +275,18 @@ describe('SkuService', () => {
 
       await expect(
         service.update(tenantId, created.id, { name: '' }),
+      ).rejects.toBeInstanceOf(SkuValidationError);
+    });
+
+    it('rejects negative leadTimeDays on update', async () => {
+      const created = await service.create(tenantId, {
+        code: 'SKU-NEG-LEAD-UPD',
+        name: 'Original',
+        baseUnit: 'PCS',
+      });
+
+      await expect(
+        service.update(tenantId, created.id, { leadTimeDays: -3 }),
       ).rejects.toBeInstanceOf(SkuValidationError);
     });
   });

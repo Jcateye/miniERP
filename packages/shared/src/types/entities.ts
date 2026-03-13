@@ -31,6 +31,9 @@ export interface Sku extends NamedEntity {
   readonly barcode: string | null;
   readonly batchManaged: boolean;
   readonly serialManaged: boolean;
+  readonly minStockQty?: DecimalString | null;
+  readonly maxStockQty?: DecimalString | null;
+  readonly leadTimeDays?: number | null;
 }
 
 /**
