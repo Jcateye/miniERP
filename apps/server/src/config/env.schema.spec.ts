@@ -1,6 +1,26 @@
 import { parseEnv } from './env.schema';
 
 describe('parseEnv', () => {
+  it('defaults to production when NODE_ENV is missing', () => {
+    const env = parseEnv({
+      DATABASE_URL: 'postgres://u:p@localhost:5432/db',
+      REDIS_URL: 'redis://localhost:6379',
+      AUTH_CONTEXT_SECRET: 'prod-secret',
+    });
+
+    expect(env.NODE_ENV).toBe('production');
+  });
+
+  it('throws when NODE_ENV is invalid', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'staging',
+        DATABASE_URL: 'postgres://u:p@localhost:5432/db',
+        REDIS_URL: 'redis://localhost:6379',
+      }),
+    ).toThrow('NODE_ENV must be development, test, or production');
+  });
+
   it('provides test-only auth context secret in test env when value is missing', () => {
     const env = parseEnv({
       NODE_ENV: 'test',

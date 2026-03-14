@@ -15,11 +15,15 @@ export interface EnvSchema {
 }
 
 function parseNodeEnv(value: string | undefined): NodeEnv {
+  if (typeof value === 'undefined' || value.trim().length === 0) {
+    return 'production';
+  }
+
   if (value === 'development' || value === 'test' || value === 'production') {
     return value;
   }
 
-  return 'development';
+  throw new Error('NODE_ENV must be development, test, or production');
 }
 
 function parsePort(value: string | undefined): number {
