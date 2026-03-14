@@ -19,6 +19,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:tenant-tx": "bun run db:generate && jest --runInBand src/database/platform-db.integration.spec.ts",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "openapi:generate": "bun run scripts/generate-openapi.ts",
     "openapi:check": "bun run scripts/generate-openapi.ts && bun run scripts/check-openapi-quality.ts",
