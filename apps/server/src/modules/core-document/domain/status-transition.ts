@@ -8,14 +8,14 @@ import {
   TRADING_MODULE_BOUNDARIES,
   TRADING_MODULES,
   type TradingLegacyDocumentType,
-  type TradingModule,
+  type TradingSubModule,
 } from '../../trading/domain/trading-document.catalog';
 
 export const CORE_DOCUMENT_MODULES = TRADING_MODULES;
 export const CORE_DOCUMENT_TYPES = TRADING_LEGACY_DOCUMENT_TYPES;
 export const CORE_DOCUMENT_STATUSES = DOCUMENT_STATUS_CODES;
 
-export type CoreDocumentModule = TradingModule;
+export type CoreDocumentModule = TradingSubModule;
 export type CoreDocumentType = TradingLegacyDocumentType;
 export type CoreDocumentStatus = DocumentStatusCode;
 

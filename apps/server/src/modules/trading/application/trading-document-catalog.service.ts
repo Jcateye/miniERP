@@ -6,12 +6,12 @@ import {
   isTradingBoundaryStatus,
   type TradingBoundaryStatus,
   type TradingLegacyDocumentType,
-  type TradingModule,
+  type TradingSubModule,
 } from '../domain/trading-document.catalog';
 
 @Injectable()
 export class TradingDocumentCatalogService {
-  getBoundary(module: TradingModule) {
+  getBoundary(module: TradingSubModule) {
     return getTradingModuleBoundary(module);
   }
 
@@ -19,7 +19,7 @@ export class TradingDocumentCatalogService {
     return getCanonicalTradingDocumentType(legacyType);
   }
 
-  isBoundaryStatus<M extends TradingModule>(
+  isBoundaryStatus<M extends TradingSubModule>(
     module: M,
     status: DocumentStatusCode,
   ): status is TradingBoundaryStatus<M> {

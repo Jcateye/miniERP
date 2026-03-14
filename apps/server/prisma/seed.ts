@@ -209,17 +209,19 @@ async function main() {
 
   await prisma.inventoryBalance.upsert({
     where: {
-      tenantId_skuId_warehouseId: {
+      tenantId_skuId_warehouseId_binId: {
         tenantId,
-        skuId: 'CAB-HDMI-2M',
-        warehouseId: 'WH-001',
+        skuId: sku1.id.toString(),
+        warehouseId: wh.id.toString(),
+        binId: '',
       },
     },
     update: { onHand: 120 },
     create: {
       tenantId,
-      skuId: 'CAB-HDMI-2M',
-      warehouseId: 'WH-001',
+      skuId: sku1.id.toString(),
+      warehouseId: wh.id.toString(),
+      binId: '',
       onHand: 120,
     },
   });
@@ -227,8 +229,9 @@ async function main() {
   await prisma.inventoryLedger.create({
     data: {
       tenantId,
-      skuId: 'CAB-HDMI-2M',
-      warehouseId: 'WH-001',
+      skuId: sku1.id.toString(),
+      warehouseId: wh.id.toString(),
+      binId: '',
       quantityDelta: 120,
       referenceType: 'GRN',
       referenceId: '3001',
