@@ -94,7 +94,7 @@ function parseCreateWarehouseCommand(payload: unknown): CreateWarehouseCommand {
     address: normalizeOptionalNullableString(candidate.address),
     contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
     contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
-    manageBin: candidate.manageBin as boolean | undefined,
+    manageBin: candidate.manageBin,
   };
 }
 
@@ -147,7 +147,7 @@ function parseUpdateWarehouseCommand(payload: unknown): UpdateWarehouseCommand {
     address: normalizeOptionalNullableString(candidate.address),
     contactPerson: normalizeOptionalNullableString(candidate.contactPerson),
     contactPhone: normalizeOptionalNullableString(candidate.contactPhone),
-    manageBin: candidate.manageBin as boolean | undefined,
+    manageBin: candidate.manageBin,
     isActive: candidate.isActive,
   };
 }

@@ -85,7 +85,9 @@ describe('InventoryController', () => {
           reversalOfLedgerId: null,
         },
       ],
-      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 100 }],
+      balanceSnapshots: [
+        { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 100 },
+      ],
     });
 
     const result = await controller.createInbound('idem-in-1', {
@@ -99,7 +101,14 @@ describe('InventoryController', () => {
       expect.objectContaining({
         idempotencyKey: 'idem-in-1',
         referenceType: 'GRN',
-        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, quantityDelta: 100 }],
+        lines: [
+          {
+            skuId: 'SKU-1',
+            warehouseId: 'WH-1',
+            binId: null,
+            quantityDelta: 100,
+          },
+        ],
         referenceId: expect.stringMatching(/^DOC-GRN-\d{8}-\d{6}$/),
       }),
       'req-001',
@@ -117,7 +126,12 @@ describe('InventoryController', () => {
           quantityDelta: 100,
         }),
       ],
-      balance: { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 100 },
+      balance: {
+        skuId: 'SKU-1',
+        warehouseId: 'WH-1',
+        binId: null,
+        onHand: 100,
+      },
     });
   });
 
@@ -137,7 +151,9 @@ describe('InventoryController', () => {
           reversalOfLedgerId: null,
         },
       ],
-      balanceSnapshots: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 70 }],
+      balanceSnapshots: [
+        { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 70 },
+      ],
     });
 
     const result = await controller.createOutbound('idem-out-1', {
@@ -151,7 +167,14 @@ describe('InventoryController', () => {
       expect.objectContaining({
         idempotencyKey: 'idem-out-1',
         referenceType: 'OUT',
-        lines: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, quantityDelta: -30 }],
+        lines: [
+          {
+            skuId: 'SKU-1',
+            warehouseId: 'WH-1',
+            binId: null,
+            quantityDelta: -30,
+          },
+        ],
         referenceId: expect.stringMatching(/^DOC-OUT-\d{8}-\d{6}$/),
       }),
       'req-001',
@@ -292,7 +315,12 @@ describe('InventoryController', () => {
       },
     ]);
 
-    const result = await controller.getLedger(undefined, undefined, undefined, 'GRN');
+    const result = await controller.getLedger(
+      undefined,
+      undefined,
+      undefined,
+      'GRN',
+    );
 
     expect(result.total).toBe(1);
     expect(result.data[0]?.referenceType).toBe('GRN');
@@ -320,7 +348,14 @@ describe('InventoryController', () => {
 
   it('should reject pageSize overflow', async () => {
     await expect(
-      controller.getLedger(undefined, undefined, undefined, undefined, '1', '201'),
+      controller.getLedger(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        '1',
+        '201',
+      ),
     ).rejects.toThrow('pageSize must be <= 200');
   });
 });

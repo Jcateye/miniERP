@@ -749,7 +749,9 @@ describe('DocumentsService', () => {
         ),
       ).rejects.toThrow('Insufficient stock');
 
-      expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalledWith(
+      expect(
+        mockInventoryPostingService.postInTransaction,
+      ).toHaveBeenCalledWith(
         '1001',
         expect.objectContaining({
           lines: [
@@ -819,7 +821,12 @@ describe('DocumentsService', () => {
         deletedAt: null,
       });
       mockPrisma.grnLine.findMany.mockResolvedValue([
-        { lineNo: 1, skuId: BigInt(9001), binId: BigInt(7101), qty: decimalLike('3') },
+        {
+          lineNo: 1,
+          skuId: BigInt(9001),
+          binId: BigInt(7101),
+          qty: decimalLike('3'),
+        },
       ]);
       mockPrisma.purchaseOrder.findFirst.mockResolvedValue({
         id: BigInt(4001),
@@ -924,7 +931,9 @@ describe('DocumentsService', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalledWith(
+      expect(
+        mockInventoryPostingService.postInTransaction,
+      ).toHaveBeenCalledWith(
         '1001',
         expect.objectContaining({
           lines: [

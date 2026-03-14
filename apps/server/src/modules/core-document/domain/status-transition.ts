@@ -112,8 +112,9 @@ const STATUS_GRAPH: StatusGraph = {
     picking: [],
   },
 };
-const MODULE_BOUNDARIES: Readonly<Record<CoreDocumentModule, DocumentModuleBoundary>> =
-  TRADING_MODULE_BOUNDARIES;
+const MODULE_BOUNDARIES: Readonly<
+  Record<CoreDocumentModule, DocumentModuleBoundary>
+> = TRADING_MODULE_BOUNDARIES;
 
 export class InvalidStatusTransitionError extends HttpException {
   readonly code = 'VALIDATION_STATUS_TRANSITION_INVALID';

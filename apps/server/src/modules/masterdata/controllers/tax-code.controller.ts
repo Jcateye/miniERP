@@ -82,7 +82,12 @@ export class TaxCodeController {
         deletedAt: null,
         taxCode: code ? { contains: code } : undefined,
         taxName: name ? { contains: name } : undefined,
-        status: active === undefined ? undefined : active ? 'active' : { not: 'active' },
+        status:
+          active === undefined
+            ? undefined
+            : active
+              ? 'active'
+              : { not: 'active' },
       },
       orderBy: [{ taxCode: 'asc' }, { id: 'asc' }],
     });

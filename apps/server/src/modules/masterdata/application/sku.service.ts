@@ -124,14 +124,18 @@ export class SkuService {
       command.shelfLifeDays !== null &&
       (!Number.isInteger(command.shelfLifeDays) || command.shelfLifeDays < 0)
     ) {
-      throw new SkuValidationError('shelfLifeDays must be a non-negative integer');
+      throw new SkuValidationError(
+        'shelfLifeDays must be a non-negative integer',
+      );
     }
     if (
       command.leadTimeDays !== undefined &&
       command.leadTimeDays !== null &&
       (!Number.isInteger(command.leadTimeDays) || command.leadTimeDays < 0)
     ) {
-      throw new SkuValidationError('leadTimeDays must be a non-negative integer');
+      throw new SkuValidationError(
+        'leadTimeDays must be a non-negative integer',
+      );
     }
   }
 
@@ -147,14 +151,18 @@ export class SkuService {
       command.shelfLifeDays !== null &&
       (!Number.isInteger(command.shelfLifeDays) || command.shelfLifeDays < 0)
     ) {
-      throw new SkuValidationError('shelfLifeDays must be a non-negative integer');
+      throw new SkuValidationError(
+        'shelfLifeDays must be a non-negative integer',
+      );
     }
     if (
       command.leadTimeDays !== undefined &&
       command.leadTimeDays !== null &&
       (!Number.isInteger(command.leadTimeDays) || command.leadTimeDays < 0)
     ) {
-      throw new SkuValidationError('leadTimeDays must be a non-negative integer');
+      throw new SkuValidationError(
+        'leadTimeDays must be a non-negative integer',
+      );
     }
   }
 

@@ -3,7 +3,6 @@ import {
   LEGACY_TO_CANONICAL_DOCUMENT_TYPE,
   type CanonicalDocumentType,
   type DocumentStatusCode,
-  type LegacyDocumentType,
 } from '@minierp/shared';
 
 export const TRADING_MODULES = [
@@ -169,11 +168,15 @@ export function isTradingBoundaryStatus<M extends TradingModule>(
 export function isTradingLegacyDocumentType(
   value: string,
 ): value is TradingLegacyDocumentType {
-  return TRADING_LEGACY_DOCUMENT_TYPES.includes(value as TradingLegacyDocumentType);
+  return TRADING_LEGACY_DOCUMENT_TYPES.includes(
+    value as TradingLegacyDocumentType,
+  );
 }
 
 export function toCanonicalDocumentTypeFromSharedAlias(
   legacyType: TradingLegacyDocumentType,
 ): TradingCanonicalDocumentType {
-  return LEGACY_TO_CANONICAL_DOCUMENT_TYPE[legacyType] as TradingCanonicalDocumentType;
+  return LEGACY_TO_CANONICAL_DOCUMENT_TYPE[
+    legacyType
+  ] as TradingCanonicalDocumentType;
 }

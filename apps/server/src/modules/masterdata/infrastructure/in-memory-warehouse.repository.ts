@@ -51,8 +51,8 @@ export class InMemoryWarehouseRepository implements WarehouseRepository {
       if (filter.search) {
         const keyword = filter.search.toLowerCase();
         results = results.filter((e) =>
-          [e.code, e.name, e.address ?? '', e.contactPerson ?? ''].some((value) =>
-            value.toLowerCase().includes(keyword),
+          [e.code, e.name, e.address ?? '', e.contactPerson ?? ''].some(
+            (value) => value.toLowerCase().includes(keyword),
           ),
         );
       }

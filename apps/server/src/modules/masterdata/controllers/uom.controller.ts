@@ -76,7 +76,12 @@ export class UomController {
         deletedAt: null,
         uomCode: code ? { contains: code } : undefined,
         uomName: name ? { contains: name } : undefined,
-        status: active === undefined ? undefined : active ? 'active' : { not: 'active' },
+        status:
+          active === undefined
+            ? undefined
+            : active
+              ? 'active'
+              : { not: 'active' },
       },
       orderBy: [{ uomCode: 'asc' }, { id: 'asc' }],
     });
