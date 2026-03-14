@@ -49,3 +49,21 @@ SELECT set_config('search_path', quote_ident($schema) || ', public', true);
 - 即使 Prisma 复用连接池中的同一物理连接，也不会把上一个租户的 `search_path` 泄漏给下一个请求
 
 因此真正的约束是：tenant 业务查询必须全部使用 `withTenantTx()` 回调里给出的 `tx`。
+
+## Tenant Registry
+
+tenant schema registry 固定在 `public.tenants`：
+
+```sql
+CREATE TABLE public.tenants (
+  tenant_id text PRIMARY KEY,
+  schema_name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+初始化一个租户：
+
+```bash
+bun run --filter server tenant:init TENANT-001 tenant_001
+```
