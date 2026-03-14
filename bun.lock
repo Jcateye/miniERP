@@ -16,6 +16,8 @@
       "version": "0.0.1",
       "dependencies": {
         "@minierp/platform-db": "workspace:*",
+        "@minierp/platform-iam": "workspace:*",
+        "@minierp/platform-policy": "workspace:*",
         "@minierp/platform-tenant": "workspace:*",
         "@minierp/shared": "workspace:*",
         "@nestjs/common": "^11.0.1",
@@ -91,8 +93,25 @@
         "typescript": "^5.0.0",
       },
     },
+    "packages/platform-iam": {
+      "name": "@minierp/platform-iam",
+      "version": "0.1.0",
+      "dependencies": {
+        "@minierp/platform-policy": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
     "packages/platform-kernel": {
       "name": "@minierp/platform-kernel",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/platform-policy": {
+      "name": "@minierp/platform-policy",
       "version": "0.1.0",
       "devDependencies": {
         "typescript": "^5.0.0",
@@ -362,7 +381,11 @@
 
     "@minierp/platform-db": ["@minierp/platform-db@workspace:packages/platform-db"],
 
+    "@minierp/platform-iam": ["@minierp/platform-iam@workspace:packages/platform-iam"],
+
     "@minierp/platform-kernel": ["@minierp/platform-kernel@workspace:packages/platform-kernel"],
+
+    "@minierp/platform-policy": ["@minierp/platform-policy@workspace:packages/platform-policy"],
 
     "@minierp/platform-tenant": ["@minierp/platform-tenant@workspace:packages/platform-tenant"],
 

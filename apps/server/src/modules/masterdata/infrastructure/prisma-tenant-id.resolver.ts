@@ -1,4 +1,9 @@
 import type { PrismaService } from '../../../database/prisma.service';
+import type { Prisma } from '@prisma/client';
+
+type TenantLookupClient =
+  | Pick<PrismaService, 'tenant'>
+  | Prisma.TransactionClient;
 
 function tenantCodeCandidates(tenantId: string): string[] {
   const normalized = tenantId.trim();
@@ -12,7 +17,7 @@ function tenantCodeCandidates(tenantId: string): string[] {
 }
 
 export async function resolveTenantDbId(
-  prisma: PrismaService,
+  prisma: TenantLookupClient,
   tenantId: string,
 ): Promise<bigint> {
   const normalized = tenantId.trim();
