@@ -26,4 +26,44 @@ describe('TenantContextService', () => {
       },
     );
   });
+
+  it('does not leak tenant context across concurrent runs', async () => {
+    function sleep(ms: number): Promise<void> {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function resolveTenantId(tenantId: string): Promise<string> {
+      return await new Promise((resolve, reject) => {
+        tenantContextStorage.run(
+          {
+            tenantId,
+            requestId: `req-${tenantId}`,
+          },
+          () => {
+            void (async () => {
+              try {
+                await sleep(1);
+                const first = service.getRequiredContext().tenantId;
+                await sleep(1);
+                const second = service.getRequiredContext().tenantId;
+                resolve(`${first}/${second}`);
+              } catch (error) {
+                reject(
+                  error instanceof Error ? error : new Error(String(error)),
+                );
+              }
+            })();
+          },
+        );
+      });
+    }
+
+    const results = await Promise.all(
+      Array.from({ length: 100 }, (_, index) => resolveTenantId(`t${index}`)),
+    );
+
+    results.forEach((value, index) => {
+      expect(value).toBe(`t${index}/t${index}`);
+    });
+  });
 });

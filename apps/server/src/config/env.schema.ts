@@ -10,6 +10,7 @@ export interface EnvSchema {
   readonly REDIS_URL: string;
   readonly REDIS_KEY_PREFIX: string;
   readonly TENANT_HEADER: string;
+  readonly TENANT_HEADER_FALLBACK_ENABLED: boolean;
   readonly AUTH_CONTEXT_SECRET: string;
 }
 
@@ -62,6 +63,23 @@ function parseTenantHeader(value: string | undefined): string {
   return value.trim();
 }
 
+function parseTenantHeaderFallbackEnabled(value: string | undefined): boolean {
+  if (typeof value === 'undefined' || value.trim().length === 0) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  throw new Error('TENANT_HEADER_FALLBACK_ENABLED must be true or false');
+}
+
 function parseRedisKeyPrefix(value: string | undefined): string {
   if (typeof value === 'undefined' || value.trim().length === 0) {
     return 'erp_';
@@ -100,6 +118,9 @@ export function parseEnv(env: NodeJS.ProcessEnv = process.env): EnvSchema {
     REDIS_URL: parseRequiredEnv(env.REDIS_URL, 'REDIS_URL'),
     REDIS_KEY_PREFIX: parseRedisKeyPrefix(env.REDIS_KEY_PREFIX),
     TENANT_HEADER: parseTenantHeader(env.TENANT_HEADER),
+    TENANT_HEADER_FALLBACK_ENABLED: parseTenantHeaderFallbackEnabled(
+      env.TENANT_HEADER_FALLBACK_ENABLED,
+    ),
     AUTH_CONTEXT_SECRET: parseAuthContextSecret(
       env.AUTH_CONTEXT_SECRET,
       nodeEnv,

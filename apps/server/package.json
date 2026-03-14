@@ -29,6 +29,7 @@
     "db:seed": "node -r ts-node/register prisma/seed.ts"
   },
   "dependencies": {
+    "@minierp/platform-tenant": "workspace:*",
     "@minierp/shared": "workspace:*",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",

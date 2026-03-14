@@ -8,6 +8,7 @@ export interface AppConfig {
   readonly redisUrl: string;
   readonly redisKeyPrefix: string;
   readonly tenantHeader: string;
+  readonly tenantHeaderFallbackEnabled: boolean;
   readonly authContextSecret: string;
 }
 
@@ -30,6 +31,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     REDIS_URL,
     REDIS_KEY_PREFIX,
     TENANT_HEADER,
+    TENANT_HEADER_FALLBACK_ENABLED,
     AUTH_CONTEXT_SECRET,
   } = parseEnv(env);
 
@@ -41,6 +43,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     redisUrl: REDIS_URL,
     redisKeyPrefix: REDIS_KEY_PREFIX,
     tenantHeader: TENANT_HEADER,
+    tenantHeaderFallbackEnabled: TENANT_HEADER_FALLBACK_ENABLED,
     authContextSecret: AUTH_CONTEXT_SECRET,
   };
 }
