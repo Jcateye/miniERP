@@ -7,4 +7,4 @@ export * from './documents';
 export * from './evidence';
 export * from './inventory';
 export * from './masterdata';
-export * from './erp';
+export * from './erp/index';

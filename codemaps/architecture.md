@@ -1,44 +1,47 @@
 # Architecture codemap
-- Freshness: 2026-03-04T14:41:43.280Z
-- Files: 122
+- Freshness: 2026-03-14T01:22:05.958Z
+- Files: 333
 ## Key modules
-- apps/web/src (68 files)
-- apps/server/src (46 files)
-- packages/shared/src (8 files)
+- apps/web/src (212 files)
+- apps/server/src (99 files)
+- packages/shared/src (22 files)
 ## Internal import edges
 - apps/server/src/app.controller.ts -> apps/server/src/app.service.ts
 - apps/server/src/app.module.ts -> apps/server/src/app.controller.ts
 - apps/server/src/app.module.ts -> apps/server/src/app.service.ts
-- apps/server/src/app.module.ts -> apps/server/src/audit/application/audit.service.ts
-- apps/server/src/app.module.ts -> apps/server/src/audit/application/audit.store.ts
+- apps/server/src/app.module.ts -> apps/server/src/audit/audit.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/common/filters/api-exception.filter.ts
 - apps/server/src/app.module.ts -> apps/server/src/common/iam/iam.guard.ts
 - apps/server/src/app.module.ts -> apps/server/src/common/interceptors/api-response.interceptor.ts
-- apps/server/src/app.module.ts -> apps/server/src/common/tenant/tenant-context.service.ts
+- apps/server/src/app.module.ts -> apps/server/src/common/tenant/tenant.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/database/database.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/health/health.module.ts
-- apps/server/src/app.module.ts -> apps/server/src/platform/application/platform-access.service.ts
+- apps/server/src/app.module.ts -> apps/server/src/modules/documents/documents.module.ts
+- apps/server/src/app.module.ts -> apps/server/src/modules/evidence/evidence.module.ts
+- apps/server/src/app.module.ts -> apps/server/src/modules/inventory/inventory.module.ts
+- apps/server/src/app.module.ts -> apps/server/src/modules/masterdata/masterdata.module.ts
+- apps/server/src/app.module.ts -> apps/server/src/modules/trading/index.ts
+- apps/server/src/app.module.ts -> apps/server/src/platform/platform.module.ts
 - apps/server/src/audit/application/audit.service.ts -> apps/server/src/audit/application/audit.store.ts
 - apps/server/src/audit/application/audit.service.ts -> apps/server/src/audit/domain/audit-redactor.ts
+- apps/server/src/audit/application/prisma-audit.store.ts -> apps/server/src/audit/application/audit.store.ts
+- apps/server/src/audit/application/prisma-audit.store.ts -> apps/server/src/database/prisma.service.ts
+- apps/server/src/audit/audit.module.ts -> apps/server/src/audit/application/audit.service.ts
+- apps/server/src/audit/audit.module.ts -> apps/server/src/audit/application/audit.store.ts
+- apps/server/src/audit/audit.module.ts -> apps/server/src/audit/application/prisma-audit.store.ts
 - apps/server/src/codemap/render-codemaps.ts -> apps/server/src/codemap/scan-source-graph.ts
 - apps/server/src/common/iam/auth-context.middleware.ts -> apps/server/src/common/iam/auth-context.ts
-- apps/server/src/common/iam/iam.guard.ts -> apps/server/src/audit/application/audit.service.ts
-- apps/server/src/common/iam/iam.guard.ts -> apps/server/src/common/iam/auth-context.ts
-- apps/server/src/common/iam/iam.guard.ts -> apps/server/src/common/iam/permission-matcher.ts
-- apps/server/src/common/iam/iam.guard.ts -> apps/server/src/common/tenant/tenant-context.service.ts
-- apps/server/src/common/iam/iam.guard.ts -> apps/server/src/platform/application/platform-access.service.ts
-- apps/server/src/common/iam/require-permissions.decorator.ts -> apps/server/src/common/iam/iam.guard.ts
-- apps/server/src/common/iam/require-platform-action.decorator.ts -> apps/server/src/common/iam/iam.guard.ts
-- apps/server/src/common/tenant/tenant-context.middleware.ts -> apps/server/src/common/iam/auth-context.ts
-- apps/server/src/common/tenant/tenant-context.middleware.ts -> apps/server/src/common/tenant/tenant-context.ts
-- ...truncated (65 more)
+- ...truncated (345 more)
 ## External dependencies
 - @/
 - @minierp/shared
 - @nestjs/common
 - @nestjs/core
 - @nestjs/swagger
+- @prisma/client
+- decimal.js
 - express
+- lucide-react
 - next
 - node:async_hooks
 - node:crypto

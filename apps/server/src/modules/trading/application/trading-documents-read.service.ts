@@ -383,8 +383,8 @@ export class TradingDocumentsReadService {
       specModelSnapshot?: string | null;
       uom?: string | null;
       qty: { toString(): string };
-      unitPrice: { toString(): string };
-      amount: { toString(): string };
+      unitPrice: { toString(): string } | null;
+      amount: { toString(): string } | null;
       taxAmount?: { toString(): string } | null;
     },
   ): DocumentLine {
@@ -398,8 +398,8 @@ export class TradingDocumentsReadService {
       specModelSnapshot: line.specModelSnapshot ?? null,
       uom: line.uom ?? null,
       qty: line.qty.toString(),
-      unitPrice: line.unitPrice.toString(),
-      amount: line.amount.toString(),
+      unitPrice: line.unitPrice?.toString() ?? '0',
+      amount: line.amount?.toString() ?? '0',
       taxAmount: line.taxAmount?.toString() ?? '0',
     };
   }

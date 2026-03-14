@@ -29,14 +29,14 @@ export const TRADING_CANONICAL_DOCUMENT_TYPES = [
   'stocktake',
 ] as const;
 
-export type TradingModule = (typeof TRADING_MODULES)[number];
+export type TradingSubModule = (typeof TRADING_MODULES)[number];
 export type TradingLegacyDocumentType =
   (typeof TRADING_LEGACY_DOCUMENT_TYPES)[number];
 export type TradingCanonicalDocumentType =
   (typeof TRADING_CANONICAL_DOCUMENT_TYPES)[number];
 
 type TradingDocumentBoundaryConfig = {
-  readonly module: TradingModule;
+  readonly module: TradingSubModule;
   readonly entityType: TradingLegacyDocumentType;
   readonly initialStatus: DocumentStatusCode;
   readonly statuses: readonly DocumentStatusCode[];
@@ -52,9 +52,9 @@ export const TRADING_BOUNDARY_STATUSES = {
   sales: ['draft', 'confirmed', 'closed', 'cancelled'],
   outbound: ['draft', 'picking', 'posted', 'cancelled'],
   stocktake: ['draft', 'validating', 'posted', 'cancelled'],
-} as const satisfies Record<TradingModule, readonly DocumentStatusCode[]>;
+} as const satisfies Record<TradingSubModule, readonly DocumentStatusCode[]>;
 
-export type TradingBoundaryStatus<M extends TradingModule> =
+export type TradingBoundaryStatus<M extends TradingSubModule> =
   (typeof TRADING_BOUNDARY_STATUSES)[M][number];
 
 export type PurchaseOrderLifecycleStatus = TradingBoundaryStatus<'purchase'>;
@@ -75,7 +75,7 @@ export const TRADING_LEGACY_TO_CANONICAL: Record<
 } satisfies Record<TradingLegacyDocumentType, CanonicalDocumentType>;
 
 export const TRADING_MODULE_BOUNDARIES: Readonly<
-  Record<TradingModule, TradingDocumentBoundaryConfig>
+  Record<TradingSubModule, TradingDocumentBoundaryConfig>
 > = {
   purchase: {
     module: 'purchase',
@@ -151,17 +151,17 @@ export function getCanonicalTradingDocumentType(
 }
 
 export function getTradingModuleBoundary(
-  module: TradingModule,
+  module: TradingSubModule,
 ): TradingDocumentBoundaryConfig {
   return TRADING_MODULE_BOUNDARIES[module];
 }
 
-export function isTradingBoundaryStatus<M extends TradingModule>(
+export function isTradingBoundaryStatus<M extends TradingSubModule>(
   module: M,
   status: DocumentStatusCode,
 ): status is TradingBoundaryStatus<M> {
-  return TRADING_BOUNDARY_STATUSES[module].includes(
-    status as TradingBoundaryStatus<M>,
+  return (TRADING_BOUNDARY_STATUSES[module] as readonly string[]).includes(
+    status,
   );
 }
 

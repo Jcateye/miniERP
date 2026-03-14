@@ -1,48 +1,57 @@
 # Data codemap
-- Freshness: 2026-03-04T14:41:43.280Z
-- Data-related files: 12
+- Freshness: 2026-03-14T01:22:05.958Z
+- Data-related files: 39
 ## Data modules
 - apps/server/src/audit/domain/audit-redactor.ts
 - apps/server/src/database/database.constants.ts
 - apps/server/src/database/database.module.ts
+- apps/server/src/database/prisma.service.ts
 - apps/server/src/evidence/application/evidence-binding.service.ts
 - apps/server/src/evidence/domain/evidence-binding.schema.ts
 - apps/server/src/evidence/infrastructure/evidence-binding.repository.ts
 - apps/server/src/modules/core-document/domain/status-transition.ts
+- apps/server/src/modules/evidence/controllers/evidence.controller.ts
+- apps/server/src/modules/evidence/evidence.module.ts
 - apps/server/src/modules/inventory/domain/inventory.errors.ts
 - apps/server/src/modules/inventory/domain/inventory.types.ts
-- packages/shared/src/types/api.ts
-- packages/shared/src/types/document.ts
-- packages/shared/src/types/index.ts
+- apps/server/src/modules/masterdata/domain/customer.errors.ts
+- apps/server/src/modules/masterdata/domain/customer.types.ts
+- apps/server/src/modules/masterdata/domain/index.ts
+- apps/server/src/modules/masterdata/domain/sku.errors.ts
+- apps/server/src/modules/masterdata/domain/sku.types.ts
+- apps/server/src/modules/masterdata/domain/supplier.errors.ts
+- apps/server/src/modules/masterdata/domain/supplier.types.ts
+- apps/server/src/modules/masterdata/domain/warehouse.errors.ts
+- ...truncated (19 more)
 ## Exported domain/data symbols
 - apps/server/src/audit/domain/audit-redactor.ts#redactAuditMetadata
 - apps/server/src/database/database.constants.ts#DATABASE_URL_TOKEN
 - apps/server/src/database/database.constants.ts#REDIS_URL_TOKEN
 - apps/server/src/database/database.module.ts#DatabaseModule
+- apps/server/src/database/prisma.service.ts#PrismaService
+- apps/server/src/evidence/application/evidence-binding.service.ts#AttachEvidenceResponse
+- apps/server/src/evidence/application/evidence-binding.service.ts#CreateUploadIntentResponse
 - apps/server/src/evidence/application/evidence-binding.service.ts#EvidenceBindingService
-- apps/server/src/evidence/domain/evidence-binding.schema.ts#EvidenceBindingInput
-- apps/server/src/evidence/domain/evidence-binding.schema.ts#evidenceBindingSchema
-- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceBindingRecord
+- apps/server/src/evidence/application/evidence-binding.service.ts#EvidenceCollectionResponse
+- apps/server/src/evidence/domain/evidence-binding.schema.ts#CreateEvidenceLinkInput
+- apps/server/src/evidence/domain/evidence-binding.schema.ts#createEvidenceLinkSchema
+- apps/server/src/evidence/domain/evidence-binding.schema.ts#CreateEvidenceUploadIntentInput
+- apps/server/src/evidence/domain/evidence-binding.schema.ts#createEvidenceUploadIntentSchema
+- apps/server/src/evidence/domain/evidence-binding.schema.ts#EvidenceCollectionQueryInput
+- apps/server/src/evidence/domain/evidence-binding.schema.ts#evidenceCollectionQuerySchema
+- apps/server/src/evidence/domain/evidence-binding.schema.ts#evidenceScopeSchema
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#AttachEvidenceLinkParams
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#CreateUploadIntentParams
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EVIDENCE_BINDING_REPOSITORY_TOKEN
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceAssetRecord
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceBindingRepository
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceCollectionQuery
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceLinkRecord
+- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceScope
 - apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#InMemoryEvidenceBindingRepository
-- apps/server/src/modules/core-document/domain/status-transition.ts#assertStatusTransition
-- apps/server/src/modules/core-document/domain/status-transition.ts#canTransitionStatus
-- apps/server/src/modules/core-document/domain/status-transition.ts#CORE_DOCUMENT_MODULES
-- apps/server/src/modules/core-document/domain/status-transition.ts#CORE_DOCUMENT_STATUSES
-- apps/server/src/modules/core-document/domain/status-transition.ts#CORE_DOCUMENT_TYPES
-- apps/server/src/modules/core-document/domain/status-transition.ts#CoreDocumentModule
-- apps/server/src/modules/core-document/domain/status-transition.ts#CoreDocumentStatus
-- apps/server/src/modules/core-document/domain/status-transition.ts#CoreDocumentType
-- apps/server/src/modules/core-document/domain/status-transition.ts#DocumentModuleBoundary
-- apps/server/src/modules/core-document/domain/status-transition.ts#getAllowedNextStatuses
-- apps/server/src/modules/core-document/domain/status-transition.ts#getDocumentModuleBoundary
-- apps/server/src/modules/core-document/domain/status-transition.ts#InvalidStatusTransitionDetails
-- apps/server/src/modules/core-document/domain/status-transition.ts#InvalidStatusTransitionError
-- apps/server/src/modules/core-document/domain/status-transition.ts#InvalidStatusTransitionPayload
-- apps/server/src/modules/core-document/domain/status-transition.ts#InvalidStatusTransitionTransition
-- apps/server/src/modules/core-document/domain/status-transition.ts#StatusTransitionAttempt
-- ...truncated (29 more)
+- ...truncated (289 more)
 ## Workspace package dependency summary
 - @minierp/shared: deps=0, devDeps=1
 - minierp: deps=1, devDeps=2
-- server: deps=11, devDeps=25
-- web: deps=4, devDeps=8
+- server: deps=13, devDeps=26
+- web: deps=5, devDeps=8
