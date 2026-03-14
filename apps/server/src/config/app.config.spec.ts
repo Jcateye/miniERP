@@ -10,6 +10,7 @@ describe('loadAppConfig', () => {
       REDIS_URL: 'redis://localhost:6379',
       REDIS_KEY_PREFIX: 'erp_',
       TENANT_HEADER: 'x-tenant-id',
+      TENANT_HEADER_FALLBACK_ENABLED: 'false',
       AUTH_CONTEXT_SECRET: 's3cr3t',
     });
 

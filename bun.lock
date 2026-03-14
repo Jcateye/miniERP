@@ -15,6 +15,7 @@
       "name": "server",
       "version": "0.0.1",
       "dependencies": {
+        "@minierp/platform-tenant": "workspace:*",
         "@minierp/shared": "workspace:*",
         "@nestjs/common": "^11.0.1",
         "@nestjs/core": "^11.0.1",
@@ -76,6 +77,27 @@
         "eslint": "^9.0.0",
         "eslint-config-next": "^15.0.0",
         "tailwindcss": "^4.0.0",
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/platform-db": {
+      "name": "@minierp/platform-db",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/platform-kernel": {
+      "name": "@minierp/platform-kernel",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/platform-tenant": {
+      "name": "@minierp/platform-tenant",
+      "version": "0.1.0",
+      "devDependencies": {
         "typescript": "^5.0.0",
       },
     },
@@ -333,6 +355,12 @@
     "@lukeed/csprng": ["@lukeed/csprng@1.1.0", "https://registry.npmmirror.com/@lukeed/csprng/-/csprng-1.1.0.tgz", {}, "sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA=="],
 
     "@microsoft/tsdoc": ["@microsoft/tsdoc@0.16.0", "https://registry.npmmirror.com/@microsoft/tsdoc/-/tsdoc-0.16.0.tgz", {}, "sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA=="],
+
+    "@minierp/platform-db": ["@minierp/platform-db@workspace:packages/platform-db"],
+
+    "@minierp/platform-kernel": ["@minierp/platform-kernel@workspace:packages/platform-kernel"],
+
+    "@minierp/platform-tenant": ["@minierp/platform-tenant@workspace:packages/platform-tenant"],
 
     "@minierp/shared": ["@minierp/shared@workspace:packages/shared"],
 
