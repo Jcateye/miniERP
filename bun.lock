@@ -15,6 +15,7 @@
       "name": "server",
       "version": "0.0.1",
       "dependencies": {
+        "@minierp/platform-db": "workspace:*",
         "@minierp/platform-tenant": "workspace:*",
         "@minierp/shared": "workspace:*",
         "@nestjs/common": "^11.0.1",
@@ -83,6 +84,9 @@
     "packages/platform-db": {
       "name": "@minierp/platform-db",
       "version": "0.1.0",
+      "dependencies": {
+        "@prisma/client": "^6.6.0",
+      },
       "devDependencies": {
         "typescript": "^5.0.0",
       },

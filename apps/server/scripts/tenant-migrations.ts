@@ -108,6 +108,18 @@ async function ensureTenantsRegistry(prisma: PrismaClient): Promise<void> {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE public.tenants
+      ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE public.tenants
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE public.tenants
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+  `);
 }
 
 async function ensureSchemaExists(prisma: PrismaClient, schemaName: string): Promise<void> {
