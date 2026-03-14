@@ -33,3 +33,19 @@ createPlatformDb({
   getCurrentTenantId: () => tenantContext.getRequiredContext().tenantId,
 });
 ```
+
+## Why `SET LOCAL` / `set_config(..., true)` Is Safe With Pooling
+
+实现会在 Prisma 的 `$transaction()` 回调内先执行：
+
+```sql
+SELECT set_config('search_path', quote_ident($schema) || ', public', true);
+```
+
+这里第三个参数 `true` 等价于 transaction-local 的 `SET LOCAL`：
+
+- 只对当前事务生效
+- 事务提交或回滚后自动恢复连接原状态
+- 即使 Prisma 复用连接池中的同一物理连接，也不会把上一个租户的 `search_path` 泄漏给下一个请求
+
+因此真正的约束是：tenant 业务查询必须全部使用 `withTenantTx()` 回调里给出的 `tx`。
