@@ -18,8 +18,7 @@ interface TenantProbeRow {
 }
 
 const requestTenantStorage = new AsyncLocalStorage<RequestTenantContext>();
-const TEST_DATABASE_URL =
-  process.env.PLATFORM_DB_TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const TEST_DATABASE_URL = process.env.PLATFORM_DB_TEST_DATABASE_URL;
 
 const runId = randomUUID().replace(/-/gu, '').slice(0, 12);
 const tenantFixtures: TenantFixture[] = [
