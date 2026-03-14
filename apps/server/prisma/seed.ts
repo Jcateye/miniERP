@@ -16,10 +16,12 @@ async function main() {
     },
   });
 
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { code: 'TENANT-1001' } });
+  const tenant = await prisma.tenant.findUniqueOrThrow({
+    where: { code: 'TENANT-1001' },
+  });
   const tenantId = tenant.id;
 
-  await prisma.user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { tenantId_username: { tenantId, username: 'admin' } },
     update: { updatedBy: 'seed' },
     create: {
@@ -31,6 +33,61 @@ async function main() {
       updatedBy: 'seed',
     },
   });
+
+  const erpAdminPermission = await prisma.permission.upsert({
+    where: { code: 'erp:*' },
+    update: { name: 'ERP Full Access' },
+    create: {
+      code: 'erp:*',
+      name: 'ERP Full Access',
+    },
+  });
+
+  const adminRole = await prisma.role.upsert({
+    where: { tenantId_code: { tenantId, code: 'admin' } },
+    update: { name: 'Admin', updatedBy: 'seed' },
+    create: {
+      tenantId,
+      code: 'admin',
+      name: 'Admin',
+      createdBy: 'seed',
+      updatedBy: 'seed',
+    },
+  });
+
+  await prisma.rolePermission.upsert({
+    where: {
+      tenantId_roleId_permissionId: {
+        tenantId,
+        roleId: adminRole.id,
+        permissionId: erpAdminPermission.id,
+      },
+    },
+    update: {},
+    create: {
+      tenantId,
+      roleId: adminRole.id,
+      permissionId: erpAdminPermission.id,
+      createdBy: 'seed',
+    },
+  });
+
+  await prisma.userRole.upsert({
+    where: {
+      tenantId_userId_roleId: {
+        tenantId,
+        userId: adminUser.id,
+        roleId: adminRole.id,
+      },
+    },
+    update: {},
+    create: {
+      tenantId,
+      userId: adminUser.id,
+      roleId: adminRole.id,
+    },
+  });
+
 
   const [wh, supplier, customer] = await Promise.all([
     prisma.warehouse.upsert({

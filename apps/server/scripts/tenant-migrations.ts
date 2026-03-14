@@ -396,12 +396,131 @@ async function validateAppliedMigrationsChecksum(options: {
 }
 
 
-async function initializeDefaultAdminBindings(_input: {
+function tenantCodeForRegistryTenantId(tenantId: string): string {
+  const normalized = tenantId.trim();
+  if (normalized.length === 0) {
+    throw new Error('tenantId is required');
+  }
+
+  return normalized.toUpperCase().startsWith('TENANT-')
+    ? normalized
+    : `TENANT-${normalized}`;
+}
+
+async function initializeDefaultAdminBindings(input: {
   readonly tenantId: string;
   readonly schemaName: string;
 }): Promise<void> {
-  // 预留接口：后续接入 IAM / platform-admin 创建、角色绑定等。
-  return Promise.resolve();
+  const databaseUrl = getRequiredDatabaseUrl();
+  const tenantDatabaseUrl = withSchemaInDatabaseUrl(databaseUrl, input.schemaName);
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: tenantDatabaseUrl,
+      },
+    },
+  });
+
+  try {
+    await prisma.$connect();
+
+    const tenantCode = tenantCodeForRegistryTenantId(input.tenantId);
+
+    const tenant = await prisma.tenant.upsert({
+      where: {
+        code: tenantCode,
+      },
+      update: {
+        name: tenantCode,
+        updatedBy: 'tenant-init',
+      },
+      create: {
+        code: tenantCode,
+        name: tenantCode,
+        createdBy: 'tenant-init',
+        updatedBy: 'tenant-init',
+      },
+    });
+
+    const permission = await prisma.permission.upsert({
+      where: { code: 'erp:*' },
+      update: { name: 'ERP Full Access' },
+      create: {
+        code: 'erp:*',
+        name: 'ERP Full Access',
+      },
+    });
+
+    const role = await prisma.role.upsert({
+      where: {
+        tenantId_code: {
+          tenantId: tenant.id,
+          code: 'admin',
+        },
+      },
+      update: {
+        name: 'Admin',
+        updatedBy: 'tenant-init',
+      },
+      create: {
+        tenantId: tenant.id,
+        code: 'admin',
+        name: 'Admin',
+        createdBy: 'tenant-init',
+        updatedBy: 'tenant-init',
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: {
+        tenantId_roleId_permissionId: {
+          tenantId: tenant.id,
+          roleId: role.id,
+          permissionId: permission.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        roleId: role.id,
+        permissionId: permission.id,
+        createdBy: 'tenant-init',
+      },
+    });
+
+    const adminUser = await prisma.user.findFirst({
+      where: {
+        tenantId: tenant.id,
+        username: 'admin',
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!adminUser) {
+      return;
+    }
+
+    await prisma.userRole.upsert({
+      where: {
+        tenantId_userId_roleId: {
+          tenantId: tenant.id,
+          userId: adminUser.id,
+          roleId: role.id,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        userId: adminUser.id,
+        roleId: role.id,
+      },
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 async function migrateAllTenants(): Promise<void> {
