@@ -26,7 +26,9 @@
     "db:generate": "prisma generate --schema ./prisma/schema.prisma",
     "db:migrate": "prisma migrate deploy --schema ./prisma/schema.prisma",
     "db:migrate:dev": "prisma migrate dev --schema ./prisma/schema.prisma",
-    "db:seed": "node -r ts-node/register prisma/seed.ts"
+    "db:seed": "node -r ts-node/register prisma/seed.ts",
+    "tenant:migrate-all": "bun run scripts/tenant-migrations.ts migrate-all-tenants",
+    "tenant:init": "bun run scripts/tenant-migrations.ts tenant-init"
   },
   "dependencies": {
     "@minierp/platform-tenant": "workspace:*",
