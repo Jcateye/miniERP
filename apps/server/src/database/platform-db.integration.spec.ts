@@ -42,8 +42,22 @@ async function ensureRegistryTable(prisma: PrismaClient): Promise<void> {
     CREATE TABLE IF NOT EXISTS public.tenants (
       tenant_id text PRIMARY KEY,
       schema_name text NOT NULL,
-      created_at timestamptz NOT NULL DEFAULT now()
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
     )
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE public.tenants
+      ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE public.tenants
+      ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now()
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE public.tenants
+      ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()
   `);
 }
 
@@ -56,10 +70,12 @@ async function ensureTenantSchemaObjects(
   );
 
   await prisma.$executeRawUnsafe(
-    `INSERT INTO public.tenants (tenant_id, schema_name)
-     VALUES ($1, $2)
+    `INSERT INTO public.tenants (tenant_id, schema_name, is_active)
+     VALUES ($1, $2, true)
      ON CONFLICT (tenant_id) DO UPDATE
-     SET schema_name = EXCLUDED.schema_name`,
+     SET schema_name = EXCLUDED.schema_name,
+         is_active = true,
+         updated_at = now()`,
     fixture.tenantId,
     fixture.schemaName,
   );

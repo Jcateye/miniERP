@@ -16,6 +16,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@minierp/platform-db": "workspace:*",
+        "@minierp/platform-tenant": "workspace:*",
         "@minierp/shared": "workspace:*",
         "@nestjs/common": "^11.0.1",
         "@nestjs/core": "^11.0.1",
@@ -86,6 +87,20 @@
       "dependencies": {
         "@prisma/client": "^6.6.0",
       },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/platform-kernel": {
+      "name": "@minierp/platform-kernel",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/platform-tenant": {
+      "name": "@minierp/platform-tenant",
+      "version": "0.1.0",
       "devDependencies": {
         "typescript": "^5.0.0",
       },
@@ -346,6 +361,10 @@
     "@microsoft/tsdoc": ["@microsoft/tsdoc@0.16.0", "https://registry.npmmirror.com/@microsoft/tsdoc/-/tsdoc-0.16.0.tgz", {}, "sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA=="],
 
     "@minierp/platform-db": ["@minierp/platform-db@workspace:packages/platform-db"],
+
+    "@minierp/platform-kernel": ["@minierp/platform-kernel@workspace:packages/platform-kernel"],
+
+    "@minierp/platform-tenant": ["@minierp/platform-tenant@workspace:packages/platform-tenant"],
 
     "@minierp/shared": ["@minierp/shared@workspace:packages/shared"],
 

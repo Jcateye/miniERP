@@ -18,7 +18,7 @@
 ## Init Tenant
 
 ```bash
-bun run --filter server tenant:init TENANT-001 tenant_001
+bun run --filter server tenant:init TENANT-001 --schema tenant_001
 ```
 
 这条命令会：
@@ -46,7 +46,7 @@ DATABASE_URL=postgresql://admin:admin123@127.0.0.1:5432/postgres \
 查看 registry：
 
 ```sql
-SELECT tenant_id, schema_name, created_at
+SELECT tenant_id, schema_name, is_active, created_at, updated_at
 FROM public.tenants
 ORDER BY tenant_id;
 ```
