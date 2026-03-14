@@ -20,6 +20,7 @@ describe('applyAppRuntimeConfig', () => {
     redisUrl: 'redis://127.0.0.1:6379',
     redisKeyPrefix: 'erp_',
     tenantHeader: 'x-tenant-id',
+    tenantHeaderFallbackEnabled: false,
     authContextSecret: 'test-secret',
   };
 

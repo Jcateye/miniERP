@@ -13,7 +13,13 @@ export function applyAppRuntimeConfig<TApp = unknown>(
       nodeEnv: config.nodeEnv,
     }),
   );
-  app.use(createTenantContextMiddleware(config.tenantHeader, config.nodeEnv));
+  app.use(
+    createTenantContextMiddleware(
+      config.tenantHeader,
+      config.nodeEnv,
+      config.tenantHeaderFallbackEnabled,
+    ),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({

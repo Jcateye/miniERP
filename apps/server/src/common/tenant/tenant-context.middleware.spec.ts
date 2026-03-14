@@ -38,7 +38,7 @@ describe('tenantContextMiddleware', () => {
     expect(json).toHaveBeenCalledWith({
       error: {
         code: 'TENANT_MISSING',
-        message: 'Missing required tenant header: x-tenant-id',
+        message: 'Authenticated tenant is required',
       },
     });
     expect(next).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ describe('tenantContextMiddleware', () => {
     expect(json).toHaveBeenCalledWith({
       error: {
         code: 'TENANT_MISSING',
-        message: 'Missing required tenant header: x-tenant-id',
+        message: 'Authenticated tenant is required',
       },
     });
     expect(next).not.toHaveBeenCalled();
@@ -185,9 +185,13 @@ describe('tenantContextMiddleware', () => {
 
   it('generates request id when x-request-id is not provided', () => {
     const middleware = createTenantContextMiddleware('x-tenant-id');
-    const request = createRequest({
-      'x-tenant-id': '1001',
-    });
+    const request = createRequest({});
+    request.authContext = {
+      tenantId: '1001',
+      actorId: '2002',
+      permissions: ['evidence:link:create'],
+      role: 'tenant_admin',
+    };
     const { response } = createResponse();
 
     middleware(request, response, () => {
@@ -195,5 +199,50 @@ describe('tenantContextMiddleware', () => {
       expect(context?.requestId).toBeDefined();
       expect(context?.requestId.length).toBeGreaterThan(0);
     });
+  });
+
+  it('uses header tenant id when dev header fallback is enabled', () => {
+    const middleware = createTenantContextMiddleware(
+      'x-tenant-id',
+      'development',
+      true,
+    );
+    const request = createRequest({
+      'x-tenant-id': '1001',
+      'x-request-id': 'req-dev-header',
+    });
+    const { response } = createResponse();
+
+    middleware(request, response, () => {
+      const context = tenantContextStorage.getStore();
+      expect(context).toEqual({
+        tenantId: '1001',
+        requestId: 'req-dev-header',
+      });
+    });
+  });
+
+  it('rejects header tenant id when dev header fallback is disabled', () => {
+    const middleware = createTenantContextMiddleware(
+      'x-tenant-id',
+      'development',
+      false,
+    );
+    const request = createRequest({
+      'x-tenant-id': '1001',
+    });
+    const { response, status, json } = createResponse();
+    const next = jest.fn() as NextFunction;
+
+    middleware(request, response, next);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'TENANT_MISSING',
+        message: 'Authenticated tenant is required',
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
   });
 });
