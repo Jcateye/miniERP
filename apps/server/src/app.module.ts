@@ -11,7 +11,10 @@ import { AuditModule } from './audit/audit.module';
 import { PlatformModule } from './platform/platform.module';
 import { TenantModule } from './common/tenant/tenant.module';
 import { IamGuard } from './common/iam/iam.guard';
+import { AuthorizeModule } from './common/iam/authorize/authorize.module';
+import { RbacModule } from './common/iam/rbac/rbac.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { PolicyModule } from './modules/policy/policy.module';
 import { EvidenceModule } from './modules/evidence/evidence.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { TradingModule } from './modules/trading';
@@ -22,9 +25,12 @@ import { TradingModule } from './modules/trading';
     HealthModule,
     AuditModule,
     TenantModule,
+    RbacModule,
+    AuthorizeModule,
     PlatformModule,
     TradingModule,
     DocumentsModule,
+    PolicyModule,
     EvidenceModule,
     InventoryModule,
     MasterdataModule,
