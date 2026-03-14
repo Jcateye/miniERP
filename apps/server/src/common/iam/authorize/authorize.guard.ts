@@ -129,7 +129,9 @@ export class AuthorizeGuard implements CanActivate {
         reason: 'AUTHZ_EVALUATION_ERROR',
       });
 
-      throw new ForbiddenException(`Authorization evaluation failed: ${message}`);
+      throw new ForbiddenException(
+        `Authorization evaluation failed: ${message}`,
+      );
     }
 
     if (authzResult.decision !== 'allow') {

@@ -26,7 +26,10 @@ const tenantFixtures: readonly TenantFixture[] = [
 
 const integrationDescribe = TEST_DATABASE_URL ? describe : describe.skip;
 
-function withTenantContext<T>(tenantId: string, work: () => Promise<T>): Promise<T> {
+function withTenantContext<T>(
+  tenantId: string,
+  work: () => Promise<T>,
+): Promise<T> {
   return requestTenantStorage.run({ tenantId }, work);
 }
 
@@ -160,233 +163,236 @@ async function truncateTenantRbacTables(
   }
 }
 
-integrationDescribe('rbac integration (withTenantTx + schema isolation)', () => {
-  jest.setTimeout(30_000);
+integrationDescribe(
+  'rbac integration (withTenantTx + schema isolation)',
+  () => {
+    jest.setTimeout(30_000);
 
-  const prisma = new PrismaClient({
-    datasources: TEST_DATABASE_URL
-      ? {
-          db: {
-            url: TEST_DATABASE_URL,
-          },
+    const prisma = new PrismaClient({
+      datasources: TEST_DATABASE_URL
+        ? {
+            db: {
+              url: TEST_DATABASE_URL,
+            },
+          }
+        : undefined,
+    });
+
+    const platformDb = createPlatformDb({
+      prisma,
+      getCurrentTenantId: () => {
+        const context = requestTenantStorage.getStore();
+        if (!context) {
+          throw new Error('tenant test context is missing');
         }
-      : undefined,
-  });
 
-  const platformDb = createPlatformDb({
-    prisma,
-    getCurrentTenantId: () => {
-      const context = requestTenantStorage.getStore();
-      if (!context) {
-        throw new Error('tenant test context is missing');
+        return context.tenantId;
+      },
+      nodeEnv: 'test',
+    });
+
+    const store = new PrismaGrantedPermissionsStore({
+      withTenantTx: platformDb.withTenantTx.bind(platformDb),
+    } as unknown as PlatformDbService);
+
+    const authorizer = createAuthorizer({
+      store,
+    });
+
+    beforeAll(async () => {
+      if (!TEST_DATABASE_URL) {
+        return;
       }
 
-      return context.tenantId;
-    },
-    nodeEnv: 'test',
-  });
+      await prisma.$connect();
+      await ensureRegistryTable(prisma);
 
-  const store = new PrismaGrantedPermissionsStore({
-    withTenantTx: platformDb.withTenantTx.bind(platformDb),
-  } as unknown as PlatformDbService);
+      for (const fixture of tenantFixtures) {
+        await ensureTenantSchemaObjects(prisma, fixture);
+      }
+    });
 
-  const authorizer = createAuthorizer({
-    store,
-  });
+    beforeEach(async () => {
+      if (!TEST_DATABASE_URL) {
+        return;
+      }
 
-  beforeAll(async () => {
-    if (!TEST_DATABASE_URL) {
-      return;
-    }
+      await truncateTenantRbacTables(prisma, tenantFixtures);
+    });
 
-    await prisma.$connect();
-    await ensureRegistryTable(prisma);
+    afterAll(async () => {
+      if (!TEST_DATABASE_URL) {
+        return;
+      }
 
-    for (const fixture of tenantFixtures) {
-      await ensureTenantSchemaObjects(prisma, fixture);
-    }
-  });
+      for (const fixture of tenantFixtures) {
+        await prisma.$executeRawUnsafe(
+          `DROP SCHEMA IF EXISTS "${fixture.schemaName}" CASCADE`,
+        );
+        await prisma.$executeRawUnsafe(
+          'DELETE FROM public.tenants WHERE tenant_id = $1',
+          fixture.tenantId,
+        );
+      }
 
-  beforeEach(async () => {
-    if (!TEST_DATABASE_URL) {
-      return;
-    }
+      await prisma.$disconnect();
+    });
 
-    await truncateTenantRbacTables(prisma, tenantFixtures);
-  });
+    it('allows in tenant A but denies in tenant B for the same user', async () => {
+      const userId = '1001';
+      const [tenantA, tenantB] = tenantFixtures;
 
-  afterAll(async () => {
-    if (!TEST_DATABASE_URL) {
-      return;
-    }
+      await withTenantContext(tenantA.tenantId, async () => {
+        await platformDb.withTenantTx(async (tx) => {
+          const tenant = await tx.tenant.create({
+            data: {
+              code: tenantA.tenantId,
+              name: 'Tenant A',
+            },
+          });
 
-    for (const fixture of tenantFixtures) {
-      await prisma.$executeRawUnsafe(
-        `DROP SCHEMA IF EXISTS "${fixture.schemaName}" CASCADE`,
-      );
-      await prisma.$executeRawUnsafe(
-        'DELETE FROM public.tenants WHERE tenant_id = $1',
-        fixture.tenantId,
-      );
-    }
+          const permission = await tx.permission.create({
+            data: {
+              code: 'erp:*',
+              name: 'ERP Full Access',
+            },
+          });
 
-    await prisma.$disconnect();
-  });
+          const role = await tx.role.create({
+            data: {
+              tenantId: tenant.id,
+              code: 'operator',
+              name: 'Operator',
+            },
+          });
 
-  it('allows in tenant A but denies in tenant B for the same user', async () => {
-    const userId = '1001';
-    const [tenantA, tenantB] = tenantFixtures;
+          await tx.userRole.create({
+            data: {
+              tenantId: tenant.id,
+              userId: BigInt(userId),
+              roleId: role.id,
+            },
+          });
 
-    await withTenantContext(tenantA.tenantId, async () => {
-      await platformDb.withTenantTx(async (tx) => {
-        const tenant = await tx.tenant.create({
-          data: {
-            code: tenantA.tenantId,
-            name: 'Tenant A',
-          },
+          await tx.rolePermission.create({
+            data: {
+              tenantId: tenant.id,
+              roleId: role.id,
+              permissionId: permission.id,
+            },
+          });
         });
+      });
 
-        const permission = await tx.permission.create({
-          data: {
-            code: 'erp:*',
-            name: 'ERP Full Access',
-          },
+      await withTenantContext(tenantB.tenantId, async () => {
+        await platformDb.withTenantTx(async (tx) => {
+          await tx.tenant.create({
+            data: {
+              code: tenantB.tenantId,
+              name: 'Tenant B',
+            },
+          });
         });
+      });
 
-        const role = await tx.role.create({
-          data: {
-            tenantId: tenant.id,
-            code: 'operator',
-            name: 'Operator',
-          },
-        });
+      await expect(
+        withTenantContext(tenantA.tenantId, async () =>
+          authorizer.authorize({
+            tenantId: tenantA.tenantId,
+            userId,
+            resource: 'erp:order',
+            action: 'read',
+          }),
+        ),
+      ).resolves.toMatchObject({ decision: 'allow', obligations: {} });
 
-        await tx.userRole.create({
-          data: {
-            tenantId: tenant.id,
-            userId: BigInt(userId),
-            roleId: role.id,
-          },
-        });
-
-        await tx.rolePermission.create({
-          data: {
-            tenantId: tenant.id,
-            roleId: role.id,
-            permissionId: permission.id,
-          },
-        });
+      await expect(
+        withTenantContext(tenantB.tenantId, async () =>
+          authorizer.authorize({
+            tenantId: tenantB.tenantId,
+            userId,
+            resource: 'erp:order',
+            action: 'read',
+          }),
+        ),
+      ).resolves.toMatchObject({
+        decision: 'deny',
+        obligations: {},
+        reason: 'MISSING_PERMISSION',
       });
     });
 
-    await withTenantContext(tenantB.tenantId, async () => {
-      await platformDb.withTenantTx(async (tx) => {
-        await tx.tenant.create({
-          data: {
-            code: tenantB.tenantId,
-            name: 'Tenant B',
-          },
+    it('denies another user in the same tenant when no role is granted', async () => {
+      const user1 = '1001';
+      const user2 = '1002';
+      const [tenantA] = tenantFixtures;
+
+      await withTenantContext(tenantA.tenantId, async () => {
+        await platformDb.withTenantTx(async (tx) => {
+          const tenant = await tx.tenant.create({
+            data: {
+              code: tenantA.tenantId,
+              name: 'Tenant A',
+            },
+          });
+
+          const permission = await tx.permission.create({
+            data: {
+              code: 'erp:*',
+              name: 'ERP Full Access',
+            },
+          });
+
+          const role = await tx.role.create({
+            data: {
+              tenantId: tenant.id,
+              code: 'operator',
+              name: 'Operator',
+            },
+          });
+
+          await tx.userRole.create({
+            data: {
+              tenantId: tenant.id,
+              userId: BigInt(user1),
+              roleId: role.id,
+            },
+          });
+
+          await tx.rolePermission.create({
+            data: {
+              tenantId: tenant.id,
+              roleId: role.id,
+              permissionId: permission.id,
+            },
+          });
         });
       });
-    });
 
-    await expect(
-      withTenantContext(tenantA.tenantId, async () =>
-        authorizer.authorize({
-          tenantId: tenantA.tenantId,
-          userId,
-          resource: 'erp:order',
-          action: 'read',
-        }),
-      ),
-    ).resolves.toMatchObject({ decision: 'allow', obligations: {} });
+      await expect(
+        withTenantContext(tenantA.tenantId, async () =>
+          authorizer.authorize({
+            tenantId: tenantA.tenantId,
+            userId: user1,
+            resource: 'erp:order',
+            action: 'read',
+          }),
+        ),
+      ).resolves.toMatchObject({ decision: 'allow' });
 
-    await expect(
-      withTenantContext(tenantB.tenantId, async () =>
-        authorizer.authorize({
-          tenantId: tenantB.tenantId,
-          userId,
-          resource: 'erp:order',
-          action: 'read',
-        }),
-      ),
-    ).resolves.toMatchObject({
-      decision: 'deny',
-      obligations: {},
-      reason: 'MISSING_PERMISSION',
-    });
-  });
-
-  it('denies another user in the same tenant when no role is granted', async () => {
-    const user1 = '1001';
-    const user2 = '1002';
-    const [tenantA] = tenantFixtures;
-
-    await withTenantContext(tenantA.tenantId, async () => {
-      await platformDb.withTenantTx(async (tx) => {
-        const tenant = await tx.tenant.create({
-          data: {
-            code: tenantA.tenantId,
-            name: 'Tenant A',
-          },
-        });
-
-        const permission = await tx.permission.create({
-          data: {
-            code: 'erp:*',
-            name: 'ERP Full Access',
-          },
-        });
-
-        const role = await tx.role.create({
-          data: {
-            tenantId: tenant.id,
-            code: 'operator',
-            name: 'Operator',
-          },
-        });
-
-        await tx.userRole.create({
-          data: {
-            tenantId: tenant.id,
-            userId: BigInt(user1),
-            roleId: role.id,
-          },
-        });
-
-        await tx.rolePermission.create({
-          data: {
-            tenantId: tenant.id,
-            roleId: role.id,
-            permissionId: permission.id,
-          },
-        });
+      await expect(
+        withTenantContext(tenantA.tenantId, async () =>
+          authorizer.authorize({
+            tenantId: tenantA.tenantId,
+            userId: user2,
+            resource: 'erp:order',
+            action: 'read',
+          }),
+        ),
+      ).resolves.toMatchObject({
+        decision: 'deny',
+        reason: 'MISSING_PERMISSION',
       });
     });
-
-    await expect(
-      withTenantContext(tenantA.tenantId, async () =>
-        authorizer.authorize({
-          tenantId: tenantA.tenantId,
-          userId: user1,
-          resource: 'erp:order',
-          action: 'read',
-        }),
-      ),
-    ).resolves.toMatchObject({ decision: 'allow' });
-
-    await expect(
-      withTenantContext(tenantA.tenantId, async () =>
-        authorizer.authorize({
-          tenantId: tenantA.tenantId,
-          userId: user2,
-          resource: 'erp:order',
-          action: 'read',
-        }),
-      ),
-    ).resolves.toMatchObject({
-      decision: 'deny',
-      reason: 'MISSING_PERMISSION',
-    });
-  });
-});
+  },
+);
