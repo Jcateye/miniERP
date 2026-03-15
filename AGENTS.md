@@ -67,6 +67,7 @@ miniERP 是一个 **design-first + runnable monorepo**：
 11. `docs/commit.md`
 12. `docs/Macmini-infra.md`
 13. `docs/architecture/erp-canonical-contract-freeze.md`
+14. `docs/architecture/platform-data-model-layering.md`
 
 ---
 

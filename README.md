@@ -118,6 +118,7 @@ ERP 页面统一用以下五种状态表达进度：
 9. `.claude/rules/erp-rules.md`
 10. `openspec/config.yaml`
 11. `docs/architecture/erp-canonical-contract-freeze.md`
+12. `docs/architecture/platform-data-model-layering.md`
 
 ## Monorepo 边界
 

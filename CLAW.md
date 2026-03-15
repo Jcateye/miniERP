@@ -17,6 +17,11 @@
 - `apps/server`：后端运行时
 - `packages/shared`：共享契约边界
 
+## 关键架构文档
+
+- `docs/architecture/erp-canonical-contract-freeze.md`
+- `docs/architecture/platform-data-model-layering.md`
+
 ---
 
 ## 第一性原则

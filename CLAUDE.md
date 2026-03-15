@@ -23,6 +23,11 @@ miniERP 是一个 design-first + runnable monorepo：
 2. 用 `apps/*` 识别当前运行事实
 3. 用本文档与 `AGENTS.md` / `README.md` / `CLAW.md` 判断“是否允许继续实现”
 
+## 1.1 关键架构文档
+
+- `docs/architecture/erp-canonical-contract-freeze.md`
+- `docs/architecture/platform-data-model-layering.md`
+
 ## 2. 非显然命令
 
 ```bash
