@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { createAuthContextMiddleware } from './auth-context.middleware';
 
-describe('authContextMiddleware', () => {
+describe('authContextMiddleware (hmac + dev bypass)', () => {
   const secret = 'test-secret';
 
   function encodeContext(payload: Record<string, unknown>): string {
@@ -31,26 +31,64 @@ describe('authContextMiddleware', () => {
     };
   }
 
-  it('rejects request when signature is invalid', () => {
+  async function runMiddleware(options: {
+    readonly middleware: ReturnType<typeof createAuthContextMiddleware>;
+    readonly request: Request;
+    readonly response: Response;
+  }): Promise<{ readonly nextCalled: boolean }> {
+    let nextCalled = false;
+
+    await new Promise<void>((resolve) => {
+      let settled = false;
+
+      const settle = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve();
+      };
+
+      const next = (() => {
+        nextCalled = true;
+        settle();
+      }) as NextFunction;
+
+      options.middleware(options.request, options.response, next);
+      setImmediate(settle);
+    });
+
+    return { nextCalled };
+  }
+
+  it('rejects request when signature is invalid', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'development',
     });
+
     const encoded = encodeContext({
       tenantId: '1001',
       actorId: '2001',
       permissions: ['evidence:link:create'],
       role: 'tenant_admin',
     });
+
     const request = createRequest({
       'x-auth-context': encoded,
       'x-auth-context-signature': '00',
     });
+
     const { response, status, json } = createResponse();
-    const next = jest.fn() as NextFunction;
 
-    middleware(request, response, next);
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
 
+    expect(nextCalled).toBe(false);
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith({
       error: {
@@ -58,85 +96,108 @@ describe('authContextMiddleware', () => {
         message: 'Missing or invalid authenticated context',
       },
     });
-    expect(next).not.toHaveBeenCalled();
   });
 
-  it('skips auth validation for health endpoint', () => {
+  it('skips auth validation for health endpoint', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'development',
     });
+
     const request = createRequest({});
     Object.assign(request, {
       path: '/health/live',
       originalUrl: '/health/live',
     });
+
     const { response, status } = createResponse();
-    const next = jest.fn() as NextFunction;
 
-    middleware(request, response, next);
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
 
-    expect(next).toHaveBeenCalled();
+    expect(nextCalled).toBe(true);
     expect(status).not.toHaveBeenCalled();
   });
 
-  it('skips auth validation for prefixed health endpoint', () => {
+  it('skips auth validation for prefixed health endpoint', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'development',
     });
+
     const request = createRequest({});
     Object.assign(request, {
       path: '/api/health/ready',
       originalUrl: '/api/health/ready',
     });
+
     const { response, status } = createResponse();
-    const next = jest.fn() as NextFunction;
 
-    middleware(request, response, next);
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
 
-    expect(next).toHaveBeenCalled();
+    expect(nextCalled).toBe(true);
     expect(status).not.toHaveBeenCalled();
   });
 
-  it('skips auth validation for swagger docs endpoint in development', () => {
+  it('skips auth validation for swagger docs endpoint in development', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'development',
     });
+
     const request = createRequest({});
     Object.assign(request, {
       path: '/api/docs',
       originalUrl: '/api/docs',
     });
+
     const { response, status } = createResponse();
-    const next = jest.fn() as NextFunction;
 
-    middleware(request, response, next);
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
 
-    expect(next).toHaveBeenCalled();
+    expect(nextCalled).toBe(true);
     expect(status).not.toHaveBeenCalled();
   });
 
-  it('attaches development auth context when dev token is provided', () => {
+  it('attaches development auth context when dev token is provided', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'development',
     });
+
     const request = createRequest({
       authorization: 'Bearer dev-token',
       'x-tenant-id': '2002',
     }) as Request & { authContext?: unknown };
+
     const { response, status } = createResponse();
-    const next = jest.fn() as NextFunction;
 
-    middleware(request, response, next);
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
 
-    expect(next).toHaveBeenCalled();
+    expect(nextCalled).toBe(true);
     expect(status).not.toHaveBeenCalled();
     expect(request.authContext).toEqual({
       tenantId: '1',
-      actorId: 'dev-user',
+      actorId: '9001',
       permissions: [
         'evidence:*',
         'masterdata.customer.read',
@@ -152,19 +213,26 @@ describe('authContextMiddleware', () => {
     });
   });
 
-  it('does not allow dev token outside development', () => {
+  it('does not allow dev token outside development', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'test',
     });
+
     const request = createRequest({
       authorization: 'Bearer dev-token',
     });
+
     const { response, status, json } = createResponse();
-    const next = jest.fn() as NextFunction;
 
-    middleware(request, response, next);
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
 
+    expect(nextCalled).toBe(false);
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith({
       error: {
@@ -172,24 +240,60 @@ describe('authContextMiddleware', () => {
         message: 'Missing or invalid authenticated context',
       },
     });
-    expect(next).not.toHaveBeenCalled();
   });
 
-  it('does not skip auth validation for swagger docs endpoint in production', () => {
+  it('does not attach dev auth context when authMode is jwt', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'jwt',
+      secret,
+      jwtHs256Secret: 'jwt-secret',
+      nodeEnv: 'development',
+    });
+
+    const request = createRequest({
+      authorization: 'Bearer dev-token',
+    });
+
+    const { response, status, json } = createResponse();
+
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
+
+    expect(nextCalled).toBe(false);
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'AUTH_INVALID_CONTEXT',
+        message: 'Missing or invalid authenticated context',
+      },
+    });
+  });
+
+  it('does not skip auth validation for swagger docs endpoint in production', async () => {
+    const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'production',
     });
+
     const request = createRequest({});
     Object.assign(request, {
       path: '/api/docs',
       originalUrl: '/api/docs',
     });
+
     const { response, status, json } = createResponse();
-    const next = jest.fn() as NextFunction;
 
-    middleware(request, response, next);
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
 
+    expect(nextCalled).toBe(false);
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith({
       error: {
@@ -197,33 +301,41 @@ describe('authContextMiddleware', () => {
         message: 'Missing or invalid authenticated context',
       },
     });
-    expect(next).not.toHaveBeenCalled();
   });
 
-  it('attaches parsed auth context when payload and signature are valid', () => {
+  it('attaches parsed auth context when payload and signature are valid', async () => {
     const middleware = createAuthContextMiddleware({
+      authMode: 'both',
       secret,
       nodeEnv: 'development',
     });
+
     const encoded = encodeContext({
       tenantId: '1001',
       actorId: '2001',
       permissions: [' evidence:link:create '],
       role: 'tenant_admin',
     });
+
     const request = createRequest({
       'x-auth-context': encoded,
       'x-auth-context-signature': sign(encoded),
     }) as Request & { authContext?: unknown };
+
     const { response } = createResponse();
 
-    middleware(request, response, () => {
-      expect(request.authContext).toEqual({
-        tenantId: '1001',
-        actorId: '2001',
-        permissions: ['evidence:link:create'],
-        role: 'tenant_admin',
-      });
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
+
+    expect(nextCalled).toBe(true);
+    expect(request.authContext).toEqual({
+      tenantId: '1001',
+      actorId: '2001',
+      permissions: ['evidence:link:create'],
+      role: 'tenant_admin',
     });
   });
 });

@@ -1,12 +1,14 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
+import type { AuthMode } from '../../config/env.schema';
 import type { AuthContext, AuthenticatedRequest } from './auth-context';
+import { verifyHs256Jwt } from './jwt-auth';
 
 const HEALTH_PATH_PATTERN = /\/health\/(live|ready)\/?$/u;
 const SWAGGER_PATH_PATTERN = /\/docs(?:\/.*)?$|\/docs-(json|yaml)$/u;
 const DEV_AUTHORIZATION_HEADER = 'Bearer dev-token';
 const DEV_AUTH_TENANT_ID = '1';
-const DEV_AUTH_ACTOR_ID = 'dev-user';
+const DEV_AUTH_ACTOR_ID = '9001';
 const DEV_AUTH_PERMISSIONS = [
   'evidence:*',
   'masterdata.customer.read',
@@ -20,7 +22,9 @@ const DEV_AUTH_PERMISSIONS = [
 ] as const;
 
 interface AuthContextMiddlewareOptions {
+  readonly authMode: AuthMode;
   readonly secret: string;
+  readonly jwtHs256Secret?: string;
   readonly nodeEnv: 'development' | 'test' | 'production';
 }
 
@@ -119,11 +123,37 @@ function readHeaderValue(
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function parseBearerToken(
+  authorization: string | undefined,
+): string | undefined {
+  if (!authorization) {
+    return undefined;
+  }
+
+  const trimmed = authorization.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  const prefix = 'Bearer ';
+  if (!trimmed.startsWith(prefix)) {
+    return undefined;
+  }
+
+  const token = trimmed.slice(prefix.length).trim();
+  return token.length > 0 ? token : undefined;
+}
+
 function tryAttachDevelopmentAuthContext(
   request: Request,
   nodeEnv: AuthContextMiddlewareOptions['nodeEnv'],
+  authMode: AuthMode,
 ): boolean {
   if (nodeEnv !== 'development') {
+    return false;
+  }
+
+  if (authMode === 'jwt') {
     return false;
   }
 
@@ -160,45 +190,116 @@ export function createAuthContextMiddleware(
       return;
     }
 
-    if (tryAttachDevelopmentAuthContext(request, options.nodeEnv)) {
+    if (
+      tryAttachDevelopmentAuthContext(
+        request,
+        options.nodeEnv,
+        options.authMode,
+      )
+    ) {
       next();
       return;
     }
 
-    const encodedContext = readHeaderValue(request, 'x-auth-context');
-    const signature = readHeaderValue(request, 'x-auth-context-signature');
-
-    if (
-      !encodedContext ||
-      !signature ||
-      !isSignatureValid(encodedContext, signature, options.secret)
-    ) {
-      response.status(401).json({
-        error: {
-          code: 'AUTH_INVALID_CONTEXT',
-          message: 'Missing or invalid authenticated context',
-        },
-      });
-      return;
-    }
-
-    const authContext = parseAuthContext(encodedContext);
-
-    if (!authContext) {
-      response.status(401).json({
-        error: {
-          code: 'AUTH_INVALID_CONTEXT',
-          message: 'Authenticated context payload is invalid',
-        },
-      });
-      return;
-    }
-
     const authenticatedRequest = request as Request & AuthenticatedRequest;
-    Object.assign(authenticatedRequest, {
-      authContext,
-    });
 
-    next();
+    void (async () => {
+      const bearerToken = parseBearerToken(
+        readHeaderValue(request, 'authorization'),
+      );
+
+      if (bearerToken && options.authMode !== 'hmac') {
+        if (!options.jwtHs256Secret) {
+          if (options.authMode === 'jwt') {
+            response.status(401).json({
+              error: {
+                code: 'AUTH_INVALID_CONTEXT',
+                message: 'JWT_HS256_SECRET is required for jwt auth mode',
+              },
+            });
+            return;
+          }
+        } else {
+          try {
+            const claims = await verifyHs256Jwt({
+              token: bearerToken,
+              secret: options.jwtHs256Secret,
+            });
+
+            Object.assign(authenticatedRequest, {
+              authContext: {
+                tenantId: claims.tenantId,
+                actorId: claims.sub,
+                permissions: [],
+                role: 'operator' as const,
+              },
+            });
+
+            next();
+            return;
+          } catch {
+            const hasHmacContext =
+              typeof readHeaderValue(request, 'x-auth-context') === 'string' &&
+              typeof readHeaderValue(request, 'x-auth-context-signature') ===
+                'string';
+
+            if (options.authMode === 'jwt' || hasHmacContext) {
+              response.status(401).json({
+                error: {
+                  code: 'AUTH_INVALID_CONTEXT',
+                  message: 'Missing or invalid authenticated context',
+                },
+              });
+              return;
+            }
+          }
+        }
+      }
+
+      if (options.authMode === 'jwt') {
+        response.status(401).json({
+          error: {
+            code: 'AUTH_INVALID_CONTEXT',
+            message: 'Missing or invalid authenticated context',
+          },
+        });
+        return;
+      }
+
+      const encodedContext = readHeaderValue(request, 'x-auth-context');
+      const signature = readHeaderValue(request, 'x-auth-context-signature');
+
+      if (
+        !encodedContext ||
+        !signature ||
+        !isSignatureValid(encodedContext, signature, options.secret)
+      ) {
+        response.status(401).json({
+          error: {
+            code: 'AUTH_INVALID_CONTEXT',
+            message: 'Missing or invalid authenticated context',
+          },
+        });
+        return;
+      }
+
+      const authContext = parseAuthContext(encodedContext);
+
+      if (!authContext) {
+        response.status(401).json({
+          error: {
+            code: 'AUTH_INVALID_CONTEXT',
+            message: 'Authenticated context payload is invalid',
+          },
+        });
+        return;
+      }
+
+      Object.assign(authenticatedRequest, {
+        authContext,
+      });
+
+      next();
+    })().catch((error) => next(error));
   };
 }

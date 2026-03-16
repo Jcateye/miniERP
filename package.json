@@ -18,11 +18,14 @@
     "ralph": "bun scripts/ralph/runner.ts"
   },
   "devDependencies": {
+    "server": "workspace:*",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0"
   },
   "packageManager": "bun@1.2.9",
   "dependencies": {
-    "codex": "^0.2.3"
+    "@types/jsonwebtoken": "9.0.6",
+    "codex": "^0.2.3",
+    "jsonwebtoken": "9.0.2"
   }
 }

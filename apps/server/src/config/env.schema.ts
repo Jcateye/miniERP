@@ -2,6 +2,32 @@ export type NodeEnv = 'development' | 'test' | 'production';
 
 export const DEV_FALLBACK_AUTH_CONTEXT_SECRET = 'dev-only-auth-context-secret';
 
+export type AuthMode = 'hmac' | 'jwt' | 'both';
+
+function parseAuthMode(value: string | undefined): AuthMode {
+  if (typeof value === 'undefined' || value.trim().length === 0) {
+    return 'both';
+  }
+
+  const normalized = value.trim();
+  if (normalized === 'hmac' || normalized === 'jwt' || normalized === 'both') {
+    return normalized;
+  }
+
+  throw new Error('AUTH_MODE must be hmac, jwt, or both');
+}
+
+function parseOptionalJwtHs256Secret(
+  value: string | undefined,
+): string | undefined {
+  if (typeof value === 'undefined') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export interface EnvSchema {
   readonly NODE_ENV: NodeEnv;
   readonly PORT: number;
@@ -11,7 +37,20 @@ export interface EnvSchema {
   readonly REDIS_KEY_PREFIX: string;
   readonly TENANT_HEADER: string;
   readonly TENANT_HEADER_FALLBACK_ENABLED: boolean;
+
+  /**
+   * Auth mode for server-side authentication.
+   * - hmac: x-auth-context + signature only
+   * - jwt: Authorization Bearer JWT only
+   * - both: accept either, prefer JWT when both present
+   */
+  readonly AUTH_MODE: AuthMode;
+
+  /** Shared secret for x-auth-context signature validation. */
   readonly AUTH_CONTEXT_SECRET: string;
+
+  /** HS256 secret for validating JWT tokens. */
+  readonly JWT_HS256_SECRET?: string;
 }
 
 function parseNodeEnv(value: string | undefined): NodeEnv {
@@ -113,6 +152,12 @@ function parseAuthContextSecret(
 
 export function parseEnv(env: NodeJS.ProcessEnv = process.env): EnvSchema {
   const nodeEnv = parseNodeEnv(env.NODE_ENV);
+  const authMode = parseAuthMode(env.AUTH_MODE);
+  const jwtHs256Secret = parseOptionalJwtHs256Secret(env.JWT_HS256_SECRET);
+
+  if (authMode === 'jwt' && !jwtHs256Secret) {
+    throw new Error('JWT_HS256_SECRET is required when AUTH_MODE=jwt');
+  }
 
   return {
     NODE_ENV: nodeEnv,
@@ -125,9 +170,11 @@ export function parseEnv(env: NodeJS.ProcessEnv = process.env): EnvSchema {
     TENANT_HEADER_FALLBACK_ENABLED: parseTenantHeaderFallbackEnabled(
       env.TENANT_HEADER_FALLBACK_ENABLED,
     ),
+    AUTH_MODE: authMode,
     AUTH_CONTEXT_SECRET: parseAuthContextSecret(
       env.AUTH_CONTEXT_SECRET,
       nodeEnv,
     ),
+    JWT_HS256_SECRET: jwtHs256Secret,
   };
 }

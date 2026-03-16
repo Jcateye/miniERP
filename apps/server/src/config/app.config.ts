@@ -9,7 +9,9 @@ export interface AppConfig {
   readonly redisKeyPrefix: string;
   readonly tenantHeader: string;
   readonly tenantHeaderFallbackEnabled: boolean;
+  readonly authMode: EnvSchema['AUTH_MODE'];
   readonly authContextSecret: string;
+  readonly jwtHs256Secret?: string;
 }
 
 function normalizePrefix(value: string): string {
@@ -32,7 +34,9 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     REDIS_KEY_PREFIX,
     TENANT_HEADER,
     TENANT_HEADER_FALLBACK_ENABLED,
+    AUTH_MODE,
     AUTH_CONTEXT_SECRET,
+    JWT_HS256_SECRET,
   } = parseEnv(env);
 
   return {
@@ -44,6 +48,8 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     redisKeyPrefix: REDIS_KEY_PREFIX,
     tenantHeader: TENANT_HEADER,
     tenantHeaderFallbackEnabled: TENANT_HEADER_FALLBACK_ENABLED,
+    authMode: AUTH_MODE,
     authContextSecret: AUTH_CONTEXT_SECRET,
+    jwtHs256Secret: JWT_HS256_SECRET,
   };
 }

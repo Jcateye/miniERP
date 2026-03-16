@@ -9,7 +9,9 @@ export function applyAppRuntimeConfig<TApp = unknown>(
 ): void {
   app.use(
     createAuthContextMiddleware({
+      authMode: config.authMode,
       secret: config.authContextSecret,
+      jwtHs256Secret: config.jwtHs256Secret,
       nodeEnv: config.nodeEnv,
     }),
   );
