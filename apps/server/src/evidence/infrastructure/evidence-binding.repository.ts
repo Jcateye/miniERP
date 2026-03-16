@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../database/prisma.service';
+import { PlatformDbService } from '../../database/platform-db.service';
+import { resolveTenantDbId } from '../../modules/masterdata/infrastructure/prisma-tenant-id.resolver';
 
 export type EvidenceScope = 'document' | 'line';
 
@@ -266,48 +267,6 @@ function resolveObjectStorageBase(): string {
   return process.env.OBJECT_STORAGE_URL?.trim() ?? 'http://localhost:9000';
 }
 
-function tenantCodeCandidates(tenantId: string): string[] {
-  const normalized = tenantId.trim();
-  const candidates = new Set<string>([normalized]);
-
-  if (!normalized.toUpperCase().startsWith('TENANT-')) {
-    candidates.add(`TENANT-${normalized}`);
-  }
-
-  return [...candidates];
-}
-
-async function resolveTenantDbId(
-  prisma: PrismaService,
-  tenantId: string,
-): Promise<bigint> {
-  const normalized = tenantId.trim();
-  if (normalized.length === 0) {
-    throw new Error('tenantId is required');
-  }
-
-  const tenant = await prisma.tenant.findFirst({
-    where: {
-      code: {
-        in: tenantCodeCandidates(normalized),
-      },
-    },
-    select: { id: true },
-  });
-
-  if (tenant) {
-    return tenant.id;
-  }
-
-  try {
-    return BigInt(normalized);
-  } catch {
-    throw new Error(
-      `tenantId is not bigint-compatible and no tenant code matched: ${tenantId}`,
-    );
-  }
-}
-
 function mapAsset(row: {
   id: bigint;
   tenantId: bigint;
@@ -372,7 +331,7 @@ function mapLink(
 
 @Injectable()
 export class PrismaEvidenceBindingRepository implements EvidenceBindingRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly platformDb: PlatformDbService) {}
 
   private parseBigint(value: string): bigint {
     try {
@@ -386,179 +345,185 @@ export class PrismaEvidenceBindingRepository implements EvidenceBindingRepositor
     tenantId: string,
     assetId: string,
   ): Promise<EvidenceAssetRecord | null> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.evidenceAsset.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: this.parseBigint(assetId),
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.evidenceAsset.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          id: this.parseBigint(assetId),
+        },
+      });
 
-    return row ? mapAsset(row) : null;
+      return row ? mapAsset(row) : null;
+    });
   }
 
   async createUploadIntent(
     params: CreateUploadIntentParams,
   ): Promise<UploadIntentRecord> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, params.tenantId);
-    const safeFileName = params.fileName
-      .trim()
-      .replace(/[^a-zA-Z0-9._-]/g, '_');
-    const objectKey = `evidence/${params.entityType}/${params.entityId}/${Date.now()}-${safeFileName}`;
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, params.tenantId);
+      const safeFileName = params.fileName
+        .trim()
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
+      const objectKey = `evidence/${params.entityType}/${params.entityId}/${Date.now()}-${safeFileName}`;
 
-    const created = await this.prisma.evidenceAsset.create({
-      data: {
-        tenantId: tenantDbId,
+      const created = await tx.evidenceAsset.create({
+        data: {
+          tenantId: tenantDbId,
+          objectKey,
+          fileName: params.fileName,
+          contentType: params.contentType,
+          sizeBytes: this.parseBigint(params.sizeBytes),
+          status: 'pending_upload',
+          uploadedBy: params.actorId ?? null,
+        },
+      });
+
+      const now = new Date();
+
+      return {
+        asset: mapAsset(created),
         objectKey,
-        fileName: params.fileName,
-        contentType: params.contentType,
-        sizeBytes: this.parseBigint(params.sizeBytes),
-        status: 'pending_upload',
-        uploadedBy: params.actorId ?? null,
-      },
+        uploadUrl: `${resolveObjectStorageBase()}/${objectKey}`,
+        expiresAt: new Date(now.getTime() + 3600_000).toISOString(),
+      };
     });
-
-    const now = new Date();
-
-    return {
-      asset: mapAsset(created),
-      objectKey,
-      uploadUrl: `${resolveObjectStorageBase()}/${objectKey}`,
-      expiresAt: new Date(now.getTime() + 3600_000).toISOString(),
-    };
   }
 
   async attachLink(
     params: AttachEvidenceLinkParams,
   ): Promise<EvidenceLinkRecord> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, params.tenantId);
-    const assetId = this.parseBigint(params.assetId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, params.tenantId);
+      const assetId = this.parseBigint(params.assetId);
 
-    const asset = await this.prisma.evidenceAsset.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: assetId,
-      },
-    });
-
-    if (!asset) {
-      throw new Error(`Evidence asset not found: ${params.assetId}`);
-    }
-
-    let createdLink: {
-      id: bigint;
-      tenantId: bigint;
-      assetId: bigint;
-      entityType: string;
-      entityId: string;
-      scope: EvidenceScope;
-      lineRef: string | null;
-      tag: string;
-      createdAt: Date;
-      createdBy: string | null;
-    };
-
-    try {
-      createdLink = await this.prisma.evidenceLink.create({
-        data: {
+      const asset = await tx.evidenceAsset.findFirst({
+        where: {
           tenantId: tenantDbId,
-          assetId,
-          entityType: params.entityType,
-          entityId: params.entityId,
-          scope: params.scope,
-          lineRef: params.lineRef ?? null,
-          tag: params.tag,
-          createdBy: params.actorId ?? null,
+          id: assetId,
         },
       });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        const existing = await this.prisma.evidenceLink.findFirst({
-          where: {
+
+      if (!asset) {
+        throw new Error(`Evidence asset not found: ${params.assetId}`);
+      }
+
+      let createdLink: {
+        id: bigint;
+        tenantId: bigint;
+        assetId: bigint;
+        entityType: string;
+        entityId: string;
+        scope: EvidenceScope;
+        lineRef: string | null;
+        tag: string;
+        createdAt: Date;
+        createdBy: string | null;
+      };
+
+      try {
+        createdLink = await tx.evidenceLink.create({
+          data: {
             tenantId: tenantDbId,
             assetId,
             entityType: params.entityType,
             entityId: params.entityId,
             scope: params.scope,
             lineRef: params.lineRef ?? null,
+            tag: params.tag,
+            createdBy: params.actorId ?? null,
           },
         });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          const existing = await tx.evidenceLink.findFirst({
+            where: {
+              tenantId: tenantDbId,
+              assetId,
+              entityType: params.entityType,
+              entityId: params.entityId,
+              scope: params.scope,
+              lineRef: params.lineRef ?? null,
+            },
+          });
 
-        if (!existing) {
+          if (!existing) {
+            throw error;
+          }
+
+          createdLink = existing;
+        } else {
           throw error;
         }
-
-        createdLink = existing;
-      } else {
-        throw error;
       }
-    }
 
-    await this.prisma.evidenceAsset.update({
-      where: { id: assetId },
-      data: {
-        status: 'active',
+      await tx.evidenceAsset.update({
+        where: { id: assetId },
+        data: {
+          status: 'active',
+          uploadedBy: asset.uploadedBy ?? params.actorId ?? null,
+        },
+      });
+
+      return mapLink(createdLink, {
+        fileName: asset.fileName,
+        createdAt: asset.createdAt,
         uploadedBy: asset.uploadedBy ?? params.actorId ?? null,
-      },
-    });
-
-    return mapLink(createdLink, {
-      fileName: asset.fileName,
-      createdAt: asset.createdAt,
-      uploadedBy: asset.uploadedBy ?? params.actorId ?? null,
-      status: 'active',
+        status: 'active',
+      });
     });
   }
 
   async listLinks(
     query: EvidenceCollectionQuery,
   ): Promise<readonly EvidenceLinkRecord[]> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, query.tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, query.tenantId);
 
-    const rows = await this.prisma.evidenceLink.findMany({
-      where: {
-        tenantId: tenantDbId,
-        entityType: query.entityType,
-        entityId: query.entityId,
-        scope: query.scope,
-        lineRef: query.scope === 'line' ? (query.lineRef ?? null) : null,
-        tag: query.tag,
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
-
-    const assetIds = [
-      ...new Set(rows.map((row) => row.assetId.toString())),
-    ].map((id) => BigInt(id));
-    const assets = await this.prisma.evidenceAsset.findMany({
-      where: {
-        tenantId: tenantDbId,
-        id: {
-          in: assetIds,
+      const rows = await tx.evidenceLink.findMany({
+        where: {
+          tenantId: tenantDbId,
+          entityType: query.entityType,
+          entityId: query.entityId,
+          scope: query.scope,
+          lineRef: query.scope === 'line' ? (query.lineRef ?? null) : null,
+          tag: query.tag,
         },
-      },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      });
+
+      const assetIds = [...new Set(rows.map((row) => row.assetId))];
+      const assets = await tx.evidenceAsset.findMany({
+        where: {
+          tenantId: tenantDbId,
+          id: {
+            in: assetIds,
+          },
+        },
+      });
+      const assetMap = new Map<string, (typeof assets)[number]>(
+        assets.map((asset) => [asset.id.toString(), asset]),
+      );
+
+      return rows
+        .map((row) => {
+          const asset = assetMap.get(row.assetId.toString());
+          if (!asset) {
+            return null;
+          }
+
+          return mapLink(row, {
+            fileName: asset.fileName,
+            createdAt: asset.createdAt,
+            uploadedBy: asset.uploadedBy,
+            status: asset.status,
+          });
+        })
+        .filter((item): item is EvidenceLinkRecord => item !== null);
     });
-    const assetMap = new Map<string, (typeof assets)[number]>(
-      assets.map((asset) => [asset.id.toString(), asset]),
-    );
-
-    return rows
-      .map((row) => {
-        const asset = assetMap.get(row.assetId.toString());
-        if (!asset) {
-          return null;
-        }
-
-        return mapLink(row, {
-          fileName: asset.fileName,
-          createdAt: asset.createdAt,
-          uploadedBy: asset.uploadedBy,
-          status: asset.status,
-        });
-      })
-      .filter((item): item is EvidenceLinkRecord => item !== null);
   }
 }

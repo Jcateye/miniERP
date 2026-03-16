@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
   Prisma,
-  type PrismaClient,
   type InventoryLedger as PrismaInventoryLedger,
 } from '@prisma/client';
-import { PrismaService } from '../../../database/prisma.service';
+import { PlatformDbService } from '../../../database/platform-db.service';
+import { resolveTenantDbId } from '../../masterdata/infrastructure/prisma-tenant-id.resolver';
 import {
   InventoryIdempotencyConflictError,
   InventoryValidationError,
@@ -19,8 +19,6 @@ import type {
   InventoryPostingResult,
   InventoryTenantTransaction,
 } from '../domain/inventory.types';
-
-type TenantLookupClient = Pick<PrismaClient, 'tenant'>;
 
 function idempotencyStorageKey(
   actionType: InventoryIdempotencyAction,
@@ -80,60 +78,18 @@ function decodePostingResult(payload: unknown): InventoryPostingResult {
   };
 }
 
-function tenantCodeCandidates(tenantId: string): string[] {
-  const normalized = tenantId.trim();
-  const candidates = new Set<string>([normalized]);
-
-  if (!normalized.toUpperCase().startsWith('TENANT-')) {
-    candidates.add(`TENANT-${normalized}`);
-  }
-
-  return [...candidates];
-}
-
-async function resolveTenantDbId(
-  client: TenantLookupClient,
-  tenantId: string,
-): Promise<bigint> {
-  const normalized = tenantId.trim();
-  if (normalized.length === 0) {
-    throw new InventoryValidationError('tenantId is required');
-  }
-
-  const tenant = await client.tenant.findFirst({
-    where: {
-      code: {
-        in: tenantCodeCandidates(normalized),
-      },
-    },
-    select: { id: true },
-  });
-
-  if (tenant) {
-    return tenant.id;
-  }
-
-  try {
-    return BigInt(normalized);
-  } catch {
-    throw new InventoryValidationError(
-      `tenantId is not bigint-compatible and no tenant code matched: ${tenantId}`,
-    );
-  }
-}
-
 @Injectable()
 export class PrismaInventoryConsistencyStore implements InventoryConsistencyStore {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly platformDb: PlatformDbService) {}
 
   async withTenantTransaction<T>(
     tenantId: string,
     work: (tx: InventoryTenantTransaction) => T | Promise<T>,
   ): Promise<T> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-
-    return this.prisma.$transaction(
+    return this.platformDb.withTenantTx(
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       async (tx) => {
+        const tenantDbId = await resolveTenantDbId(tx, tenantId);
         const tenantTx = new PrismaInventoryTenantTransaction(
           tx,
           tenantId,
@@ -141,35 +97,54 @@ export class PrismaInventoryConsistencyStore implements InventoryConsistencyStor
         );
         return work(tenantTx);
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   }
 
   async getAllBalanceSnapshots(
     tenantId: string,
+    options?: {
+      readonly where?: Readonly<Record<string, unknown>>;
+    },
   ): Promise<InventoryBalanceSnapshot[]> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const rows = await this.prisma.inventoryBalance.findMany({
-      where: { tenantId: tenantDbId },
-      orderBy: [{ warehouseId: 'asc' }, { binId: 'asc' }, { skuId: 'asc' }],
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const rows = await tx.inventoryBalance.findMany({
+        where: {
+          ...(options?.where
+            ? { AND: [options.where, { tenantId: tenantDbId }] }
+            : { tenantId: tenantDbId }),
+        },
+        orderBy: [{ warehouseId: 'asc' }, { binId: 'asc' }, { skuId: 'asc' }],
+      });
 
-    return rows.map((row) => ({
-      skuId: row.skuId,
-      warehouseId: row.warehouseId,
-      binId: row.binId || null,
-      onHand: row.onHand,
-    }));
+      return rows.map((row) => ({
+        skuId: row.skuId,
+        warehouseId: row.warehouseId,
+        binId: row.binId || null,
+        onHand: row.onHand,
+      }));
+    });
   }
 
-  async getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const rows = await this.prisma.inventoryLedger.findMany({
-      where: { tenantId: tenantDbId },
-      orderBy: [{ postedAt: 'desc' }, { id: 'desc' }],
-    });
+  async getAllLedgerEntries(
+    tenantId: string,
+    options?: {
+      readonly where?: Readonly<Record<string, unknown>>;
+    },
+  ): Promise<InventoryLedgerEntry[]> {
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const rows = await tx.inventoryLedger.findMany({
+        where: {
+          ...(options?.where
+            ? { AND: [options.where, { tenantId: tenantDbId }] }
+            : { tenantId: tenantDbId }),
+        },
+        orderBy: [{ postedAt: 'desc' }, { id: 'desc' }],
+      });
 
-    return rows.map((row) => mapLedgerEntry(row));
+      return rows.map((row) => mapLedgerEntry(row));
+    });
   }
 }
 
