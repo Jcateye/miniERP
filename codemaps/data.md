@@ -1,10 +1,11 @@
 # Data codemap
-- Freshness: 2026-03-14T01:22:05.958Z
-- Data-related files: 39
+- Freshness: 2026-03-16T10:27:25.330Z
+- Data-related files: 40
 ## Data modules
 - apps/server/src/audit/domain/audit-redactor.ts
 - apps/server/src/database/database.constants.ts
 - apps/server/src/database/database.module.ts
+- apps/server/src/database/platform-db.service.ts
 - apps/server/src/database/prisma.service.ts
 - apps/server/src/evidence/application/evidence-binding.service.ts
 - apps/server/src/evidence/domain/evidence-binding.schema.ts
@@ -21,13 +22,14 @@
 - apps/server/src/modules/masterdata/domain/sku.types.ts
 - apps/server/src/modules/masterdata/domain/supplier.errors.ts
 - apps/server/src/modules/masterdata/domain/supplier.types.ts
-- apps/server/src/modules/masterdata/domain/warehouse.errors.ts
-- ...truncated (19 more)
+- ...truncated (20 more)
 ## Exported domain/data symbols
 - apps/server/src/audit/domain/audit-redactor.ts#redactAuditMetadata
 - apps/server/src/database/database.constants.ts#DATABASE_URL_TOKEN
+- apps/server/src/database/database.constants.ts#PRISMA_SERVICE_TOKEN
 - apps/server/src/database/database.constants.ts#REDIS_URL_TOKEN
 - apps/server/src/database/database.module.ts#DatabaseModule
+- apps/server/src/database/platform-db.service.ts#PlatformDbService
 - apps/server/src/database/prisma.service.ts#PrismaService
 - apps/server/src/evidence/application/evidence-binding.service.ts#AttachEvidenceResponse
 - apps/server/src/evidence/application/evidence-binding.service.ts#CreateUploadIntentResponse
@@ -47,11 +49,9 @@
 - apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceBindingRepository
 - apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceCollectionQuery
 - apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceLinkRecord
-- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#EvidenceScope
-- apps/server/src/evidence/infrastructure/evidence-binding.repository.ts#InMemoryEvidenceBindingRepository
-- ...truncated (289 more)
+- ...truncated (292 more)
 ## Workspace package dependency summary
 - @minierp/shared: deps=0, devDeps=1
-- minierp: deps=1, devDeps=2
-- server: deps=13, devDeps=26
+- minierp: deps=3, devDeps=3
+- server: deps=17, devDeps=26
 - web: deps=5, devDeps=8

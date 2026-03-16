@@ -4,6 +4,7 @@ import { evaluateApprovalGate } from '../src/codemap/approval-gate';
 import { buildDiffSummary, computeCodemapDiffPercent } from '../src/codemap/compute-diff';
 import { renderCodemaps } from '../src/codemap/render-codemaps';
 import { buildSourceGraph } from '../src/codemap/scan-source-graph';
+import { evaluateWithTenantTxGuard } from '../src/codemap/with-tenant-tx-guard';
 
 interface CliOptions {
   readonly threshold: number;
@@ -71,6 +72,26 @@ async function updateCodemaps(): Promise<void> {
   const frontendPath = path.join(codemapDir, 'frontend.md');
   const dataPath = path.join(codemapDir, 'data.md');
   const reportPath = path.join(reportsDir, 'codemap-diff.txt');
+
+  const guard = evaluateWithTenantTxGuard({ rootDir: repoRoot });
+  if (!guard.ok) {
+    const reasons = [
+      ...guard.directPrismaImports.map((filePath) =>
+        `- PrismaService import: ${filePath}`,
+      ),
+      ...guard.directPrismaClientUsages.map((filePath) =>
+        `- PrismaClient usage: ${filePath}`,
+      ),
+      ...guard.directPrismaServiceTokenUsages.map((filePath) =>
+        `- PRISMA_SERVICE_TOKEN usage: ${filePath}`,
+      ),
+    ].join('\n');
+
+    console.error(
+      'Phase1 guard failed: direct Prisma usage is not allowed.\n' + reasons,
+    );
+    process.exit(3);
+  }
 
   const graph = buildSourceGraph(repoRoot);
   const nextMaps = renderCodemaps(graph);

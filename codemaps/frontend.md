@@ -1,5 +1,5 @@
 # Frontend codemap
-- Freshness: 2026-03-14T01:22:05.958Z
+- Freshness: 2026-03-16T10:27:25.330Z
 - Files: 212
 ## Key modules
 - apps/web/src (212 files)
@@ -31,9 +31,24 @@
 - apps/web/src/app/api/bff/mdm/customers/[id]/route.ts -> apps/web/src/app/api/bff/customers/[id]/route.ts
 - ...truncated (66 more)
 ## External dependencies
-- @/
 - @minierp/shared
-- lucide-react
-- next
-- node:crypto
-- react
+- apps/web/src/components/layout/dashboard-secondary-nav
+- apps/web/src/components/layout/sidebar
+- apps/web/src/components/shared/delete-confirm-dialog
+- apps/web/src/components/shared/form-dialog
+- apps/web/src/components/shared/remote-entity-select
+- apps/web/src/components/ui
+- apps/web/src/components/views/erp/integrated/finance/accounts/view
+- apps/web/src/components/views/erp/integrated/finance/budget/view
+- apps/web/src/components/views/erp/integrated/finance/collection/view
+- apps/web/src/components/views/erp/integrated/finance/cost-center/view
+- apps/web/src/components/views/erp/integrated/finance/invoice/view
+- apps/web/src/components/views/erp/integrated/finance/overview/view
+- apps/web/src/components/views/erp/integrated/finance/payment/view
+- apps/web/src/components/views/erp/integrated/finance/view
+- apps/web/src/components/views/erp/integrated/finance/voucher/view
+- apps/web/src/components/views/erp/integrated/inventory/adjustment/view
+- apps/web/src/components/views/erp/integrated/inventory/balance/balance-form
+- apps/web/src/components/views/erp/integrated/inventory/balance/view
+- apps/web/src/components/views/erp/integrated/inventory/grn/view
+- ...truncated (66 more)

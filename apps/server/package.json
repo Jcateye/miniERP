@@ -24,6 +24,8 @@
     "openapi:generate": "bun run scripts/generate-openapi.ts",
     "openapi:check": "bun run scripts/generate-openapi.ts && bun run scripts/check-openapi-quality.ts",
     "codemap:update": "bun run scripts/update-codemaps.ts",
+    "codemap:report": "bun run scripts/update-codemaps.ts --dry-run --yes",
+    "codemap:check": "bun run scripts/update-codemaps.ts --dry-run --threshold 0",
     "db:generate": "prisma generate --schema ./prisma/schema.prisma",
     "db:migrate": "prisma migrate deploy --schema ./prisma/schema.prisma",
     "db:migrate:dev": "prisma migrate dev --schema ./prisma/schema.prisma",

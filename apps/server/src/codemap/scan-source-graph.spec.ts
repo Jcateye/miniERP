@@ -14,7 +14,12 @@ describe('buildSourceGraph', () => {
 
     createFile(
       path.join(tempDir, 'apps/server/src/a.ts'),
-      "import { b } from './b';\nimport { Injectable } from '@nestjs/common';\nexport const a = b;",
+      "import { b } from './b';\nimport { Injectable } from '@nestjs/common';\nimport type { PrismaService } from './database/prisma.service';\nexport const a = b;\nvoid (null as unknown as PrismaService);",
+    );
+
+    createFile(
+      path.join(tempDir, 'apps/server/src/database/prisma.service.ts'),
+      'export class PrismaService {}',
     );
     createFile(
       path.join(tempDir, 'apps/server/src/b.ts'),
@@ -42,14 +47,21 @@ describe('buildSourceGraph', () => {
 
     const graph = buildSourceGraph(tempDir);
 
-    expect(graph.nodes.length).toBe(2);
+    expect(graph.nodes.length).toBe(3);
     const serverNode = graph.nodes.find(
       (node) => node.filePath === 'apps/server/src/a.ts',
     );
     expect(serverNode).toBeDefined();
     expect(serverNode?.internalImports).toContain('apps/server/src/b.ts');
     expect(serverNode?.externalImports).toContain('@nestjs/common');
+    expect(serverNode?.internalImports).toContain(
+      'apps/server/src/database/prisma.service.ts',
+    );
     expect(serverNode?.exportNames).toContain('a');
+    expect(serverNode?.hasPrismaClientUsage).toBe(false);
+    expect(serverNode?.hasPrismaServiceTokenUsage).toBe(false);
+    expect(serverNode?.reexportAllInternalImports).toEqual([]);
+    expect(serverNode?.reexportPrismaServiceTokenInternalImports).toEqual([]);
 
     expect(graph.packageDependencies.length).toBe(4);
   });

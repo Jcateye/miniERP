@@ -1,5 +1,5 @@
-timestamp=2026-03-14T01:22:05.960Z
-threshold=30
+timestamp=2026-03-16T15:52:07.931Z
+threshold=0
 overallDiffPercent=0
 - architecture: 0%
 - backend: 0%
@@ -8,4 +8,4 @@ overallDiffPercent=0
 approvalRequired=false
 approved=true
 approvalReason=within-threshold
-dryRun=false
+dryRun=true

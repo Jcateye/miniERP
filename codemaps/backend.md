@@ -1,15 +1,17 @@
 # Backend codemap
-- Freshness: 2026-03-14T01:22:05.958Z
-- Files: 99
+- Freshness: 2026-03-16T10:27:25.330Z
+- Files: 115
 ## Key modules
-- apps/server/src (99 files)
+- apps/server/src (115 files)
 ## Internal import edges
 - apps/server/src/app.controller.ts -> apps/server/src/app.service.ts
 - apps/server/src/app.module.ts -> apps/server/src/app.controller.ts
 - apps/server/src/app.module.ts -> apps/server/src/app.service.ts
 - apps/server/src/app.module.ts -> apps/server/src/audit/audit.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/common/filters/api-exception.filter.ts
+- apps/server/src/app.module.ts -> apps/server/src/common/iam/authorize/authorize.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/common/iam/iam.guard.ts
+- apps/server/src/app.module.ts -> apps/server/src/common/iam/rbac/rbac.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/common/interceptors/api-response.interceptor.ts
 - apps/server/src/app.module.ts -> apps/server/src/common/tenant/tenant.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/database/database.module.ts
@@ -18,19 +20,21 @@
 - apps/server/src/app.module.ts -> apps/server/src/modules/evidence/evidence.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/modules/inventory/inventory.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/modules/masterdata/masterdata.module.ts
+- apps/server/src/app.module.ts -> apps/server/src/modules/policy/policy.module.ts
 - apps/server/src/app.module.ts -> apps/server/src/modules/trading/index.ts
 - apps/server/src/app.module.ts -> apps/server/src/platform/platform.module.ts
 - apps/server/src/audit/application/audit.service.ts -> apps/server/src/audit/application/audit.store.ts
 - apps/server/src/audit/application/audit.service.ts -> apps/server/src/audit/domain/audit-redactor.ts
 - apps/server/src/audit/application/prisma-audit.store.ts -> apps/server/src/audit/application/audit.store.ts
-- apps/server/src/audit/application/prisma-audit.store.ts -> apps/server/src/database/prisma.service.ts
+- apps/server/src/audit/application/prisma-audit.store.ts -> apps/server/src/database/platform-db.service.ts
+- apps/server/src/audit/application/prisma-audit.store.ts -> apps/server/src/modules/masterdata/infrastructure/prisma-tenant-id.resolver.ts
 - apps/server/src/audit/audit.module.ts -> apps/server/src/audit/application/audit.service.ts
-- apps/server/src/audit/audit.module.ts -> apps/server/src/audit/application/audit.store.ts
-- apps/server/src/audit/audit.module.ts -> apps/server/src/audit/application/prisma-audit.store.ts
-- apps/server/src/codemap/render-codemaps.ts -> apps/server/src/codemap/scan-source-graph.ts
-- apps/server/src/common/iam/auth-context.middleware.ts -> apps/server/src/common/iam/auth-context.ts
-- ...truncated (205 more)
+- ...truncated (251 more)
 ## External dependencies
+- @minierp/platform-db
+- @minierp/platform-iam
+- @minierp/platform-policy
+- @minierp/platform-tenant
 - @minierp/shared
 - @nestjs/common
 - @nestjs/core
@@ -38,6 +42,7 @@
 - @prisma/client
 - decimal.js
 - express
+- jsonwebtoken
 - node:async_hooks
 - node:crypto
 - node:fs
@@ -46,4 +51,4 @@
 - node:process
 - node:readline
 - rxjs
-- zod
+- ...truncated (1 more)
