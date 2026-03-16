@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
-import { createPlatformDb } from '../../../../packages/platform-db/src/index';
+import { createPlatformDb } from '@minierp/platform-db';
 
 interface RequestTenantContext {
   readonly tenantId: string;
@@ -159,6 +159,12 @@ platformDbDatabaseDescribe('platform-db tenant transaction integration', () => {
       );
     }
     await prisma.$disconnect();
+  });
+
+  it('throws when assertInTenantTx is called outside withTenantTx in non-production', () => {
+    expect(() => platformDb.assertInTenantTx()).toThrow(
+      'Tenant transaction context is required. Wrap the query in withTenantTx().',
+    );
   });
 
   it('keeps same-named rows invisible across three tenant schemas', async () => {

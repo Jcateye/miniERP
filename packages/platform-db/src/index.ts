@@ -9,10 +9,33 @@ interface TenantTxContext {
   readonly tenantId: TenantId;
   readonly schema: TenantSchema;
   readonly tx: TenantTxClient;
+  readonly isolationLevel?: Prisma.TransactionIsolationLevel;
+}
+
+export interface TenantTxOptions {
+  /**
+   * Prisma transaction isolation level.
+   * See: https://www.prisma.io/docs/orm/prisma-client/queries/transactions#isolation-level
+   */
+  readonly isolationLevel?: Prisma.TransactionIsolationLevel;
+
+  /**
+   * Maximum time Prisma will wait to acquire a transaction in milliseconds.
+   */
+  readonly maxWait?: number;
+
+  /**
+   * Transaction timeout in milliseconds.
+   */
+  readonly timeout?: number;
 }
 
 export interface PlatformDbApi {
   withTenantTx<T>(fn: (tx: TenantTxClient) => Promise<T>): Promise<T>;
+  withTenantTx<T>(
+    options: TenantTxOptions,
+    fn: (tx: TenantTxClient) => Promise<T>,
+  ): Promise<T>;
   getTenantSchema(tenantId: TenantId): Promise<TenantSchema>;
   assertInTenantTx(): void;
 }
@@ -81,9 +104,18 @@ export function createPlatformDb(deps: PlatformDbDeps): PlatformDbApi {
   );
 
   return {
-    async withTenantTx<T>(fn: (tx: TenantTxClient) => Promise<T>): Promise<T> {
+    async withTenantTx<T>(
+      ...args:
+        | [fn: (tx: TenantTxClient) => Promise<T>]
+        | [options: TenantTxOptions, fn: (tx: TenantTxClient) => Promise<T>]
+    ): Promise<T> {
       const tenantId = deps.getCurrentTenantId();
       const activeContext = tenantTxStorage.getStore();
+
+      const [options, fn] =
+        args.length === 1
+          ? [{}, args[0]]
+          : [args[0], args[1]];
 
       if (activeContext) {
         if (activeContext.tenantId !== tenantId) {
@@ -92,22 +124,40 @@ export function createPlatformDb(deps: PlatformDbDeps): PlatformDbApi {
           );
         }
 
+        const requestedIsolationLevel = options.isolationLevel;
+        if (
+          requestedIsolationLevel !== undefined &&
+          activeContext.isolationLevel !== requestedIsolationLevel
+        ) {
+          throw new Error(
+            `Nested tenant transaction isolation mismatch: ${activeContext.isolationLevel} !== ${requestedIsolationLevel}`,
+          );
+        }
+
         return fn(activeContext.tx);
       }
 
       const tenantSchema = await this.getTenantSchema(tenantId);
-      return deps.prisma.$transaction(async (tx: TenantTxClient) => {
-        await applyTenantSearchPath(tx, tenantSchema);
+      return deps.prisma.$transaction(
+        async (tx: TenantTxClient) => {
+          await applyTenantSearchPath(tx, tenantSchema);
 
-        return tenantTxStorage.run(
-          {
-            tenantId,
-            schema: tenantSchema,
-            tx,
-          },
-          () => fn(tx),
-        );
-      });
+          return tenantTxStorage.run(
+            {
+              tenantId,
+              schema: tenantSchema,
+              tx,
+              isolationLevel: options.isolationLevel,
+            },
+            () => fn(tx),
+          );
+        },
+        {
+          isolationLevel: options.isolationLevel,
+          maxWait: options.maxWait,
+          timeout: options.timeout,
+        },
+      );
     },
     async getTenantSchema(tenantId: TenantId): Promise<TenantSchema> {
       const normalizedTenantId = tenantId.trim();

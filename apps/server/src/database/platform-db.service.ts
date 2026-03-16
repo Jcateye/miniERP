@@ -25,8 +25,28 @@ export class PlatformDbService implements PlatformDbApi {
     });
   }
 
-  withTenantTx<T>(fn: (tx: TenantTxClient) => Promise<T>): Promise<T> {
-    return this.platformDb.withTenantTx(fn);
+  withTenantTx<T>(fn: (tx: TenantTxClient) => Promise<T>): Promise<T>;
+  withTenantTx<T>(
+    options: Parameters<PlatformDbApi['withTenantTx']>[0],
+    fn: (tx: TenantTxClient) => Promise<T>,
+  ): Promise<T>;
+  withTenantTx<T>(...args: readonly unknown[]): Promise<T> {
+    const [first, second] = args as readonly [unknown, unknown?];
+
+    if (typeof first === 'function') {
+      return this.platformDb.withTenantTx(
+        first as (tx: TenantTxClient) => Promise<T>,
+      );
+    }
+
+    if (typeof second !== 'function') {
+      throw new TypeError('withTenantTx(options, fn): fn must be a function');
+    }
+
+    return this.platformDb.withTenantTx(
+      first as Parameters<PlatformDbApi['withTenantTx']>[0],
+      second as (tx: TenantTxClient) => Promise<T>,
+    );
   }
 
   getTenantSchema(tenantId: TenantId): Promise<TenantSchema> {
