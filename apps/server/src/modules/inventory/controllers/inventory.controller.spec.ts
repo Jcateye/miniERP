@@ -1,12 +1,20 @@
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuthorizeGuard } from '../../../common/iam/authorize/authorize.guard';
 import { InventoryController } from './inventory.controller';
 import { InventoryPostingService } from '../application/inventory-posting.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
 import { InventoryInsufficientStockError } from '../domain/inventory.errors';
 
+jest.mock('../../../common/iam/authorize/authz-context', () => ({
+  readAuthzResult: jest.fn(),
+}));
+
 describe('InventoryController', () => {
   let controller: InventoryController;
+  const { readAuthzResult } = jest.requireMock(
+    '../../../common/iam/authorize/authz-context',
+  );
 
   const mockTenantContextService = {
     getRequiredContext: jest.fn().mockReturnValue({
@@ -27,6 +35,17 @@ describe('InventoryController', () => {
   };
 
   beforeEach(async () => {
+    readAuthzResult.mockReset();
+    readAuthzResult.mockReturnValue({
+      decision: 'allow',
+      obligations: {
+        data: {
+          kind: 'prisma_where',
+          where: {},
+        },
+      },
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InventoryController],
       providers: [
@@ -43,7 +62,10 @@ describe('InventoryController', () => {
           useValue: mockInventoryStore,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthorizeGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<InventoryController>(InventoryController);
   });
@@ -53,6 +75,20 @@ describe('InventoryController', () => {
   });
 
   it('should return filtered balances when skuId and warehouseId provided', async () => {
+    readAuthzResult.mockReturnValue({
+      decision: 'allow',
+      obligations: {
+        data: {
+          kind: 'prisma_where',
+          where: {
+            warehouseId: {
+              in: ['WH-1'],
+            },
+          },
+        },
+      },
+    });
+
     mockInventoryPostingService.getBalanceSnapshot.mockResolvedValue([
       { skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 20 },
     ]);
@@ -67,6 +103,26 @@ describe('InventoryController', () => {
       data: [{ skuId: 'SKU-1', warehouseId: 'WH-1', binId: null, onHand: 20 }],
       total: 1,
     });
+  });
+
+  it('denies balance lookup when warehouseId is outside authz scope', async () => {
+    readAuthzResult.mockReturnValue({
+      decision: 'allow',
+      obligations: {
+        data: {
+          kind: 'prisma_where',
+          where: {
+            warehouseId: {
+              in: ['WH-1'],
+            },
+          },
+        },
+      },
+    });
+
+    await expect(controller.getBalances('SKU-1', 'WH-2')).rejects.toThrow(
+      'Permission denied',
+    );
   });
 
   it('should post inbound movement and return latest balance', async () => {
@@ -233,6 +289,9 @@ describe('InventoryController', () => {
 
     expect(mockInventoryStore.getAllBalanceSnapshots).toHaveBeenCalledWith(
       '1001',
+      {
+        where: {},
+      },
     );
     expect(result.total).toBe(2);
   });
@@ -285,6 +344,39 @@ describe('InventoryController', () => {
     expect(result.pageSize).toBe(1);
     expect(result.totalPages).toBe(2);
     expect(result.data[0]?.id).toBe('2');
+  });
+
+  it('applies authz prisma_where obligation to ledger query', async () => {
+    readAuthzResult.mockReturnValue({
+      decision: 'allow',
+      obligations: {
+        data: {
+          kind: 'prisma_where',
+          where: {
+            warehouseId: {
+              in: ['WH-1'],
+            },
+          },
+        },
+      },
+    });
+
+    mockInventoryStore.getAllLedgerEntries.mockResolvedValue([]);
+
+    await controller.getLedger();
+
+    // 当前 controller 还未消费 authz obligations（会在实现中把 where 下推到 store 查询）。
+    // 这里先用期望约束测试，确保后续实现会改变调用签名。
+    expect(mockInventoryStore.getAllLedgerEntries).toHaveBeenCalledWith(
+      '1001',
+      {
+        where: {
+          warehouseId: {
+            in: ['WH-1'],
+          },
+        },
+      },
+    );
   });
 
   it('should filter ledger by docType', async () => {

@@ -3,6 +3,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -18,6 +19,8 @@ import type {
   InventoryMovementResponse,
 } from '@minierp/shared';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
+import { RequireAuthorize } from '../../../common/iam/authorize/require-authorize.decorator';
+import { requireAuthzPrismaWhere } from '../../../common/iam/authorize/authz-obligations';
 import { InventoryPostingService } from '../application/inventory-posting.service';
 import type {
   InventoryBalanceSnapshot,
@@ -66,6 +69,31 @@ function parsePositiveInt(
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function readAllowedWarehouses(
+  where: Record<string, unknown> | undefined,
+): readonly string[] | undefined {
+  if (!where) {
+    return undefined;
+  }
+
+  const warehouse = where['warehouseId'];
+  if (typeof warehouse !== 'object' || warehouse === null) {
+    return undefined;
+  }
+
+  const inList = (warehouse as { readonly in?: unknown }).in;
+  if (!Array.isArray(inList)) {
+    return undefined;
+  }
+
+  const allowed = inList
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return allowed.length > 0 ? allowed : undefined;
 }
 
 function validationError(message: string): BadRequestException {
@@ -183,6 +211,7 @@ export class InventoryController {
 
   @Post('inbound')
   @HttpCode(HttpStatus.CREATED)
+  @RequireAuthorize({ resource: 'erp:inventory', action: 'create' })
   async createInbound(
     @Headers('idempotency-key') idempotencyKey?: string,
     @Body() body?: unknown,
@@ -192,6 +221,7 @@ export class InventoryController {
 
   @Post('outbound')
   @HttpCode(HttpStatus.CREATED)
+  @RequireAuthorize({ resource: 'erp:inventory', action: 'create' })
   async createOutbound(
     @Headers('idempotency-key') idempotencyKey?: string,
     @Body() body?: unknown,
@@ -200,12 +230,15 @@ export class InventoryController {
   }
 
   @Get('balances')
+  @RequireAuthorize({ resource: 'erp:inventory', action: 'read' })
   async getBalances(
     @Query('skuId') skuId?: string,
     @Query('warehouseId') warehouseId?: string,
     @Query('binId') binId?: string,
   ): Promise<InventoryBalanceResponse> {
     const ctx = this.tenantContextService.getRequiredContext();
+    const authzWhere = requireAuthzPrismaWhere();
+    const allowedWarehouses = readAllowedWarehouses(authzWhere);
 
     if (skuId && !warehouseId) {
       throw new BadRequestException({
@@ -232,6 +265,14 @@ export class InventoryController {
     }
 
     if (skuId && warehouseId) {
+      if (allowedWarehouses && !allowedWarehouses.includes(warehouseId)) {
+        throw new ForbiddenException({
+          category: 'permission',
+          code: 'PERMISSION_DENIED',
+          message: 'Permission denied',
+        });
+      }
+
       const snapshots = await this.inventoryPostingService.getBalanceSnapshot(
         ctx.tenantId,
         [{ skuId, warehouseId, binId: binId?.trim() || null }],
@@ -245,6 +286,7 @@ export class InventoryController {
 
     const snapshots = await this.inventoryStore.getAllBalanceSnapshots(
       ctx.tenantId,
+      authzWhere ? { where: authzWhere } : undefined,
     );
     return {
       data: snapshots,
@@ -253,6 +295,7 @@ export class InventoryController {
   }
 
   @Get('ledger')
+  @RequireAuthorize({ resource: 'erp:inventory', action: 'read' })
   async getLedger(
     @Query('skuId') skuId?: string,
     @Query('warehouseId') warehouseId?: string,
@@ -273,7 +316,11 @@ export class InventoryController {
       });
     }
 
-    const source = await this.inventoryStore.getAllLedgerEntries(ctx.tenantId);
+    const authzWhere = requireAuthzPrismaWhere();
+
+    const source = await this.inventoryStore.getAllLedgerEntries(ctx.tenantId, {
+      ...(authzWhere ? { where: authzWhere } : {}),
+    });
     const filtered = source.filter((entry) => {
       if (skuId && entry.skuId !== skuId) {
         return false;

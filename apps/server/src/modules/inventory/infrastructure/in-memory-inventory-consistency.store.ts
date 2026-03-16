@@ -49,6 +49,57 @@ function deepCloneTenantState(state: TenantState): TenantState {
   };
 }
 
+type Where = Readonly<Record<string, unknown>>;
+
+type InCondition = {
+  readonly in?: readonly unknown[];
+};
+
+function matchesScalar(value: unknown, condition: unknown): boolean {
+  if (condition === undefined) {
+    return true;
+  }
+
+  if (typeof condition === 'object' && condition !== null) {
+    const maybeIn = condition as InCondition;
+    if (Array.isArray(maybeIn.in)) {
+      return maybeIn.in.includes(value);
+    }
+
+    return false;
+  }
+
+  return Object.is(value, condition);
+}
+
+function matchesWhere(entity: Record<string, unknown>, where?: Where): boolean {
+  if (!where) {
+    return true;
+  }
+
+  const maybeAnd = (where as { readonly AND?: unknown }).AND;
+  if (Array.isArray(maybeAnd)) {
+    return maybeAnd.every((item) => {
+      if (typeof item !== 'object' || item === null) {
+        return false;
+      }
+      return matchesWhere(entity, item as Where);
+    });
+  }
+
+  for (const [key, condition] of Object.entries(where)) {
+    if (key === 'AND') {
+      continue;
+    }
+
+    if (!matchesScalar(entity[key], condition)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export class InMemoryInventoryConsistencyStore implements InventoryConsistencyStore {
   private readonly stateByTenant = new Map<string, TenantState>();
   private readonly transactionQueueByTenant = new Map<string, Promise<void>>();
@@ -91,11 +142,14 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
 
   getAllBalanceSnapshots(
     tenantId: string,
+    options?: {
+      readonly where?: Readonly<Record<string, unknown>>;
+    },
   ): Promise<InventoryBalanceSnapshot[]> {
     const state = this.stateByTenant.get(tenantId) ?? createTenantState();
 
-    return Promise.resolve(
-      [...state.balanceByKey.entries()].map(([rawKey, onHand]) => {
+    const snapshots = [...state.balanceByKey.entries()].map(
+      ([rawKey, onHand]) => {
         const [skuId, warehouseId, rawBinId = ''] = rawKey.split('::');
         return {
           skuId,
@@ -103,15 +157,30 @@ export class InMemoryInventoryConsistencyStore implements InventoryConsistencySt
           binId: rawBinId || null,
           onHand,
         };
-      }),
+      },
     );
+
+    const filtered = snapshots.filter((snapshot) =>
+      matchesWhere(snapshot, options?.where),
+    );
+
+    return Promise.resolve(filtered);
   }
 
-  getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]> {
+  getAllLedgerEntries(
+    tenantId: string,
+    options?: {
+      readonly where?: Readonly<Record<string, unknown>>;
+    },
+  ): Promise<InventoryLedgerEntry[]> {
     const state = this.stateByTenant.get(tenantId) ?? createTenantState();
-    return Promise.resolve(
-      [...state.ledgerEntries.values()].map((entry) => ({ ...entry })),
+    const entries = [...state.ledgerEntries.values()].map((entry) => ({
+      ...entry,
+    }));
+    const filtered = entries.filter((entry) =>
+      matchesWhere(entry, options?.where),
     );
+    return Promise.resolve(filtered);
   }
 }
 

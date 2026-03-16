@@ -67,14 +67,27 @@ export interface IdempotencyRecord {
   readonly requestId: string;
 }
 
+export type InventoryWhereInput = Readonly<Record<string, unknown>>;
+
 export interface InventoryConsistencyStore {
   withTenantTransaction<T>(
     tenantId: string,
     work: (tx: InventoryTenantTransaction) => T | Promise<T>,
   ): Promise<T>;
 
-  getAllBalanceSnapshots(tenantId: string): Promise<InventoryBalanceSnapshot[]>;
-  getAllLedgerEntries(tenantId: string): Promise<InventoryLedgerEntry[]>;
+  getAllBalanceSnapshots(
+    tenantId: string,
+    options?: {
+      readonly where?: InventoryWhereInput;
+    },
+  ): Promise<InventoryBalanceSnapshot[]>;
+
+  getAllLedgerEntries(
+    tenantId: string,
+    options?: {
+      readonly where?: InventoryWhereInput;
+    },
+  ): Promise<InventoryLedgerEntry[]>;
 }
 
 export interface InventoryTenantTransaction {
