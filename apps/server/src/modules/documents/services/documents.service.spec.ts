@@ -5,6 +5,7 @@ import { InventoryPostingService } from '../../inventory/application/inventory-p
 import { InvalidStatusTransitionError } from '../../core-document/domain/status-transition';
 import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
 import { HttpException } from '@nestjs/common';
+import { PlatformDbService } from '../../../database/platform-db.service';
 import {
   PurchaseInboundWriteService,
   SalesShipmentWriteService,
@@ -25,24 +26,35 @@ describe('DocumentsService', () => {
     reverseInTransaction: jest.fn(),
   };
 
-  function createPurchaseInboundWriteService(prisma?: unknown) {
+  function createPlatformDbMock(tx: unknown): PlatformDbService {
+    return {
+      withTenantTx: ((...args: any[]) => {
+        const fn = args.length === 1 ? args[0] : args[1];
+        return fn(tx);
+      }) as PlatformDbService['withTenantTx'],
+    } as PlatformDbService;
+  }
+
+  function createPurchaseInboundWriteService(
+    prisma?: unknown,
+  ): PurchaseInboundWriteService {
     return new PurchaseInboundWriteService(
       mockAuditService as unknown as AuditService,
       mockInventoryPostingService as unknown as InventoryPostingService,
-      prisma as never,
+      createPlatformDbMock(prisma ?? {}),
     );
   }
 
   function createSalesShipmentWriteService(prisma?: unknown) {
     return new SalesShipmentWriteService(
+      createPlatformDbMock(prisma ?? {}),
       mockAuditService as unknown as AuditService,
       mockInventoryPostingService as unknown as InventoryPostingService,
-      prisma as never,
     );
   }
 
   function createTradingDocumentsReadService(prisma?: unknown) {
-    return new TradingDocumentsReadService(prisma as never);
+    return new TradingDocumentsReadService(createPlatformDbMock(prisma ?? {}));
   }
 
   beforeEach(async () => {
@@ -56,6 +68,10 @@ describe('DocumentsService', () => {
         {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
+        },
+        {
+          provide: PlatformDbService,
+          useValue: createPlatformDbMock({}),
         },
         PurchaseInboundWriteService,
         SalesShipmentWriteService,
@@ -714,7 +730,7 @@ describe('DocumentsService', () => {
         docDate: new Date('2026-03-05'),
         status: 'picking',
         soId: null,
-        warehouseId: null,
+        warehouseId: BigInt(1),
         remarks: null,
         totalQty: { toString: () => '5' },
         createdAt: new Date('2026-03-05T10:00:00Z'),
@@ -734,7 +750,7 @@ describe('DocumentsService', () => {
       });
 
       mockInventoryPostingService.postInTransaction.mockRejectedValue(
-        new InventoryInsufficientStockError('11', 'WH-001', '7001', 0, 5),
+        new InventoryInsufficientStockError('11', '1', '7001', 0, 5),
       );
 
       await expect(
@@ -757,7 +773,7 @@ describe('DocumentsService', () => {
           lines: [
             expect.objectContaining({
               skuId: '11',
-              warehouseId: 'WH-001',
+              warehouseId: '1',
               binId: '7001',
             }),
           ],

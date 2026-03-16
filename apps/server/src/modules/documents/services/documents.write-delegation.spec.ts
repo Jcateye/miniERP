@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { DocumentsService } from './documents.service';
 import { AuditService } from '../../../audit/application/audit.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
-import { PrismaService } from '../../../database/prisma.service';
+import { PRISMA_SERVICE_TOKEN } from '../../../database/database.constants';
 import {
   PurchaseInboundWriteService,
   SalesShipmentWriteService,
@@ -52,7 +52,7 @@ describe('DocumentsService write delegation', () => {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
         },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PRISMA_SERVICE_TOKEN, useValue: mockPrismaService },
         {
           provide: PurchaseInboundWriteService,
           useValue: mockPurchaseInboundWriteService,
@@ -113,7 +113,7 @@ describe('DocumentsService write delegation', () => {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
         },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PRISMA_SERVICE_TOKEN, useValue: mockPrismaService },
         {
           provide: PurchaseInboundWriteService,
           useValue: mockPurchaseInboundWriteService,
@@ -162,5 +162,55 @@ describe('DocumentsService write delegation', () => {
       'req-001',
     );
     expect(result.newStatus).toBe('picking');
+  });
+
+  it('fails fast when delegated persisted write service throws (no retry, no swallow)', async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        DocumentsService,
+        { provide: AuditService, useValue: mockAuditService },
+        {
+          provide: InventoryPostingService,
+          useValue: mockInventoryPostingService,
+        },
+        { provide: PRISMA_SERVICE_TOKEN, useValue: mockPrismaService },
+        {
+          provide: PurchaseInboundWriteService,
+          useValue: mockPurchaseInboundWriteService,
+        },
+        {
+          provide: SalesShipmentWriteService,
+          useValue: mockSalesShipmentWriteService,
+        },
+        {
+          provide: TradingDocumentsReadService,
+          useValue: mockTradingDocumentsReadService,
+        },
+      ],
+    }).compile();
+
+    const service = module.get(DocumentsService);
+
+    const delegatedError = new Error('delegated failed');
+    mockSalesShipmentWriteService.executeAction.mockRejectedValue(
+      delegatedError,
+    );
+
+    await expect(
+      service.executeAction(
+        'OUT',
+        '5001',
+        'post',
+        'idem-out-err-001',
+        '1001',
+        'user-001',
+        'req-001',
+      ),
+    ).rejects.toBe(delegatedError);
+
+    // Phase1：不自动重试
+    expect(mockSalesShipmentWriteService.executeAction).toHaveBeenCalledTimes(
+      1,
+    );
   });
 });

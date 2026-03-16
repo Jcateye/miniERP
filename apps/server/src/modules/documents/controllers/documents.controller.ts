@@ -1,10 +1,13 @@
 import {
+  BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -21,6 +24,21 @@ import {
   UnknownDocumentActionError,
 } from '../services/documents.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
+import { RequireAuthorize } from '../../../common/iam/authorize/require-authorize.decorator';
+import { assertWorkflowTransitionAllowed } from '../../../common/iam/authorize/authz-obligations';
+
+const DOCUMENT_ACTIONS = new Set([
+  'confirm',
+  'validate',
+  'pick',
+  'close',
+  'cancel',
+  'post',
+]);
+
+function enforceDocumentWorkflowAuthz(action: string): void {
+  assertWorkflowTransitionAllowed(action);
+}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
@@ -128,6 +146,7 @@ export class DocumentsController {
   ) {}
 
   @Get()
+  @RequireAuthorize({ resource: 'erp:document', action: 'read' })
   async list(
     @Query('docType') docType?: string,
     @Query('page') page?: string,
@@ -149,6 +168,7 @@ export class DocumentsController {
   }
 
   @Get(':docType/:id')
+  @RequireAuthorize({ resource: 'erp:document', action: 'read' })
   async getDetail(@Param('docType') docType: string, @Param('id') id: string) {
     const ctx = this.tenantContextService.getRequiredContext();
     const normalizedDocType = this.normalizeDocType(docType);
@@ -160,12 +180,11 @@ export class DocumentsController {
     );
 
     if (!doc) {
-      return {
-        error: {
-          code: 'DOCUMENT_NOT_FOUND',
-          message: `Document ${docType}/${id} not found`,
-        },
-      };
+      throw new NotFoundException({
+        category: 'not_found',
+        code: 'DOCUMENT_NOT_FOUND',
+        message: `Document ${normalizedDocType}/${id} not found`,
+      });
     }
 
     return doc;
@@ -173,6 +192,7 @@ export class DocumentsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @RequireAuthorize({ resource: 'erp:document', action: 'create' })
   async createDocument(
     @Headers('idempotency-key') idempotencyKey?: string,
     @Body() body?: unknown,
@@ -180,13 +200,11 @@ export class DocumentsController {
     const ctx = this.tenantContextService.getRequiredContext();
 
     if (!idempotencyKey || idempotencyKey.trim() === '') {
-      return {
-        error: {
-          code: 'IDEMPOTENCY_KEY_REQUIRED',
-          message: 'Idempotency-Key header is required for document create',
-          category: 'validation',
-        },
-      };
+      throw new BadRequestException({
+        category: 'validation',
+        code: 'IDEMPOTENCY_KEY_REQUIRED',
+        message: 'Idempotency-Key header is required for document create',
+      });
     }
 
     let parsed: { docType: CoreDocumentType; input: DocumentCreateInput };
@@ -195,13 +213,11 @@ export class DocumentsController {
         this.normalizeDocType(value),
       );
     } catch (error) {
-      return {
-        error: {
-          code: 'VALIDATION_INVALID_PAYLOAD',
-          message: error instanceof Error ? error.message : 'Invalid payload',
-          category: 'validation',
-        },
-      };
+      throw new BadRequestException({
+        category: 'validation',
+        code: 'VALIDATION_INVALID_PAYLOAD',
+        message: error instanceof Error ? error.message : 'Invalid payload',
+      });
     }
 
     const result = await this.documentsService.create(
@@ -216,8 +232,20 @@ export class DocumentsController {
     return result;
   }
 
+  @Post(':docType/:id/post')
+  @HttpCode(HttpStatus.OK)
+  @RequireAuthorize({ resource: 'erp:document', action: 'post' })
+  async executePostAction(
+    @Param('docType') docType: string,
+    @Param('id') id: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.executeAction(docType, id, 'post', idempotencyKey);
+  }
+
   @Post(':docType/:id/:action')
   @HttpCode(HttpStatus.OK)
+  @RequireAuthorize({ resource: 'erp:document', action: 'update' })
   async executeAction(
     @Param('docType') docType: string,
     @Param('id') id: string,
@@ -227,16 +255,24 @@ export class DocumentsController {
     const ctx = this.tenantContextService.getRequiredContext();
 
     if (!idempotencyKey || idempotencyKey.trim() === '') {
-      return {
-        error: {
-          code: 'IDEMPOTENCY_KEY_REQUIRED',
-          message: 'Idempotency-Key header is required for document actions',
-          category: 'validation',
-        },
-      };
+      throw new BadRequestException({
+        category: 'validation',
+        code: 'IDEMPOTENCY_KEY_REQUIRED',
+        message: 'Idempotency-Key header is required for document actions',
+      });
     }
 
     const normalizedDocType = this.normalizeDocType(docType);
+
+    if (!DOCUMENT_ACTIONS.has(action)) {
+      throw new BadRequestException({
+        category: 'validation',
+        code: 'UNKNOWN_ACTION',
+        message: `Unknown action: ${action}`,
+      });
+    }
+
+    enforceDocumentWorkflowAuthz(action);
 
     try {
       const result = await this.documentsService.executeAction(
@@ -252,30 +288,29 @@ export class DocumentsController {
       return result;
     } catch (error) {
       if (error instanceof DocumentNotFoundError) {
-        return {
-          error: {
-            code: 'DOCUMENT_NOT_FOUND',
-            message: error.message,
-          },
-        };
+        throw new NotFoundException({
+          category: 'not_found',
+          code: 'DOCUMENT_NOT_FOUND',
+          message: error.message,
+        });
       }
+
       if (error instanceof UnknownDocumentActionError) {
-        return {
-          error: {
-            code: 'UNKNOWN_ACTION',
-            message: error.message,
-          },
-        };
+        throw new BadRequestException({
+          category: 'validation',
+          code: 'UNKNOWN_ACTION',
+          message: error.message,
+        });
       }
+
       if (error instanceof OutboundStockInsufficientError) {
-        return {
-          error: {
-            code: 'OUTBOUND_STOCK_INSUFFICIENT',
-            message: error.message,
-            category: 'conflict',
-          },
-        };
+        throw new ConflictException({
+          category: 'conflict',
+          code: 'OUTBOUND_STOCK_INSUFFICIENT',
+          message: error.message,
+        });
       }
+
       throw error;
     }
   }
@@ -283,7 +318,11 @@ export class DocumentsController {
   private normalizeDocType(docType?: string): CoreDocumentType {
     const upper = (docType ?? 'PO').toUpperCase();
     if (!CORE_DOCUMENT_TYPES.includes(upper as CoreDocumentType)) {
-      throw new Error(`Invalid document type: ${docType}`);
+      throw new BadRequestException({
+        category: 'validation',
+        code: 'VALIDATION_INVALID_QUERY',
+        message: `Invalid document type: ${docType}`,
+      });
     }
     return upper as CoreDocumentType;
   }
@@ -297,7 +336,11 @@ export class DocumentsController {
     }
 
     if (!/^[1-9]\d*$/.test(value)) {
-      throw new Error(`${field} must be a positive integer`);
+      throw new BadRequestException({
+        category: 'validation',
+        code: 'VALIDATION_INVALID_QUERY',
+        message: `${field} must be a positive integer`,
+      });
     }
 
     return Number(value);

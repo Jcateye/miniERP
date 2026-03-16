@@ -1,5 +1,78 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+
+function expectBadRequestPayload(
+  error: unknown,
+  expected: { code: string; message: string },
+) {
+  expect(error).toBeInstanceOf(BadRequestException);
+  const payload = (error as BadRequestException).getResponse() as {
+    readonly code: string;
+    readonly category: string;
+    readonly message: string;
+  };
+  expect(payload.category).toBe('validation');
+  expect(payload.code).toBe(expected.code);
+  expect(payload.message).toBe(expected.message);
+}
+
+function expectNotFoundPayload(
+  error: unknown,
+  expected: { code: string; message: string },
+) {
+  expect(error).toBeInstanceOf(NotFoundException);
+  const payload = (error as NotFoundException).getResponse() as {
+    readonly code: string;
+    readonly category: string;
+    readonly message: string;
+  };
+  expect(payload.category).toBe('not_found');
+  expect(payload.code).toBe(expected.code);
+  expect(payload.message).toBe(expected.message);
+}
+
+function expectConflictPayload(
+  error: unknown,
+  expected: { code: string; message: string },
+) {
+  expect(error).toBeInstanceOf(ConflictException);
+  const payload = (error as ConflictException).getResponse() as {
+    readonly code: string;
+    readonly category: string;
+    readonly message: string;
+  };
+  expect(payload.category).toBe('conflict');
+  expect(payload.code).toBe(expected.code);
+  expect(payload.message).toBe(expected.message);
+}
+
+function expectForbiddenPayload(
+  error: unknown,
+  expected: { code: string; message: string },
+) {
+  expect(error).toBeInstanceOf(ForbiddenException);
+  const payload = (error as ForbiddenException).getResponse() as {
+    readonly code: string;
+    readonly category: string;
+    readonly message: string;
+  };
+  expect(payload.category).toBe('permission');
+  expect(payload.code).toBe(expected.code);
+  expect(payload.message).toBe(expected.message);
+}
+
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuthorizeGuard } from '../../../common/iam/authorize/authorize.guard';
 import { DocumentsController } from './documents.controller';
+
+jest.mock('../../../common/iam/authorize/authz-context', () => ({
+  readAuthzResult: jest.fn(),
+}));
+
 import {
   DocumentNotFoundError,
   DocumentsService,
@@ -28,7 +101,13 @@ describe('DocumentsController', () => {
     getRequiredContext: jest.fn().mockReturnValue(mockTenantContext),
   };
 
+  const { readAuthzResult } = jest.requireMock(
+    '../../../common/iam/authorize/authz-context',
+  );
+
   beforeEach(async () => {
+    readAuthzResult.mockReset();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DocumentsController],
       providers: [
@@ -41,7 +120,10 @@ describe('DocumentsController', () => {
           useValue: mockTenantContextService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthorizeGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DocumentsController>(DocumentsController);
   });
@@ -127,34 +209,34 @@ describe('DocumentsController', () => {
     it('should return error when document not found', async () => {
       mockDocumentsService.getDetail.mockResolvedValue(null);
 
-      const result = await controller.getDetail('PO', '9999');
-
-      expect(result).toEqual({
-        error: {
+      try {
+        await controller.getDetail('PO', '9999');
+        throw new Error('expected not found');
+      } catch (error) {
+        expectNotFoundPayload(error, {
           code: 'DOCUMENT_NOT_FOUND',
           message: 'Document PO/9999 not found',
-        },
-      });
+        });
+      }
     });
   });
 
   describe('executeAction', () => {
     it('should return error when Idempotency-Key is missing', async () => {
-      const result = await controller.executeAction(
-        'PO',
-        '2001',
-        'confirm',
-        '',
-        {},
-      );
+      await expect(
+        controller.executeAction('PO', '2001', 'confirm', ''),
+      ).rejects.toBeInstanceOf(BadRequestException);
 
-      expect(result).toEqual({
-        error: {
+      try {
+        await controller.executeAction('PO', '2001', 'confirm', '');
+        throw new Error('expected bad request');
+      } catch (error) {
+        expectBadRequestPayload(error, {
           code: 'IDEMPOTENCY_KEY_REQUIRED',
           message: 'Idempotency-Key header is required for document actions',
-          category: 'validation',
-        },
-      });
+        });
+      }
+
       expect(mockDocumentsService.executeAction).not.toHaveBeenCalled();
     });
 
@@ -170,12 +252,20 @@ describe('DocumentsController', () => {
 
       mockDocumentsService.executeAction.mockResolvedValue(mockResult);
 
+      readAuthzResult.mockReturnValue({
+        decision: 'allow',
+        obligations: {
+          workflow: {
+            allowTransitions: ['confirm'],
+          },
+        },
+      });
+
       const result = await controller.executeAction(
         'PO',
         '2001',
         'confirm',
         'idem-key-001',
-        {},
       );
 
       expect(mockDocumentsService.executeAction).toHaveBeenCalledWith(
@@ -190,25 +280,106 @@ describe('DocumentsController', () => {
       expect(result).toEqual(mockResult);
     });
 
+    it('should execute post action when Idempotency-Key is valid', async () => {
+      const mockResult = {
+        success: true,
+        documentId: '2001',
+        docType: 'PO',
+        previousStatus: 'picked',
+        newStatus: 'posted',
+        action: 'post',
+      };
+
+      mockDocumentsService.executeAction.mockResolvedValue(mockResult);
+
+      readAuthzResult.mockReturnValue({
+        decision: 'allow',
+        obligations: {
+          workflow: {
+            allowTransitions: ['post'],
+          },
+        },
+      });
+
+      const result = await controller.executePostAction(
+        'PO',
+        '2001',
+        'idem-key-post-001',
+      );
+
+      expect(mockDocumentsService.executeAction).toHaveBeenCalledWith(
+        'PO',
+        '2001',
+        'post',
+        'idem-key-post-001',
+        '1001',
+        'user-001',
+        'req-001',
+      );
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should deny post when workflow obligations do not allow post', async () => {
+      readAuthzResult.mockReturnValue({
+        decision: 'allow',
+        obligations: {
+          workflow: {
+            allowTransitions: ['confirm'],
+          },
+        },
+      });
+
+      try {
+        await controller.executeAction(
+          'PO',
+          '2001',
+          'post',
+          'idem-key-deny-001',
+        );
+        throw new Error('expected forbidden');
+      } catch (error) {
+        expectForbiddenPayload(error, {
+          code: 'PERMISSION_DENIED',
+          message: 'Permission denied',
+        });
+      }
+
+      expect(mockDocumentsService.executeAction).not.toHaveBeenCalled();
+    });
+
+    it('should deny when workflow obligations are missing', async () => {
+      readAuthzResult.mockReturnValue({
+        decision: 'allow',
+        obligations: {},
+      });
+
+      try {
+        await controller.executePostAction('PO', '2001', 'idem-key-deny-002');
+        throw new Error('expected forbidden');
+      } catch (error) {
+        expectForbiddenPayload(error, {
+          code: 'PERMISSION_AUTHZ_OBLIGATION_MISSING',
+          message: 'Permission denied',
+        });
+      }
+
+      expect(mockDocumentsService.executeAction).not.toHaveBeenCalled();
+    });
+
     it('should return error for unknown action', async () => {
       mockDocumentsService.executeAction.mockRejectedValue(
         new UnknownDocumentActionError('invalid'),
       );
 
-      const result = await controller.executeAction(
-        'PO',
-        '2001',
-        'invalid',
-        'idem-key-002',
-        {},
-      );
-
-      expect(result).toEqual({
-        error: {
+      try {
+        await controller.executeAction('PO', '2001', 'invalid', 'idem-key-002');
+        throw new Error('expected bad request');
+      } catch (error) {
+        expectBadRequestPayload(error, {
           code: 'UNKNOWN_ACTION',
           message: 'Unknown action: invalid',
-        },
-      });
+        });
+      }
     });
 
     it('should return error for document not found', async () => {
@@ -216,44 +387,51 @@ describe('DocumentsController', () => {
         new DocumentNotFoundError('PO', '9999'),
       );
 
-      const result = await controller.executeAction(
-        'PO',
-        '9999',
-        'confirm',
-        'idem-key-003',
-        {},
-      );
-
-      expect(result).toEqual({
-        error: {
-          code: 'DOCUMENT_NOT_FOUND',
-          message: 'Document not found: PO/9999',
+      readAuthzResult.mockReturnValue({
+        decision: 'allow',
+        obligations: {
+          workflow: {
+            allowTransitions: ['confirm'],
+          },
         },
       });
+
+      try {
+        await controller.executeAction('PO', '9999', 'confirm', 'idem-key-003');
+        throw new Error('expected not found');
+      } catch (error) {
+        expectNotFoundPayload(error, {
+          code: 'DOCUMENT_NOT_FOUND',
+          message: 'Document not found: PO/9999',
+        });
+      }
     });
 
-    it('should return semantic stock conflict for outbound post', async () => {
+    it('should map outbound post stock conflict to ConflictException', async () => {
       mockDocumentsService.executeAction.mockRejectedValue(
         new OutboundStockInsufficientError(
           'Insufficient stock for outbound posting',
         ),
       );
 
-      const result = await controller.executeAction(
-        'OUT',
-        '5001',
-        'post',
-        'idem-key-004',
-        {},
-      );
-
-      expect(result).toEqual({
-        error: {
-          code: 'OUTBOUND_STOCK_INSUFFICIENT',
-          message: 'Insufficient stock for outbound posting',
-          category: 'conflict',
+      readAuthzResult.mockReturnValue({
+        decision: 'allow',
+        obligations: {
+          workflow: {
+            allowTransitions: ['post'],
+          },
         },
       });
+
+      try {
+        await controller.executeAction('OUT', '5001', 'post', 'idem-key-004');
+        throw new Error('expected conflict');
+      } catch (error) {
+        expectConflictPayload(error, {
+          code: 'OUTBOUND_STOCK_INSUFFICIENT',
+          message: 'Insufficient stock for outbound posting',
+        });
+      }
     });
   });
 
@@ -310,19 +488,20 @@ describe('DocumentsController', () => {
     });
 
     it('should reject invalid payload before service create', async () => {
-      const result = await controller.createDocument('idem-create-002', {
-        docType: 'OUT',
-        warehouseId: 'WH-001',
-        lines: [{ skuId: 'SKU-001', qty: '3', binId: '   ' }],
-      });
-
-      expect(result).toEqual({
-        error: {
+      try {
+        await controller.createDocument('idem-create-002', {
+          docType: 'OUT',
+          warehouseId: 'WH-001',
+          lines: [{ skuId: 'SKU-001', qty: '3', binId: '   ' }],
+        });
+        throw new Error('expected bad request');
+      } catch (error) {
+        expectBadRequestPayload(error, {
           code: 'VALIDATION_INVALID_PAYLOAD',
           message: 'lines[0].binId must be a non-empty string when provided',
-          category: 'validation',
-        },
-      });
+        });
+      }
+
       expect(mockDocumentsService.create).not.toHaveBeenCalled();
     });
   });

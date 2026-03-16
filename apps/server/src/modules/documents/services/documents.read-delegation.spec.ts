@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { DocumentsService } from './documents.service';
 import { AuditService } from '../../../audit/application/audit.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
-import { PrismaService } from '../../../database/prisma.service';
+import { PRISMA_SERVICE_TOKEN } from '../../../database/database.constants';
 import {
   PurchaseInboundWriteService,
   SalesShipmentWriteService,
@@ -52,7 +52,7 @@ describe('DocumentsService read delegation', () => {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
         },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PRISMA_SERVICE_TOKEN, useValue: mockPrismaService },
         {
           provide: PurchaseInboundWriteService,
           useValue: mockPurchaseInboundWriteService,
@@ -97,7 +97,7 @@ describe('DocumentsService read delegation', () => {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
         },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PRISMA_SERVICE_TOKEN, useValue: mockPrismaService },
         {
           provide: PurchaseInboundWriteService,
           useValue: mockPurchaseInboundWriteService,
@@ -155,7 +155,7 @@ describe('DocumentsService read delegation', () => {
           provide: InventoryPostingService,
           useValue: mockInventoryPostingService,
         },
-        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PRISMA_SERVICE_TOKEN, useValue: mockPrismaService },
         {
           provide: PurchaseInboundWriteService,
           useValue: mockPurchaseInboundWriteService,
