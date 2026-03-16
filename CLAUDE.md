@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 本文件面向 Claude Code / Codex 一类代码代理，目标不是介绍项目，而是给出“先治理、再实现、可检查”的执行事实。
 
 ## 0. 第一性原理
@@ -35,7 +37,11 @@ bun install
 bun run dev
 bun run dev:web
 bun run dev:server
+
+# 推荐：带 infra 探活 + 启动后健康检查（等价于 bun run daily）
+./project.sh all start
 bun run daily
+
 bun run project -- all doctor
 bun run project -- infra health
 bun run project -- server logs
@@ -59,11 +65,30 @@ bun run --filter web lint
 bun run --filter server dev
 bun run --filter server build
 bun run --filter server lint
+
+# unit/integration (jest)
 bun run --filter server test
 bun run --filter server test -- src/path/to/file.spec.ts
 bun run --filter server test -- src/path/to/file.spec.ts -t "test name"
+bun run --filter server test:watch
+bun run --filter server test:cov
+
+# e2e (jest-e2e.json)
 bun run --filter server test:e2e
 bun run --filter server test:e2e -- test/app.e2e-spec.ts
+
+# tenant tx integration smoke
+bun run --filter server test:tenant-tx
+
+# openapi / codemap
+bun run --filter server openapi:generate
+bun run --filter server openapi:check
+bun run --filter server codemap:update
+bun run --filter server codemap:check
+
+# tenant migrations runner
+bun run --filter server tenant:migrate-all
+bun run --filter server tenant:init
 ```
 
 命令注意事项：
@@ -72,6 +97,23 @@ bun run --filter server test:e2e -- test/app.e2e-spec.ts
 - 根 `db:*` 命令代理到 server Prisma 脚本。
 - `turbo.json` 让根 `lint` / `test` 依赖上游 `build`，耗时会高于单包命令。
 - 本地基础设施以 `docs/Macmini-infra.md` 为准。
+
+## 2.1 环境变量（最小集）
+
+```bash
+cp .env.example .env
+```
+
+- 以仓库根的 `.env` 为准（模板见 `.env.example`）。
+- server 侧配置加载入口：`apps/server/src/config/env.schema.ts`、`apps/server/src/config/app.config.ts`。
+- web  BFF/SDK 相关：
+  - `NEXT_PUBLIC_API_BASE_URL`：BFF 转发后端的 base（默认 `http://localhost:3001`），并拼接 `/api`。
+  - `AUTH_CONTEXT_SECRET`：web BFF 生成 `x-auth-context-signature` 的 HMAC secret（development/test 可用固定 fallback secret）。
+  - `NEXT_PUBLIC_BFF_BASE_URL`：web SDK 请求 BFF 的 base（默认 `/api/bff`，可选配置）。
+
+## 2.2 CI 约束（GitHub Actions）
+
+- CI 配置见 `.github/workflows/ci.yml`：`bun install --frozen-lockfile` → `bun run lint` → `bun run build` → `bun run test`，并会分别执行 web/server 的 Docker build。
 
 ## 3. 页面状态机与完成口径
 
@@ -199,7 +241,14 @@ ERP 正式页面只允许处于以下五种状态之一：
 
 ## 7. 项目级架构事实
 
-### 前端
+### Monorepo 边界（约束）
+
+- `designs/`：产品意图与设计源（design-first）
+- `apps/web/`：Next.js App Router 前端运行时
+- `apps/server/`：NestJS 后端运行时
+- `packages/shared/`：跨层共享契约（types/constants/utils 的唯一共享边界）
+
+### 前端（页面结构约束）
 
 - route 主入口：`apps/web/src/app/(dashboard)/...`
 - page-level view：`apps/web/src/components/views/erp/`
@@ -213,21 +262,29 @@ ERP 正式页面只允许处于以下五种状态之一：
 - `apps/web/src/components/business/erp-page-assemblies.tsx` 与旧 `layouts/` 仅作 legacy/fallback。
 - 页面与壳组件禁止直连 API，只能通过 VM Hook + BFF。
 
-### Web 数据链路
+### Web 数据链路（SDK -> BFF -> Backend）
 
-- 客户端通过 `lib/bff/client.ts` + `lib/sdk/client.ts` 访问 `/api/bff/*`
-- BFF 转发 backend 并注入租户/签名头
-- 仅 `development/test` 且上游不可用时允许部分 GET 回退 fixtures
+- Web 侧 SDK client（统一 request 包装）：`apps/web/src/lib/sdk/client.ts`
+  - 默认 baseUrl：`NEXT_PUBLIC_BFF_BASE_URL`，缺省为 `/api/bff`
+- Web 侧 BFF helper（业务级函数）：`apps/web/src/lib/bff/client.ts`
+- BFF 路由（Next.js Route Handlers）：`apps/web/src/app/api/bff/**/route.ts`
+  - 后端 baseUrl：`NEXT_PUBLIC_API_BASE_URL`，缺省为 `http://localhost:3001`
+  - 统一拼接 `/api`：见 `buildBackendUrl()` in `apps/web/src/lib/bff/server-fixtures.ts`
+  - 由 `createServerHeaders()` 注入 `x-auth-context` + `x-auth-context-signature`（HMAC），开发环境也会注入 `Authorization: Bearer dev-token`
+- fixtures fallback：仅在 `development` 且 `MINIERP_ENABLE_BFF_FIXTURE_FALLBACK=true` 时允许
 
-### Server
+### Server（全局中间件/约束入口）
 
-- `main.ts`：auth context、tenant context、中间件、ValidationPipe
-- `app.module.ts`：全局响应包裹拦截器、全局异常过滤器
-- 领域能力在 `apps/server/src/modules/*`
+- `apps/server/src/main.ts`：bootstrap + Swagger（docs 路径跟随 globalPrefix）
+- `apps/server/src/config/app.config.ts` + `apps/server/src/config/env.schema.ts`：env 解析与配置
+- `apps/server/src/config/runtime-config.ts`：挂载全局中间件 + ValidationPipe
+  - `createAuthContextMiddleware()`：支持 `AUTH_MODE=hmac|jwt|both`
+  - `createTenantContextMiddleware()`：解析 tenant 并写入 AsyncLocalStorage
+- `apps/server/src/app.module.ts`：聚合模块 + 全局 ApiResponseInterceptor / ApiExceptionFilter + IamGuard
 
-### Shared
+### Shared（跨层契约）
 
-- `packages/shared` 是跨层契约唯一共享边界
+- `packages/shared/src/index.ts` 聚合导出：`types/` `constants/` `utils/`
 - 新增跨层数据结构优先沉淀到 shared，而不是页面私有重复定义
 
 ## 8. 业务硬约束
