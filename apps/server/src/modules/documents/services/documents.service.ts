@@ -1,8 +1,9 @@
 import {
   Injectable,
-  Optional,
   HttpException,
   HttpStatus,
+  Inject,
+  Optional,
 } from '@nestjs/common';
 import Decimal from 'decimal.js';
 import {
@@ -14,7 +15,7 @@ import {
 } from '../../core-document/domain/status-transition';
 import { AuditService } from '../../../audit/application/audit.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
-import { PrismaService } from '../../../database/prisma.service';
+import { PRISMA_SERVICE_TOKEN } from '../../../database/database.constants';
 import { InventoryInsufficientStockError } from '../../inventory/domain/inventory.errors';
 import {
   PurchaseInboundWriteService,
@@ -164,9 +165,23 @@ export class DocumentsService {
     private readonly purchaseInboundWriteService: PurchaseInboundWriteService,
     private readonly salesShipmentWriteService: SalesShipmentWriteService,
     private readonly tradingDocumentsReadService: TradingDocumentsReadService,
-    @Optional() private readonly prisma?: PrismaService,
+    @Optional()
+    @Inject(PRISMA_SERVICE_TOKEN)
+    private readonly prisma?: unknown,
   ) {
-    this.seedDemoData();
+    const nodeEnv = process.env.NODE_ENV ?? 'development';
+
+    // Fail-closed in production: persisted store is required.
+    // 避免因为 DI 绑定缺失而静默降级到 demo/in-memory 行为。
+    if (nodeEnv === 'production' && !this.prisma) {
+      throw new Error(
+        'DocumentsService requires persisted store in production',
+      );
+    }
+
+    if (nodeEnv !== 'production') {
+      this.seedDemoData();
+    }
   }
 
   private seedDemoData(): void {
@@ -325,7 +340,10 @@ export class DocumentsService {
     query: ListDocumentsQuery,
     tenantId: string,
   ): Promise<PaginationEnvelope<DocumentListItem>> {
-    if (this.tradingDocumentsReadService.canHandle(query.docType)) {
+    if (
+      this.prisma &&
+      this.tradingDocumentsReadService.canHandle(query.docType)
+    ) {
       return this.tradingDocumentsReadService.list(query, tenantId);
     }
 
@@ -356,7 +374,7 @@ export class DocumentsService {
     id: string,
     tenantId: string,
   ): Promise<DocumentDetail | null> {
-    if (this.tradingDocumentsReadService.canHandle(docType)) {
+    if (this.prisma && this.tradingDocumentsReadService.canHandle(docType)) {
       return this.tradingDocumentsReadService.getDetail(
         docType as Extract<CoreDocumentType, 'PO' | 'GRN' | 'SO' | 'OUT'>,
         id,

@@ -1,7 +1,11 @@
 import { Global, Module } from '@nestjs/common';
 import { TenantModule } from '../common/tenant/tenant.module';
 import { parseEnv } from '../config/env.schema';
-import { DATABASE_URL_TOKEN, REDIS_URL_TOKEN } from './database.constants';
+import {
+  DATABASE_URL_TOKEN,
+  PRISMA_SERVICE_TOKEN,
+  REDIS_URL_TOKEN,
+} from './database.constants';
 import { PlatformDbService } from './platform-db.service';
 import { PrismaService } from './prisma.service';
 
@@ -10,6 +14,10 @@ import { PrismaService } from './prisma.service';
   imports: [TenantModule],
   providers: [
     PrismaService,
+    {
+      provide: PRISMA_SERVICE_TOKEN,
+      useExisting: PrismaService,
+    },
     PlatformDbService,
     {
       provide: DATABASE_URL_TOKEN,
@@ -22,6 +30,7 @@ import { PrismaService } from './prisma.service';
   ],
   exports: [
     PrismaService,
+    PRISMA_SERVICE_TOKEN,
     PlatformDbService,
     DATABASE_URL_TOKEN,
     REDIS_URL_TOKEN,

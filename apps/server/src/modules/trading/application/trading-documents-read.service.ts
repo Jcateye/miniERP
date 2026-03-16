@@ -1,9 +1,10 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   type CoreDocumentStatus,
   type CoreDocumentType,
 } from '../../core-document/domain/status-transition';
-import { PrismaService } from '../../../database/prisma.service';
+import { PlatformDbService } from '../../../database/platform-db.service';
+import { resolveTenantDbId } from '../../masterdata/infrastructure/prisma-tenant-id.resolver';
 import type {
   DocumentDetail,
   DocumentLine,
@@ -12,166 +13,195 @@ import type {
   PaginationEnvelope,
 } from '../../documents/services/documents.service';
 
-function parseDocumentId(rawId: string): bigint {
+function parseDocumentId(rawId: string): bigint | null {
   try {
     return BigInt(rawId);
   } catch {
-    throw new Error(`Document not found: invalid id ${rawId}`);
+    return null;
   }
-}
-
-function tenantCodeCandidates(tenantId: string): string[] {
-  const normalized = tenantId.trim();
-  const candidates = new Set<string>([normalized]);
-  if (!normalized.toUpperCase().startsWith('TENANT-')) {
-    candidates.add(`TENANT-${normalized}`);
-  }
-  return [...candidates];
 }
 
 const PERSISTED_TRADING_DOC_TYPES = ['PO', 'GRN', 'SO', 'OUT'] as const;
 
 @Injectable()
 export class TradingDocumentsReadService {
-  constructor(@Optional() private readonly prisma?: PrismaService) {}
+  constructor(private readonly platformDb: PlatformDbService) {}
 
   canHandle(docType: CoreDocumentType): boolean {
-    return (
-      Boolean(this.prisma) &&
-      (PERSISTED_TRADING_DOC_TYPES as readonly string[]).includes(docType)
-    );
+    return (PERSISTED_TRADING_DOC_TYPES as readonly string[]).includes(docType);
   }
 
   async list(
     query: ListDocumentsQuery,
     tenantId: string,
   ): Promise<PaginationEnvelope<DocumentListItem>> {
-    if (!this.prisma) {
-      throw new Error('Prisma service is unavailable');
-    }
+    return this.platformDb.withTenantTx(async (tx) => {
+      const page = query.page ?? 1;
+      const pageSize = query.pageSize ?? 20;
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const skip = (page - 1) * pageSize;
 
-    const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 20;
-    const tenantDbId = await this.resolveTenantDbId(tenantId);
-    const skip = (page - 1) * pageSize;
+      if (query.docType === 'PO') {
+        const [total, rows] = await Promise.all([
+          tx.purchaseOrder.count({
+            where: { tenantId: tenantDbId, deletedAt: null },
+          }),
+          tx.purchaseOrder.findMany({
+            where: { tenantId: tenantDbId, deletedAt: null },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            skip,
+            take: pageSize,
+          }),
+        ]);
 
-    if (query.docType === 'PO') {
-      const [total, rows] = await Promise.all([
-        this.prisma.purchaseOrder.count({
-          where: { tenantId: tenantDbId, deletedAt: null },
-        }),
-        this.prisma.purchaseOrder.findMany({
-          where: { tenantId: tenantDbId, deletedAt: null },
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          skip,
-          take: pageSize,
-        }),
-      ]);
+        const ids = rows.map((row) => row.id);
+        const counts =
+          ids.length === 0
+            ? []
+            : await tx.purchaseOrderLine.groupBy({
+                by: ['poId'],
+                where: { tenantId: tenantDbId, poId: { in: ids } },
+                _count: { _all: true },
+              });
 
-      const ids = rows.map((row) => row.id);
-      const counts =
-        ids.length === 0
-          ? []
-          : await this.prisma.purchaseOrderLine.groupBy({
-              by: ['poId'],
-              where: { tenantId: tenantDbId, poId: { in: ids } },
-              _count: { _all: true },
-            });
+        const lineCountById = new Map<string, number>(
+          counts.map((item) => [item.poId.toString(), item._count._all]),
+        );
 
-      const lineCountById = new Map<string, number>(
-        counts.map((item) => [item.poId.toString(), item._count._all]),
-      );
-
-      return {
-        data: rows.map((row) =>
-          this.mapPersistedHeaderToListItem(
-            row,
-            'PO',
-            tenantId,
-            lineCountById.get(row.id.toString()) ?? 0,
+        return {
+          data: rows.map((row) =>
+            this.mapPersistedHeaderToListItem(
+              row,
+              'PO',
+              tenantId,
+              lineCountById.get(row.id.toString()) ?? 0,
+            ),
           ),
-        ),
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize),
-      };
-    }
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize),
+        };
+      }
 
-    if (query.docType === 'GRN') {
-      const [total, rows] = await Promise.all([
-        this.prisma.grn.count({
-          where: { tenantId: tenantDbId, deletedAt: null },
-        }),
-        this.prisma.grn.findMany({
-          where: { tenantId: tenantDbId, deletedAt: null },
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          skip,
-          take: pageSize,
-        }),
-      ]);
+      if (query.docType === 'GRN') {
+        const [total, rows] = await Promise.all([
+          tx.grn.count({
+            where: { tenantId: tenantDbId, deletedAt: null },
+          }),
+          tx.grn.findMany({
+            where: { tenantId: tenantDbId, deletedAt: null },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            skip,
+            take: pageSize,
+          }),
+        ]);
 
-      const ids = rows.map((row) => row.id);
-      const counts =
-        ids.length === 0
-          ? []
-          : await this.prisma.grnLine.groupBy({
-              by: ['grnId'],
-              where: { tenantId: tenantDbId, grnId: { in: ids } },
-              _count: { _all: true },
-            });
+        const ids = rows.map((row) => row.id);
+        const counts =
+          ids.length === 0
+            ? []
+            : await tx.grnLine.groupBy({
+                by: ['grnId'],
+                where: { tenantId: tenantDbId, grnId: { in: ids } },
+                _count: { _all: true },
+              });
 
-      const lineCountById = new Map<string, number>(
-        counts.map((item) => [item.grnId.toString(), item._count._all]),
-      );
+        const lineCountById = new Map<string, number>(
+          counts.map((item) => [item.grnId.toString(), item._count._all]),
+        );
 
-      return {
-        data: rows.map((row) =>
-          this.mapPersistedHeaderToListItem(
-            row,
-            'GRN',
-            tenantId,
-            lineCountById.get(row.id.toString()) ?? 0,
+        return {
+          data: rows.map((row) =>
+            this.mapPersistedHeaderToListItem(
+              row,
+              'GRN',
+              tenantId,
+              lineCountById.get(row.id.toString()) ?? 0,
+            ),
           ),
-        ),
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize),
-      };
-    }
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize),
+        };
+      }
 
-    if (query.docType === 'SO') {
+      if (query.docType === 'SO') {
+        const [rows, total] = await Promise.all([
+          tx.salesOrder.findMany({
+            where: { tenantId: tenantDbId, deletedAt: null },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            skip,
+            take: pageSize,
+          }),
+          tx.salesOrder.count({
+            where: { tenantId: tenantDbId, deletedAt: null },
+          }),
+        ]);
+
+        const soIds = rows.map((row) => row.id);
+        const lineCounts =
+          soIds.length === 0
+            ? []
+            : await tx.salesOrderLine.groupBy({
+                by: ['soId'],
+                where: { tenantId: tenantDbId, soId: { in: soIds } },
+                _count: { _all: true },
+              });
+        const lineCountById = new Map<string, number>(
+          lineCounts.map((item) => [item.soId.toString(), item._count._all]),
+        );
+
+        return {
+          data: rows.map((row) =>
+            this.mapPersistedHeaderToListItem(
+              row,
+              'SO',
+              tenantId,
+              lineCountById.get(row.id.toString()) ?? 0,
+            ),
+          ),
+          total,
+          page,
+          pageSize,
+          totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
+        };
+      }
+
       const [rows, total] = await Promise.all([
-        this.prisma.salesOrder.findMany({
+        tx.outbound.findMany({
           where: { tenantId: tenantDbId, deletedAt: null },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           skip,
           take: pageSize,
         }),
-        this.prisma.salesOrder.count({
+        tx.outbound.count({
           where: { tenantId: tenantDbId, deletedAt: null },
         }),
       ]);
 
-      const soIds = rows.map((row) => row.id);
+      const outboundIds = rows.map((row) => row.id);
       const lineCounts =
-        soIds.length === 0
+        outboundIds.length === 0
           ? []
-          : await this.prisma.salesOrderLine.groupBy({
-              by: ['soId'],
-              where: { tenantId: tenantDbId, soId: { in: soIds } },
+          : await tx.outboundLine.groupBy({
+              by: ['outboundId'],
+              where: { tenantId: tenantDbId, outboundId: { in: outboundIds } },
               _count: { _all: true },
             });
-      const lineCountById = new Map(
-        lineCounts.map((item) => [item.soId.toString(), item._count._all]),
+      const lineCountById = new Map<string, number>(
+        lineCounts.map((item) => [
+          item.outboundId.toString(),
+          item._count._all,
+        ]),
       );
 
       return {
         data: rows.map((row) =>
           this.mapPersistedHeaderToListItem(
             row,
-            'SO',
+            'OUT',
             tenantId,
             lineCountById.get(row.id.toString()) ?? 0,
           ),
@@ -181,47 +211,7 @@ export class TradingDocumentsReadService {
         pageSize,
         totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
       };
-    }
-
-    const [rows, total] = await Promise.all([
-      this.prisma.outbound.findMany({
-        where: { tenantId: tenantDbId, deletedAt: null },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        skip,
-        take: pageSize,
-      }),
-      this.prisma.outbound.count({
-        where: { tenantId: tenantDbId, deletedAt: null },
-      }),
-    ]);
-
-    const outboundIds = rows.map((row) => row.id);
-    const lineCounts =
-      outboundIds.length === 0
-        ? []
-        : await this.prisma.outboundLine.groupBy({
-            by: ['outboundId'],
-            where: { tenantId: tenantDbId, outboundId: { in: outboundIds } },
-            _count: { _all: true },
-          });
-    const lineCountById = new Map(
-      lineCounts.map((item) => [item.outboundId.toString(), item._count._all]),
-    );
-
-    return {
-      data: rows.map((row) =>
-        this.mapPersistedHeaderToListItem(
-          row,
-          'OUT',
-          tenantId,
-          lineCountById.get(row.id.toString()) ?? 0,
-        ),
-      ),
-      total,
-      page,
-      pageSize,
-      totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
-    };
+    });
   }
 
   async getDetail(
@@ -229,126 +219,111 @@ export class TradingDocumentsReadService {
     id: string,
     tenantId: string,
   ): Promise<DocumentDetail | null> {
-    if (!this.prisma) {
-      throw new Error('Prisma service is unavailable');
-    }
-
-    const tenantDbId = await this.resolveTenantDbId(tenantId);
-    const documentId = parseDocumentId(id);
-
-    if (docType === 'PO') {
-      const header = await this.prisma.purchaseOrder.findFirst({
-        where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
-      });
-
-      if (!header) {
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const documentId = parseDocumentId(id);
+      if (documentId === null) {
         return null;
       }
 
-      const lines = await this.prisma.purchaseOrderLine.findMany({
-        where: { tenantId: tenantDbId, poId: header.id },
-        orderBy: { lineNo: 'asc' },
-      });
+      if (docType === 'PO') {
+        const header = await tx.purchaseOrder.findFirst({
+          where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
+        });
 
-      return {
-        ...this.mapPersistedHeaderToListItem(
-          header,
-          'PO',
-          tenantId,
-          lines.length,
-        ),
-        lines: lines.map((line) => this.toDocumentLine(header.id, line)),
-      };
-    }
+        if (!header) {
+          return null;
+        }
 
-    if (docType === 'GRN') {
-      const header = await this.prisma.grn.findFirst({
-        where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
-      });
+        const lines = await tx.purchaseOrderLine.findMany({
+          where: { tenantId: tenantDbId, poId: header.id },
+          orderBy: { lineNo: 'asc' },
+        });
 
-      if (!header) {
-        return null;
+        return {
+          ...this.mapPersistedHeaderToListItem(
+            header,
+            'PO',
+            tenantId,
+            lines.length,
+          ),
+          lines: lines.map((line) => this.toDocumentLine(header.id, line)),
+        };
       }
 
-      const lines = await this.prisma.grnLine.findMany({
-        where: { tenantId: tenantDbId, grnId: header.id },
-        orderBy: { lineNo: 'asc' },
-      });
+      if (docType === 'GRN') {
+        const header = await tx.grn.findFirst({
+          where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
+        });
 
-      return {
-        ...this.mapPersistedHeaderToListItem(
-          header,
-          'GRN',
-          tenantId,
-          lines.length,
-        ),
-        lines: lines.map((line) => this.toDocumentLine(header.id, line)),
-      };
-    }
+        if (!header) {
+          return null;
+        }
 
-    if (docType === 'SO') {
-      const row = await this.prisma.salesOrder.findFirst({
+        const lines = await tx.grnLine.findMany({
+          where: { tenantId: tenantDbId, grnId: header.id },
+          orderBy: { lineNo: 'asc' },
+        });
+
+        return {
+          ...this.mapPersistedHeaderToListItem(
+            header,
+            'GRN',
+            tenantId,
+            lines.length,
+          ),
+          lines: lines.map((line) => this.toDocumentLine(header.id, line)),
+        };
+      }
+
+      if (docType === 'SO') {
+        const header = await tx.salesOrder.findFirst({
+          where: { id: documentId, tenantId: tenantDbId, deletedAt: null },
+        });
+
+        if (!header) {
+          return null;
+        }
+
+        const lines = await tx.salesOrderLine.findMany({
+          where: { tenantId: tenantDbId, soId: header.id },
+          orderBy: { lineNo: 'asc' },
+        });
+
+        return {
+          ...this.mapPersistedHeaderToListItem(
+            header,
+            'SO',
+            tenantId,
+            lines.length,
+          ),
+          lines: lines.map((line) => this.toDocumentLine(header.id, line)),
+        };
+      }
+
+      const header = await tx.outbound.findFirst({
         where: { id: documentId, tenantId: tenantDbId, deletedAt: null },
       });
 
-      if (!row) {
+      if (!header) {
         return null;
       }
 
-      const lines = await this.prisma.salesOrderLine.findMany({
-        where: { tenantId: tenantDbId, soId: row.id },
+      const lines = await tx.outboundLine.findMany({
+        where: { tenantId: tenantDbId, outboundId: header.id },
         orderBy: { lineNo: 'asc' },
       });
 
       return {
-        ...this.mapPersistedHeaderToListItem(row, 'SO', tenantId, lines.length),
-        lines: lines.map((line) => this.toDocumentLine(row.id, line)),
+        ...this.mapPersistedHeaderToListItem(
+          header,
+          'OUT',
+          tenantId,
+          lines.length,
+        ),
+        lines: lines.map((line) => this.toDocumentLine(header.id, line)),
       };
-    }
-
-    const row = await this.prisma.outbound.findFirst({
-      where: { id: documentId, tenantId: tenantDbId, deletedAt: null },
     });
-
-    if (!row) {
-      return null;
-    }
-
-    const lines = await this.prisma.outboundLine.findMany({
-      where: { tenantId: tenantDbId, outboundId: row.id },
-      orderBy: { lineNo: 'asc' },
-    });
-
-    return {
-      ...this.mapPersistedHeaderToListItem(row, 'OUT', tenantId, lines.length),
-      lines: lines.map((line) => this.toDocumentLine(row.id, line)),
-    };
-  }
-
-  private async resolveTenantDbId(tenantId: string): Promise<bigint> {
-    if (!this.prisma) {
-      throw new Error('Prisma service is unavailable');
-    }
-
-    const normalized = tenantId.trim();
-    const tenant = await this.prisma.tenant.findFirst({
-      where: {
-        code: {
-          in: tenantCodeCandidates(normalized),
-        },
-      },
-      select: { id: true },
-    });
-
-    if (tenant) {
-      return tenant.id;
-    }
-
-    try {
-      return BigInt(normalized);
-    } catch {
-      throw new Error(`tenantId is not bigint-compatible: ${tenantId}`);
-    }
   }
 
   private toCoreStatus(
