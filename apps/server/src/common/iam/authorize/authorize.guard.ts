@@ -12,6 +12,7 @@ import { TenantContextService } from '../../tenant/tenant-context.service';
 import type { AuthenticatedRequest } from '../auth-context';
 import { PLATFORM_ACTION_METADATA_KEY } from '../iam.guard';
 import { PrismaGrantedPermissionsStore } from '../rbac/granted-permissions.store';
+import { authzContextStorage } from './authz-context';
 
 export const AUTHZ_METADATA_KEY = 'authz_requirement';
 
@@ -82,7 +83,11 @@ export class AuthorizeGuard implements CanActivate {
         reason: 'AUTH_CONTEXT_MISSING',
       });
 
-      throw new ForbiddenException('Authenticated context is required');
+      throw new ForbiddenException({
+        category: 'permission',
+        code: 'PERMISSION_AUTH_CONTEXT_MISSING',
+        message: 'Authenticated context is required',
+      });
     }
 
     const platformAction = readPlatformAction(this.reflector, context);
@@ -103,7 +108,11 @@ export class AuthorizeGuard implements CanActivate {
         reason: 'TENANT_MISMATCH',
       });
 
-      throw new ForbiddenException('Cross-tenant access is forbidden');
+      throw new ForbiddenException({
+        category: 'permission',
+        code: 'PERMISSION_TENANT_MISMATCH',
+        message: 'Cross-tenant access is forbidden',
+      });
     }
 
     let authzResult;
@@ -129,9 +138,17 @@ export class AuthorizeGuard implements CanActivate {
         reason: 'AUTHZ_EVALUATION_ERROR',
       });
 
-      throw new ForbiddenException(
-        `Authorization evaluation failed: ${message}`,
-      );
+      throw new ForbiddenException({
+        category: 'permission',
+        code: 'PERMISSION_AUTHZ_EVALUATION_FAILED',
+        message: 'Authorization evaluation failed',
+        details:
+          process.env.NODE_ENV === 'production'
+            ? undefined
+            : {
+                message,
+              },
+      });
     }
 
     if (authzResult.decision !== 'allow') {
@@ -146,7 +163,11 @@ export class AuthorizeGuard implements CanActivate {
         reason: authzResult.reason ?? 'POLICY_DENY',
       });
 
-      throw new ForbiddenException('Permission denied');
+      throw new ForbiddenException({
+        category: 'permission',
+        code: 'PERMISSION_DENIED',
+        message: 'Permission denied',
+      });
     }
 
     this.auditService.recordAuthorization({
@@ -158,6 +179,8 @@ export class AuthorizeGuard implements CanActivate {
       entityId: tenantContext.requestId,
       result: 'allow',
     });
+
+    authzContextStorage.enterWith({ result: authzResult });
 
     return true;
   }

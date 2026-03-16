@@ -1,7 +1,15 @@
 export type Decision = 'allow' | 'deny';
 
+export type PrismaWhere = Readonly<Record<string, unknown>>;
+
+export type DataObligation =
+  | {
+      readonly kind: 'prisma_where';
+      readonly where: PrismaWhere;
+    };
+
 export type Obligations = {
-  readonly data?: unknown;
+  readonly data?: DataObligation;
   readonly fields?: {
     readonly allow?: readonly string[];
     readonly deny?: readonly string[];
@@ -130,6 +138,35 @@ function unionStrings(
   return [...result];
 }
 
+function mergeDataObligation(
+  a: DataObligation | undefined,
+  b: DataObligation | undefined,
+): DataObligation | undefined {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+
+  if (a.kind !== b.kind) {
+    throw new Error(
+      `Cannot merge obligations.data of different kind: ${a.kind} vs ${b.kind}`,
+    );
+  }
+
+  if (a.kind === 'prisma_where') {
+    return {
+      kind: 'prisma_where',
+      where: {
+        AND: [a.where, b.where],
+      },
+    };
+  }
+
+  throw new Error(`Unsupported obligations.data kind: ${a.kind}`);
+}
+
 export function mergeObligations(a: Obligations, b: Obligations): Obligations {
   const fieldsAllow = intersectStrings(a.fields?.allow, b.fields?.allow);
   const fieldsDeny = unionStrings(a.fields?.deny, b.fields?.deny);
@@ -167,9 +204,7 @@ export function mergeObligations(a: Obligations, b: Obligations): Obligations {
         }
       : undefined;
 
-  // data 当前是占位（未来若定义为可组合 filter，将采用 AND 组合）。
-  // 为避免引入顺序相关语义，这里仅在两边完全一致时保留 data。
-  const data = a.data === b.data ? a.data : undefined;
+  const data = mergeDataObligation(a.data, b.data);
 
   return {
     ...(data !== undefined ? { data } : {}),

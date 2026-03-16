@@ -1,5 +1,6 @@
 import {
   hasPermission,
+  mergeObligations,
   parseAction,
   parseResource,
   toPermissionCode,
@@ -40,5 +41,31 @@ describe('platform-policy', () => {
     const required = 'erp:order:read';
     expect(hasPermission(['erp:*'], required)).toBe(true);
     expect(hasPermission(['wms:*'], required)).toBe(false);
+  });
+
+  it('AND merges prisma_where data obligations', () => {
+    expect(
+      mergeObligations(
+        {
+          data: {
+            kind: 'prisma_where',
+            where: { warehouseId: { in: ['wh-1'] } },
+          },
+        },
+        {
+          data: {
+            kind: 'prisma_where',
+            where: { skuId: 'sku-1' },
+          },
+        },
+      ),
+    ).toEqual({
+      data: {
+        kind: 'prisma_where',
+        where: {
+          AND: [{ warehouseId: { in: ['wh-1'] } }, { skuId: 'sku-1' }],
+        },
+      },
+    });
   });
 });
