@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
+import { PlatformDbService } from '../../../database/platform-db.service';
 import type {
   SkuEntity,
   SkuQueryFilter,
@@ -7,6 +7,14 @@ import type {
   UpdateSkuCommand,
 } from '../domain/sku.types';
 import { resolveTenantDbId } from './prisma-tenant-id.resolver';
+
+function toDbId(value: string): bigint | null {
+  try {
+    return BigInt(value);
+  } catch {
+    return null;
+  }
+}
 
 function mapSkuEntity(row: {
   id: bigint;
@@ -56,100 +64,97 @@ function mapSkuEntity(row: {
 
 @Injectable()
 export class PrismaSkuRepository implements SkuRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private toDbId(value: string): bigint | null {
-    try {
-      return BigInt(value);
-    } catch {
-      return null;
-    }
-  }
+  constructor(private readonly platformDb: PlatformDbService) {}
 
   async findById(tenantId: string, id: string): Promise<SkuEntity | null> {
-    const skuId = this.toDbId(id);
+    const skuId = toDbId(id);
     if (skuId === null) {
       return null;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.sku.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          id: skuId,
+          deletedAt: null,
+        },
+      });
 
-    const row = await this.prisma.sku.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: skuId,
-        deletedAt: null,
-      },
+      return row ? mapSkuEntity(row) : null;
     });
-
-    return row ? mapSkuEntity(row) : null;
   }
 
   async findByCode(tenantId: string, code: string): Promise<SkuEntity | null> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.sku.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          skuCode: code,
+          deletedAt: null,
+        },
+      });
 
-    const row = await this.prisma.sku.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        skuCode: code,
-        deletedAt: null,
-      },
+      return row ? mapSkuEntity(row) : null;
     });
-
-    return row ? mapSkuEntity(row) : null;
   }
 
   async findAll(
     tenantId: string,
     filter?: SkuQueryFilter,
   ): Promise<readonly SkuEntity[]> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const rows = await tx.sku.findMany({
+        where: {
+          tenantId: tenantDbId,
+          deletedAt: null,
+          skuCode: filter?.code ? { contains: filter.code } : undefined,
+          name: filter?.name ? { contains: filter.name } : undefined,
+          categoryId:
+            filter?.categoryId !== undefined ? filter.categoryId : undefined,
+          isActive:
+            filter?.isActive !== undefined ? filter.isActive : undefined,
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
 
-    const rows = await this.prisma.sku.findMany({
-      where: {
-        tenantId: tenantDbId,
-        deletedAt: null,
-        skuCode: filter?.code ? { contains: filter.code } : undefined,
-        name: filter?.name ? { contains: filter.name } : undefined,
-        categoryId:
-          filter?.categoryId !== undefined ? filter.categoryId : undefined,
-        isActive: filter?.isActive !== undefined ? filter.isActive : undefined,
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      return rows.map((row) => mapSkuEntity(row));
     });
-
-    return rows.map((row) => mapSkuEntity(row));
   }
 
   async save(
     tenantId: string,
     entity: Omit<SkuEntity, 'tenantId'>,
   ): Promise<SkuEntity> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.sku.create({
+        data: {
+          tenantId: tenantDbId,
+          skuCode: entity.code,
+          name: entity.name,
+          specification: entity.specification,
+          categoryId: entity.categoryId,
+          unit: entity.baseUnit,
+          itemType: entity.itemType,
+          taxCodeId: toDbId(entity.taxCodeId ?? ''),
+          taxRate: entity.taxRate,
+          barcode: entity.barcode,
+          batchManaged: entity.batchManaged,
+          serialManaged: entity.serialManaged,
+          shelfLifeDays: entity.shelfLifeDays,
+          minStockQty: entity.minStockQty,
+          maxStockQty: entity.maxStockQty,
+          leadTimeDays: entity.leadTimeDays,
+          isActive: entity.isActive,
+        },
+      });
 
-    const row = await this.prisma.sku.create({
-      data: {
-        tenantId: tenantDbId,
-        skuCode: entity.code,
-        name: entity.name,
-        specification: entity.specification,
-        categoryId: entity.categoryId,
-        unit: entity.baseUnit,
-        itemType: entity.itemType,
-        taxCodeId: this.toDbId(entity.taxCodeId ?? ''),
-        taxRate: entity.taxRate,
-        barcode: entity.barcode,
-        batchManaged: entity.batchManaged,
-        serialManaged: entity.serialManaged,
-        shelfLifeDays: entity.shelfLifeDays,
-        minStockQty: entity.minStockQty,
-        maxStockQty: entity.maxStockQty,
-        leadTimeDays: entity.leadTimeDays,
-        isActive: entity.isActive,
-      },
+      return mapSkuEntity(row);
     });
-
-    return mapSkuEntity(row);
   }
 
   async update(
@@ -157,86 +162,89 @@ export class PrismaSkuRepository implements SkuRepository {
     id: string,
     updates: UpdateSkuCommand,
   ): Promise<SkuEntity | null> {
-    const skuId = this.toDbId(id);
+    const skuId = toDbId(id);
     if (skuId === null) {
       return null;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.sku.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          id: skuId,
+          deletedAt: null,
+        },
+      });
 
-    const row = await this.prisma.sku.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: skuId,
-        deletedAt: null,
-      },
+      if (!row) {
+        return null;
+      }
+
+      const updated = await tx.sku.update({
+        where: { id: row.id },
+        data: {
+          name: updates.name,
+          specification: updates.specification,
+          categoryId: updates.categoryId,
+          unit: updates.baseUnit,
+          itemType: updates.itemType,
+          taxCodeId:
+            updates.taxCodeId === undefined
+              ? undefined
+              : toDbId(updates.taxCodeId ?? ''),
+          taxRate: updates.taxRate,
+          barcode: updates.barcode,
+          batchManaged: updates.batchManaged,
+          serialManaged: updates.serialManaged,
+          shelfLifeDays: updates.shelfLifeDays,
+          minStockQty: updates.minStockQty,
+          maxStockQty: updates.maxStockQty,
+          leadTimeDays: updates.leadTimeDays,
+          isActive: updates.isActive,
+        },
+      });
+
+      return mapSkuEntity(updated);
     });
-
-    if (!row) {
-      return null;
-    }
-
-    const updated = await this.prisma.sku.update({
-      where: { id: row.id },
-      data: {
-        name: updates.name,
-        specification: updates.specification,
-        categoryId: updates.categoryId,
-        unit: updates.baseUnit,
-        itemType: updates.itemType,
-        taxCodeId:
-          updates.taxCodeId === undefined
-            ? undefined
-            : this.toDbId(updates.taxCodeId ?? ''),
-        taxRate: updates.taxRate,
-        barcode: updates.barcode,
-        batchManaged: updates.batchManaged,
-        serialManaged: updates.serialManaged,
-        shelfLifeDays: updates.shelfLifeDays,
-        minStockQty: updates.minStockQty,
-        maxStockQty: updates.maxStockQty,
-        leadTimeDays: updates.leadTimeDays,
-        isActive: updates.isActive,
-      },
-    });
-
-    return mapSkuEntity(updated);
   }
 
   async delete(tenantId: string, id: string): Promise<boolean> {
-    const skuId = this.toDbId(id);
+    const skuId = toDbId(id);
     if (skuId === null) {
       return false;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const result = await tx.sku.updateMany({
+        where: {
+          tenantId: tenantDbId,
+          id: skuId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: 'system',
+        },
+      });
 
-    const result = await this.prisma.sku.updateMany({
-      where: {
-        tenantId: tenantDbId,
-        id: skuId,
-        deletedAt: null,
-      },
-      data: {
-        deletedAt: new Date(),
-        deletedBy: 'system',
-      },
+      return result.count > 0;
     });
-
-    return result.count > 0;
   }
 
   async existsByCode(tenantId: string, code: string): Promise<boolean> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const count = await tx.sku.count({
+        where: {
+          tenantId: tenantDbId,
+          skuCode: code,
+          deletedAt: null,
+        },
+      });
 
-    const count = await this.prisma.sku.count({
-      where: {
-        tenantId: tenantDbId,
-        skuCode: code,
-        deletedAt: null,
-      },
+      return count > 0;
     });
-
-    return count > 0;
   }
 }

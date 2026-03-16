@@ -31,6 +31,9 @@ import { ItemController } from './controllers/item.controller';
 import { UomController } from './controllers/uom.controller';
 import { TaxCodeController } from './controllers/tax-code.controller';
 import { WarehouseBinController } from './controllers/warehouse-bin.controller';
+import { WarehouseBinService } from './application/warehouse-bin.service';
+import { TaxCodeService } from './application/tax-code.service';
+import { UomService } from './application/uom.service';
 
 @Module({
   imports: [AuditModule, TenantModule, PlatformModule],
@@ -45,6 +48,9 @@ import { WarehouseBinController } from './controllers/warehouse-bin.controller';
     WarehouseBinController,
   ],
   providers: [
+    WarehouseBinService,
+    TaxCodeService,
+    UomService,
     InMemorySkuRepository,
     InMemoryWarehouseRepository,
     InMemorySupplierRepository,
@@ -106,6 +112,14 @@ import { WarehouseBinController } from './controllers/warehouse-bin.controller';
     },
     CustomerService,
   ],
-  exports: [SkuService, WarehouseService, SupplierService, CustomerService],
+  exports: [
+    SkuService,
+    WarehouseService,
+    SupplierService,
+    CustomerService,
+    WarehouseBinService,
+    TaxCodeService,
+    UomService,
+  ],
 })
 export class MasterdataModule {}

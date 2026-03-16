@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
+import { PlatformDbService } from '../../../database/platform-db.service';
 import type {
   UpdateWarehouseCommand,
   WarehouseEntity,
@@ -46,7 +46,7 @@ function mapWarehouseEntity(row: {
 
 @Injectable()
 export class PrismaWarehouseRepository implements WarehouseRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly platformDb: PlatformDbService) {}
 
   async findById(
     tenantId: string,
@@ -57,80 +57,89 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
       return null;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.warehouse.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: warehouseId,
-        deletedAt: null,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.warehouse.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          id: warehouseId,
+          deletedAt: null,
+        },
+      });
 
-    return row ? mapWarehouseEntity(row) : null;
+      return row ? mapWarehouseEntity(row) : null;
+    });
   }
 
   async findByCode(
     tenantId: string,
     code: string,
   ): Promise<WarehouseEntity | null> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.warehouse.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        code,
-        deletedAt: null,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.warehouse.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          code,
+          deletedAt: null,
+        },
+      });
 
-    return row ? mapWarehouseEntity(row) : null;
+      return row ? mapWarehouseEntity(row) : null;
+    });
   }
 
   async findAll(
     tenantId: string,
     filter?: WarehouseQueryFilter,
   ): Promise<readonly WarehouseEntity[]> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const rows = await this.prisma.warehouse.findMany({
-      where: {
-        tenantId: tenantDbId,
-        deletedAt: null,
-        code: filter?.code ? { contains: filter.code } : undefined,
-        name: filter?.name ? { contains: filter.name } : undefined,
-        OR: filter?.search
-          ? [
-              { code: { contains: filter.search } },
-              { name: { contains: filter.search } },
-              { address: { contains: filter.search } },
-              { contactPerson: { contains: filter.search } },
-            ]
-          : undefined,
-        isActive: filter?.isActive !== undefined ? filter.isActive : undefined,
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const rows = await tx.warehouse.findMany({
+        where: {
+          tenantId: tenantDbId,
+          deletedAt: null,
+          code: filter?.code ? { contains: filter.code } : undefined,
+          name: filter?.name ? { contains: filter.name } : undefined,
+          OR: filter?.search
+            ? [
+                { code: { contains: filter.search } },
+                { name: { contains: filter.search } },
+                { address: { contains: filter.search } },
+                { contactPerson: { contains: filter.search } },
+              ]
+            : undefined,
+          isActive:
+            filter?.isActive !== undefined ? filter.isActive : undefined,
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
 
-    return rows.map((row) => mapWarehouseEntity(row));
+      return rows.map((row) => mapWarehouseEntity(row));
+    });
   }
 
   async save(
     tenantId: string,
     entity: Omit<WarehouseEntity, 'tenantId'>,
   ): Promise<WarehouseEntity> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.warehouse.create({
-      data: {
-        tenantId: tenantDbId,
-        code: entity.code,
-        name: entity.name,
-        address: entity.address,
-        contactPerson: entity.contactPerson,
-        contactPhone: entity.contactPhone,
-        manageBin: entity.manageBin,
-        isActive: entity.isActive,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.warehouse.create({
+        data: {
+          tenantId: tenantDbId,
+          code: entity.code,
+          name: entity.name,
+          address: entity.address,
+          contactPerson: entity.contactPerson,
+          contactPhone: entity.contactPhone,
+          manageBin: entity.manageBin,
+          isActive: entity.isActive,
+        },
+      });
 
-    return mapWarehouseEntity(row);
+      return mapWarehouseEntity(row);
+    });
   }
 
   async update(
@@ -143,32 +152,34 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
       return null;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.warehouse.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: warehouseId,
-        deletedAt: null,
-      },
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.warehouse.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          id: warehouseId,
+          deletedAt: null,
+        },
+      });
+
+      if (!row) {
+        return null;
+      }
+
+      const updated = await tx.warehouse.update({
+        where: { id: row.id },
+        data: {
+          name: updates.name,
+          address: updates.address,
+          contactPerson: updates.contactPerson,
+          contactPhone: updates.contactPhone,
+          manageBin: updates.manageBin,
+          isActive: updates.isActive,
+        },
+      });
+
+      return mapWarehouseEntity(updated);
     });
-
-    if (!row) {
-      return null;
-    }
-
-    const updated = await this.prisma.warehouse.update({
-      where: { id: row.id },
-      data: {
-        name: updates.name,
-        address: updates.address,
-        contactPerson: updates.contactPerson,
-        contactPhone: updates.contactPhone,
-        manageBin: updates.manageBin,
-        isActive: updates.isActive,
-      },
-    });
-
-    return mapWarehouseEntity(updated);
   }
 
   async delete(tenantId: string, id: string): Promise<boolean> {
@@ -177,32 +188,36 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
       return false;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const result = await this.prisma.warehouse.updateMany({
-      where: {
-        tenantId: tenantDbId,
-        id: warehouseId,
-        deletedAt: null,
-      },
-      data: {
-        deletedAt: new Date(),
-        deletedBy: 'system',
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const result = await tx.warehouse.updateMany({
+        where: {
+          tenantId: tenantDbId,
+          id: warehouseId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: 'system',
+        },
+      });
 
-    return result.count > 0;
+      return result.count > 0;
+    });
   }
 
   async existsByCode(tenantId: string, code: string): Promise<boolean> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const count = await this.prisma.warehouse.count({
-      where: {
-        tenantId: tenantDbId,
-        code,
-        deletedAt: null,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const count = await tx.warehouse.count({
+        where: {
+          tenantId: tenantDbId,
+          code,
+          deletedAt: null,
+        },
+      });
 
-    return count > 0;
+      return count > 0;
+    });
   }
 }

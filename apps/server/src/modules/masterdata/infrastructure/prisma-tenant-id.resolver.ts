@@ -1,5 +1,5 @@
-import type { PrismaService } from '../../../database/prisma.service';
 import type { Prisma } from '@prisma/client';
+import type { PrismaService } from '../../../database/prisma.service';
 
 type TenantLookupClient =
   | Pick<PrismaService, 'tenant'>
@@ -16,6 +16,14 @@ function tenantCodeCandidates(tenantId: string): string[] {
   return [...candidates];
 }
 
+function toDbId(value: string): bigint | null {
+  try {
+    return BigInt(value);
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveTenantDbId(
   prisma: TenantLookupClient,
   tenantId: string,
@@ -25,24 +33,25 @@ export async function resolveTenantDbId(
     throw new Error('tenantId is required');
   }
 
+  const tenantIdCandidate = toDbId(normalized);
+
   const tenant = await prisma.tenant.findFirst({
     where: {
-      code: {
-        in: tenantCodeCandidates(normalized),
-      },
+      OR: [
+        {
+          code: {
+            in: tenantCodeCandidates(normalized),
+          },
+        },
+        ...(tenantIdCandidate === null ? [] : [{ id: tenantIdCandidate }]),
+      ],
     },
     select: { id: true },
   });
 
-  if (tenant) {
-    return tenant.id;
+  if (!tenant) {
+    throw new Error(`Unknown tenantId: ${tenantId}`);
   }
 
-  try {
-    return BigInt(normalized);
-  } catch {
-    throw new Error(
-      `tenantId is not bigint-compatible and no tenant code matched: ${tenantId}`,
-    );
-  }
+  return tenant.id;
 }

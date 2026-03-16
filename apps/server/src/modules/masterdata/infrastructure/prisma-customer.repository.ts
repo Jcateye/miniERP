@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
+import { PlatformDbService } from '../../../database/platform-db.service';
 import type {
   CustomerEntity,
   CustomerQueryFilter,
@@ -46,7 +46,7 @@ function mapCustomerEntity(row: {
 
 @Injectable()
 export class PrismaCustomerRepository implements CustomerRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly platformDb: PlatformDbService) {}
 
   async findById(tenantId: string, id: string): Promise<CustomerEntity | null> {
     const customerId = toDbId(id);
@@ -54,72 +54,81 @@ export class PrismaCustomerRepository implements CustomerRepository {
       return null;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.customer.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: customerId,
-        deletedAt: null,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.customer.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          id: customerId,
+          deletedAt: null,
+        },
+      });
 
-    return row ? mapCustomerEntity(row) : null;
+      return row ? mapCustomerEntity(row) : null;
+    });
   }
 
   async findByCode(
     tenantId: string,
     code: string,
   ): Promise<CustomerEntity | null> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.customer.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        code,
-        deletedAt: null,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.customer.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          code,
+          deletedAt: null,
+        },
+      });
 
-    return row ? mapCustomerEntity(row) : null;
+      return row ? mapCustomerEntity(row) : null;
+    });
   }
 
   async findAll(
     tenantId: string,
     filter?: CustomerQueryFilter,
   ): Promise<readonly CustomerEntity[]> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const rows = await this.prisma.customer.findMany({
-      where: {
-        tenantId: tenantDbId,
-        deletedAt: null,
-        code: filter?.code ? { contains: filter.code } : undefined,
-        name: filter?.name ? { contains: filter.name } : undefined,
-        isActive: filter?.isActive !== undefined ? filter.isActive : undefined,
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const rows = await tx.customer.findMany({
+        where: {
+          tenantId: tenantDbId,
+          deletedAt: null,
+          code: filter?.code ? { contains: filter.code } : undefined,
+          name: filter?.name ? { contains: filter.name } : undefined,
+          isActive:
+            filter?.isActive !== undefined ? filter.isActive : undefined,
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
 
-    return rows.map((row) => mapCustomerEntity(row));
+      return rows.map((row) => mapCustomerEntity(row));
+    });
   }
 
   async save(
     tenantId: string,
     entity: Omit<CustomerEntity, 'tenantId'>,
   ): Promise<CustomerEntity> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.customer.create({
-      data: {
-        tenantId: tenantDbId,
-        code: entity.code,
-        name: entity.name,
-        contactName: entity.contactPerson,
-        phone: entity.contactPhone,
-        email: entity.email,
-        address: entity.address,
-        isActive: entity.isActive,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.customer.create({
+        data: {
+          tenantId: tenantDbId,
+          code: entity.code,
+          name: entity.name,
+          contactName: entity.contactPerson,
+          phone: entity.contactPhone,
+          email: entity.email,
+          address: entity.address,
+          isActive: entity.isActive,
+        },
+      });
 
-    return mapCustomerEntity(row);
+      return mapCustomerEntity(row);
+    });
   }
 
   async update(
@@ -132,32 +141,34 @@ export class PrismaCustomerRepository implements CustomerRepository {
       return null;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const row = await this.prisma.customer.findFirst({
-      where: {
-        tenantId: tenantDbId,
-        id: customerId,
-        deletedAt: null,
-      },
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const row = await tx.customer.findFirst({
+        where: {
+          tenantId: tenantDbId,
+          id: customerId,
+          deletedAt: null,
+        },
+      });
+
+      if (!row) {
+        return null;
+      }
+
+      const updated = await tx.customer.update({
+        where: { id: row.id },
+        data: {
+          name: updates.name,
+          contactName: updates.contactPerson,
+          phone: updates.contactPhone,
+          email: updates.email,
+          address: updates.address,
+          isActive: updates.isActive,
+        },
+      });
+
+      return mapCustomerEntity(updated);
     });
-
-    if (!row) {
-      return null;
-    }
-
-    const updated = await this.prisma.customer.update({
-      where: { id: row.id },
-      data: {
-        name: updates.name,
-        contactName: updates.contactPerson,
-        phone: updates.contactPhone,
-        email: updates.email,
-        address: updates.address,
-        isActive: updates.isActive,
-      },
-    });
-
-    return mapCustomerEntity(updated);
   }
 
   async delete(tenantId: string, id: string): Promise<boolean> {
@@ -166,32 +177,36 @@ export class PrismaCustomerRepository implements CustomerRepository {
       return false;
     }
 
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const result = await this.prisma.customer.updateMany({
-      where: {
-        tenantId: tenantDbId,
-        id: customerId,
-        deletedAt: null,
-      },
-      data: {
-        deletedAt: new Date(),
-        deletedBy: 'system',
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const result = await tx.customer.updateMany({
+        where: {
+          tenantId: tenantDbId,
+          id: customerId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: 'system',
+        },
+      });
 
-    return result.count > 0;
+      return result.count > 0;
+    });
   }
 
   async existsByCode(tenantId: string, code: string): Promise<boolean> {
-    const tenantDbId = await resolveTenantDbId(this.prisma, tenantId);
-    const count = await this.prisma.customer.count({
-      where: {
-        tenantId: tenantDbId,
-        code,
-        deletedAt: null,
-      },
-    });
+    return this.platformDb.withTenantTx(async (tx) => {
+      const tenantDbId = await resolveTenantDbId(tx, tenantId);
+      const count = await tx.customer.count({
+        where: {
+          tenantId: tenantDbId,
+          code,
+          deletedAt: null,
+        },
+      });
 
-    return count > 0;
+      return count > 0;
+    });
   }
 }
