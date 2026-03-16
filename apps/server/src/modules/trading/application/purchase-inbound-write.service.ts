@@ -1,10 +1,6 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { rethrowPrismaWriteConflictAsHttpException } from '../../../common/filters/prisma-write-conflict';
 import Decimal from 'decimal.js';
 import {
   type CoreDocumentStatus,
@@ -15,12 +11,17 @@ import {
 } from '../../core-document/domain/status-transition';
 import { AuditService } from '../../../audit/application/audit.service';
 import { InventoryPostingService } from '../../inventory/application/inventory-posting.service';
-import { PrismaService } from '../../../database/prisma.service';
+import { PlatformDbService } from '../../../database/platform-db.service';
+import { resolveTenantDbId } from '../../masterdata/infrastructure/prisma-tenant-id.resolver';
 import { PrismaInventoryTenantTransaction } from '../../inventory/infrastructure/prisma-inventory-consistency.store';
 import type {
   DocumentActionResult,
   DocumentCreateInput,
   DocumentCreateResult,
+} from '../../documents/services/documents.service';
+import {
+  DocumentNotFoundError,
+  UnknownDocumentActionError,
 } from '../../documents/services/documents.service';
 
 const ACTION_TO_STATUS: Record<string, CoreDocumentStatus> = {
@@ -39,15 +40,6 @@ function parseDocumentId(rawId: string): bigint {
   }
 }
 
-function tenantCodeCandidates(tenantId: string): string[] {
-  const normalized = tenantId.trim();
-  const candidates = new Set<string>([normalized]);
-  if (!normalized.toUpperCase().startsWith('TENANT-')) {
-    candidates.add(`TENANT-${normalized}`);
-  }
-  return [...candidates];
-}
-
 @Injectable()
 export class PurchaseInboundWriteService {
   private readonly docNoCounter = new Map<string, number>();
@@ -55,7 +47,7 @@ export class PurchaseInboundWriteService {
   constructor(
     private readonly auditService: AuditService,
     private readonly inventoryPostingService: InventoryPostingService,
-    @Optional() private readonly prisma?: PrismaService,
+    private readonly platformDb: PlatformDbService,
   ) {}
 
   async create(
@@ -65,165 +57,184 @@ export class PurchaseInboundWriteService {
     actorId: string,
     requestId: string,
   ): Promise<DocumentCreateResult> {
-    if (!this.prisma) {
-      throw new Error('Prisma service is unavailable');
-    }
+    try {
+      const created = await this.platformDb.withTenantTx(
+        { isolationLevel: 'Serializable' },
+        async (tx) => {
+          const tenantDbId = await resolveTenantDbId(tx, tenantId);
+          const docDate = this.normalizeDocDate(input.docDate);
+          const docNo = await this.nextPersistedDocNo(
+            tx,
+            docType,
+            tenantDbId,
+            docDate,
+          );
+          const remarks = input.remarks ?? null;
 
-    const tenantDbId = await this.resolveTenantDbId(tenantId);
-    const docDate = this.normalizeDocDate(input.docDate);
-    const docNo = await this.nextPersistedDocNo(docType, tenantDbId, docDate);
-    const remarks = input.remarks ?? null;
+          const lines = await Promise.all(
+            input.lines.map(async (line, index) => {
+              const qty = new Decimal(line.qty);
+              const unitPrice = new Decimal(line.unitPrice ?? '0');
+              return {
+                inputBinId:
+                  typeof line.binId === 'string' ? line.binId.trim() : '',
+                lineNo: index + 1,
+                skuId: await this.resolveSkuId(tx, tenantDbId, line.skuId),
+                qty,
+                unitPrice,
+                amount: qty.mul(unitPrice),
+              };
+            }),
+          );
 
-    const lines = await Promise.all(
-      input.lines.map(async (line, index) => {
-        const qty = new Decimal(line.qty);
-        const unitPrice = new Decimal(line.unitPrice ?? '0');
-        return {
-          inputBinId: typeof line.binId === 'string' ? line.binId.trim() : '',
-          lineNo: index + 1,
-          skuId: await this.resolveSkuId(tenantDbId, line.skuId),
-          qty,
-          unitPrice,
-          amount: qty.mul(unitPrice),
-        };
-      }),
-    );
+          const totalQty = lines.reduce(
+            (sum, line) => sum.add(line.qty),
+            new Decimal(0),
+          );
+          const totalAmount = lines.reduce(
+            (sum, line) => sum.add(line.amount),
+            new Decimal(0),
+          );
 
-    const totalQty = lines.reduce(
-      (sum, line) => sum.add(line.qty),
-      new Decimal(0),
-    );
-    const totalAmount = lines.reduce(
-      (sum, line) => sum.add(line.amount),
-      new Decimal(0),
-    );
+          if (docType === 'PO') {
+            const supplierId = await this.resolveSupplierId(
+              tx,
+              tenantDbId,
+              input.supplierId,
+            );
+            const warehouseId = await this.resolveWarehouseId(
+              tx,
+              tenantDbId,
+              input.warehouseId,
+            );
 
-    if (docType === 'PO') {
-      const supplierId = await this.resolveSupplierId(
-        tenantDbId,
-        input.supplierId,
-      );
-      const warehouseId = await this.resolveWarehouseId(
-        tenantDbId,
-        input.warehouseId,
-      );
+            const header = await tx.purchaseOrder.create({
+              data: {
+                tenantId: tenantDbId,
+                docNo,
+                docDate,
+                status: 'draft',
+                supplierId,
+                warehouseId,
+                remarks,
+                totalQty: totalQty.toString(),
+                totalAmount: totalAmount.toString(),
+                createdBy: actorId,
+                updatedBy: actorId,
+              },
+            });
 
-      const header = await this.prisma.purchaseOrder.create({
-        data: {
-          tenantId: tenantDbId,
-          docNo,
-          docDate,
-          status: 'draft',
-          supplierId,
-          warehouseId,
-          remarks,
-          totalQty: totalQty.toString(),
-          totalAmount: totalAmount.toString(),
-          createdBy: actorId,
-          updatedBy: actorId,
+            await tx.purchaseOrderLine.createMany({
+              data: lines.map((line) => ({
+                tenantId: tenantDbId,
+                poId: header.id,
+                lineNo: line.lineNo,
+                skuId: line.skuId,
+                qty: line.qty.toString(),
+                unitPrice: line.unitPrice.toString(),
+                amount: line.amount.toString(),
+              })),
+            });
+
+            return {
+              id: header.id.toString(),
+              docNo,
+              docType,
+              status: 'draft' as const,
+              docDate: header.docDate.toISOString().slice(0, 10),
+              lineCount: lines.length,
+            };
+          }
+
+          const poId = await this.resolvePurchaseOrderId(
+            tx,
+            tenantDbId,
+            input.sourceDocId,
+          );
+          const warehouseId = await this.resolveWarehouseId(
+            tx,
+            tenantDbId,
+            input.warehouseId,
+          );
+          const persistedLines = await Promise.all(
+            lines.map(async (line) => ({
+              ...line,
+              binId: await this.resolveWarehouseBinId(
+                tx,
+                tenantDbId,
+                warehouseId,
+                line.inputBinId,
+              ),
+            })),
+          );
+
+          const header = await tx.grn.create({
+            data: {
+              tenantId: tenantDbId,
+              docNo,
+              docDate,
+              status: 'draft',
+              poId,
+              warehouseId,
+              remarks,
+              totalQty: totalQty.toString(),
+              totalAmount: totalAmount.toString(),
+              createdBy: actorId,
+              updatedBy: actorId,
+            },
+          });
+
+          await tx.grnLine.createMany({
+            data: persistedLines.map((line) => ({
+              tenantId: tenantDbId,
+              grnId: header.id,
+              lineNo: line.lineNo,
+              skuId: line.skuId,
+              binId: line.binId,
+              qty: line.qty.toString(),
+              unitPrice: line.unitPrice.toString(),
+              amount: line.amount.toString(),
+            })),
+          });
+
+          return {
+            id: header.id.toString(),
+            docNo,
+            docType,
+            status: 'draft' as const,
+            docDate: header.docDate.toISOString().slice(0, 10),
+            lineCount: persistedLines.length,
+          };
         },
-      });
+      );
 
-      await this.prisma.purchaseOrderLine.createMany({
-        data: lines.map((line) => ({
-          tenantId: tenantDbId,
-          poId: header.id,
-          lineNo: line.lineNo,
-          skuId: line.skuId,
-          qty: line.qty.toString(),
-          unitPrice: line.unitPrice.toString(),
-          amount: line.amount.toString(),
-        })),
-      });
+      try {
+        this.auditService.recordAuthorization({
+          requestId,
+          tenantId,
+          actorId,
+          action: 'document.create',
+          entityType: 'document',
+          entityId: created.id,
+          result: 'success',
+          metadata: {
+            docType,
+            docNo: created.docNo,
+            lineCount: created.lineCount,
+          },
+        });
+      } catch {
+        // best-effort: audit 失败不应影响业务返回
+      }
 
-      this.auditService.recordAuthorization({
-        requestId,
-        tenantId,
-        actorId,
-        action: 'document.create',
-        entityType: 'document',
-        entityId: header.id.toString(),
-        result: 'success',
-        metadata: { docType, docNo, lineCount: lines.length },
-      });
+      return created;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        rethrowPrismaWriteConflictAsHttpException(error);
+      }
 
-      return {
-        id: header.id.toString(),
-        docNo,
-        docType,
-        status: 'draft',
-        docDate: header.docDate.toISOString().slice(0, 10),
-        lineCount: lines.length,
-      };
+      throw error;
     }
-
-    const poId = await this.resolvePurchaseOrderId(
-      tenantDbId,
-      input.sourceDocId,
-    );
-    const warehouseId = await this.resolveWarehouseId(
-      tenantDbId,
-      input.warehouseId,
-    );
-    const persistedLines = await Promise.all(
-      lines.map(async (line) => ({
-        ...line,
-        binId: await this.resolveWarehouseBinId(
-          tenantDbId,
-          warehouseId,
-          line.inputBinId,
-        ),
-      })),
-    );
-
-    const header = await this.prisma.grn.create({
-      data: {
-        tenantId: tenantDbId,
-        docNo,
-        docDate,
-        status: 'draft',
-        poId,
-        warehouseId,
-        remarks,
-        totalQty: totalQty.toString(),
-        totalAmount: totalAmount.toString(),
-        createdBy: actorId,
-        updatedBy: actorId,
-      },
-    });
-
-    await this.prisma.grnLine.createMany({
-      data: persistedLines.map((line) => ({
-        tenantId: tenantDbId,
-        grnId: header.id,
-        lineNo: line.lineNo,
-        skuId: line.skuId,
-        binId: line.binId,
-        qty: line.qty.toString(),
-        unitPrice: line.unitPrice.toString(),
-        amount: line.amount.toString(),
-      })),
-    });
-
-    this.auditService.recordAuthorization({
-      requestId,
-      tenantId,
-      actorId,
-      action: 'document.create',
-      entityType: 'document',
-      entityId: header.id.toString(),
-      result: 'success',
-      metadata: { docType, docNo, lineCount: lines.length },
-    });
-
-    return {
-      id: header.id.toString(),
-      docNo,
-      docType,
-      status: 'draft',
-      docDate: header.docDate.toISOString().slice(0, 10),
-      lineCount: persistedLines.length,
-    };
   }
 
   async executeAction(
@@ -235,209 +246,274 @@ export class PurchaseInboundWriteService {
     actorId: string,
     requestId: string,
   ): Promise<DocumentActionResult> {
-    if (!this.prisma) {
-      throw new Error('Prisma service is unavailable');
-    }
-
     const targetStatus = ACTION_TO_STATUS[action];
     if (!targetStatus) {
-      throw new Error(`Unknown action: ${action}`);
+      throw new UnknownDocumentActionError(action);
     }
 
-    const tenantDbId = await this.resolveTenantDbId(tenantId);
-    const documentId = parseDocumentId(id);
+    if (
+      action === 'post' &&
+      (typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0)
+    ) {
+      throw new HttpException(
+        {
+          code: 'VALIDATION_IDEMPOTENCY_KEY_REQUIRED',
+          category: 'validation',
+          message: 'Idempotency-Key is required',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
 
-    if (docType === 'PO') {
-      const doc = await this.prisma.purchaseOrder.findFirst({
-        where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
-      });
+    const tenantTxOptions: Prisma.TransactionIsolationLevel | undefined =
+      action === 'post' ? 'Serializable' : undefined;
 
-      if (!doc) {
-        throw new Error(`Document not found: ${docType}/${id}`);
-      }
+    const run = tenantTxOptions
+      ? <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
+          this.platformDb.withTenantTx({ isolationLevel: tenantTxOptions }, fn)
+      : <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
+          this.platformDb.withTenantTx(fn);
 
-      const previousStatus = this.toCoreStatus(doc.status, docType);
-      const attempt: StatusTransitionAttempt = {
-        entityType: docType,
-        entityId: id,
-        fromStatus: previousStatus,
-        toStatus: targetStatus,
-      };
+    try {
+      const { result, auditMetadata } = await run(async (tx) => {
+        const tenantDbId = await resolveTenantDbId(tx, tenantId);
 
-      try {
+        let documentId: bigint;
+        try {
+          documentId = parseDocumentId(id.trim());
+        } catch {
+          throw new DocumentNotFoundError(docType, id);
+        }
+
+        const normalizedDocumentId = documentId.toString();
+
+        if (docType === 'PO') {
+          const doc = await tx.purchaseOrder.findFirst({
+            where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
+          });
+
+          if (!doc) {
+            throw new DocumentNotFoundError(docType, id);
+          }
+
+          const previousStatus = this.toCoreStatus(doc.status, docType);
+          const attempt: StatusTransitionAttempt = {
+            entityType: docType,
+            entityId: normalizedDocumentId,
+            fromStatus: previousStatus,
+            toStatus: targetStatus,
+          };
+
+          if (previousStatus === targetStatus) {
+            const result: DocumentActionResult = {
+              success: true,
+              documentId: normalizedDocumentId,
+              docType,
+              previousStatus,
+              newStatus: targetStatus,
+              action,
+              inventoryPosted: false,
+              ledgerEntryIds: [],
+            };
+
+            return {
+              result,
+              auditMetadata: {
+                docType,
+                previousStatus,
+                newStatus: targetStatus,
+                inventoryPosted: false,
+                ledgerEntryIds: [] as string[],
+              },
+            };
+          }
+
+          const allowed = getAllowedNextStatuses(docType, previousStatus);
+          if (!allowed.includes(targetStatus)) {
+            throw new InvalidStatusTransitionError(attempt, allowed);
+          }
+
+          const updateResult = await tx.purchaseOrder.updateMany({
+            where: {
+              tenantId: tenantDbId,
+              id: doc.id,
+              status: previousStatus,
+              deletedAt: null,
+            },
+            data: {
+              status: targetStatus,
+              updatedBy: actorId,
+              updatedAt: new Date(),
+            },
+          });
+
+          if (updateResult.count === 0) {
+            throw new InvalidStatusTransitionError(
+              attempt,
+              getAllowedNextStatuses(docType, previousStatus),
+            );
+          }
+
+          await tx.stateTransitionLog.create({
+            data: {
+              tenantId: tenantDbId,
+              entityType: 'PO',
+              entityId: normalizedDocumentId,
+              fromStatus: previousStatus,
+              toStatus: targetStatus,
+              actorId,
+              requestId,
+            },
+          });
+
+          const result: DocumentActionResult = {
+            success: true,
+            documentId: normalizedDocumentId,
+            docType,
+            previousStatus,
+            newStatus: targetStatus,
+            action,
+            inventoryPosted: false,
+            ledgerEntryIds: [],
+          };
+
+          return {
+            result,
+            auditMetadata: {
+              docType,
+              previousStatus,
+              newStatus: targetStatus,
+              inventoryPosted: false,
+              ledgerEntryIds: [] as string[],
+            },
+          };
+        }
+
+        const doc = await tx.grn.findFirst({
+          where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
+        });
+
+        if (!doc) {
+          throw new DocumentNotFoundError(docType, id);
+        }
+
+        const previousStatus = this.toCoreStatus(doc.status, docType);
+        const attempt: StatusTransitionAttempt = {
+          entityType: docType,
+          entityId: normalizedDocumentId,
+          fromStatus: previousStatus,
+          toStatus: targetStatus,
+        };
+
+        if (previousStatus === targetStatus) {
+          if (action === 'post') {
+            const existingLedgerEntries = await tx.inventoryLedger.findMany({
+              where: {
+                tenantId: tenantDbId,
+                referenceType: 'GRN',
+                referenceId: normalizedDocumentId,
+              },
+              select: { id: true },
+              orderBy: { id: 'asc' },
+            });
+
+            if (existingLedgerEntries.length === 0) {
+              throw new HttpException(
+                {
+                  code: 'CONSISTENCY_INVENTORY_LEDGER_MISSING',
+                  category: 'consistency',
+                  message: `GRN ${normalizedDocumentId} is posted but inventory ledger is missing`,
+                },
+                HttpStatus.CONFLICT,
+              );
+            }
+
+            const ledgerEntryIds = existingLedgerEntries.map((entry) =>
+              entry.id.toString(),
+            );
+
+            const result: DocumentActionResult = {
+              success: true,
+              documentId: normalizedDocumentId,
+              docType,
+              previousStatus,
+              newStatus: targetStatus,
+              action,
+              inventoryPosted: true,
+              ledgerEntryIds,
+            };
+
+            return {
+              result,
+              auditMetadata: {
+                docType,
+                previousStatus,
+                newStatus: targetStatus,
+                inventoryPosted: true,
+                ledgerEntryIds,
+              },
+            };
+          }
+
+          const result: DocumentActionResult = {
+            success: true,
+            documentId: normalizedDocumentId,
+            docType,
+            previousStatus,
+            newStatus: targetStatus,
+            action,
+            inventoryPosted: false,
+            ledgerEntryIds: [],
+          };
+
+          return {
+            result,
+            auditMetadata: {
+              docType,
+              previousStatus,
+              newStatus: targetStatus,
+              inventoryPosted: false,
+              ledgerEntryIds: [] as string[],
+            },
+          };
+        }
+
         const allowed = getAllowedNextStatuses(docType, previousStatus);
         if (!allowed.includes(targetStatus)) {
           throw new InvalidStatusTransitionError(attempt, allowed);
         }
-      } catch (error) {
-        this.auditService.recordAuthorization({
-          requestId,
-          tenantId,
-          actorId,
-          action: `document.${action}`,
-          entityType: 'document',
-          entityId: id,
-          result: 'deny',
-          reason: 'INVALID_STATUS_TRANSITION',
-          metadata: {
-            docType,
-            fromStatus: previousStatus,
-            toStatus: targetStatus,
-          },
-        });
-        throw error;
-      }
 
-      const updateResult = await this.prisma.purchaseOrder.updateMany({
-        where: {
-          tenantId: tenantDbId,
-          id: doc.id,
-          status: previousStatus,
-          deletedAt: null,
-        },
-        data: {
-          status: targetStatus,
-          updatedBy: actorId,
-        },
-      });
+        let inventoryPosted = false;
+        let ledgerEntryIds: string[] = [];
 
-      if (updateResult.count === 0) {
-        throw new InvalidStatusTransitionError(
-          attempt,
-          getAllowedNextStatuses(docType, previousStatus),
-        );
-      }
-
-      await this.prisma.stateTransitionLog.create({
-        data: {
-          tenantId: tenantDbId,
-          entityType: 'PO',
-          entityId: id,
-          fromStatus: previousStatus,
-          toStatus: targetStatus,
-          actorId,
-          requestId,
-        },
-      });
-
-      this.auditService.recordAuthorization({
-        requestId,
-        tenantId,
-        actorId,
-        action: `document.${action}`,
-        entityType: 'document',
-        entityId: id,
-        result: 'success',
-        metadata: {
-          docType,
-          previousStatus,
-          newStatus: targetStatus,
-          inventoryPosted: false,
-          ledgerEntryIds: [],
-        },
-      });
-
-      return {
-        success: true,
-        documentId: id,
-        docType,
-        previousStatus,
-        newStatus: targetStatus,
-        action,
-        inventoryPosted: false,
-        ledgerEntryIds: [],
-      };
-    }
-
-    const doc = await this.prisma.grn.findFirst({
-      where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
-    });
-
-    if (!doc) {
-      throw new Error(`Document not found: ${docType}/${id}`);
-    }
-
-    const previousStatus = this.toCoreStatus(doc.status, docType);
-    const attempt: StatusTransitionAttempt = {
-      entityType: docType,
-      entityId: id,
-      fromStatus: previousStatus,
-      toStatus: targetStatus,
-    };
-
-    try {
-      const allowed = getAllowedNextStatuses(docType, previousStatus);
-      if (!allowed.includes(targetStatus)) {
-        throw new InvalidStatusTransitionError(attempt, allowed);
-      }
-    } catch (error) {
-      this.auditService.recordAuthorization({
-        requestId,
-        tenantId,
-        actorId,
-        action: `document.${action}`,
-        entityType: 'document',
-        entityId: id,
-        result: 'deny',
-        reason: 'INVALID_STATUS_TRANSITION',
-        metadata: {
-          docType,
-          fromStatus: previousStatus,
-          toStatus: targetStatus,
-        },
-      });
-      throw error;
-    }
-
-    let inventoryPosted = false;
-    let ledgerEntryIds: string[] = [];
-
-    if (action === 'post') {
-      const inventoryResult = await this.prisma.$transaction(
-        async (tx) => {
-          const transactionalDoc = await tx.grn.findFirst({
-            where: {
-              tenantId: tenantDbId,
-              id: doc.id,
-              deletedAt: null,
-            },
-          });
-
-          if (!transactionalDoc) {
-            throw new Error(`Document not found: ${docType}/${id}`);
-          }
-
+        if (action === 'post') {
           const lines = await tx.grnLine.findMany({
             where: { tenantId: tenantDbId, grnId: doc.id },
             orderBy: { lineNo: 'asc' },
           });
 
-          await this.validateGrnPrePost(
-            tx,
-            tenantDbId,
-            transactionalDoc,
-            lines,
-          );
+          await this.validateGrnPrePost(tx, tenantDbId, doc, lines);
 
-          const result = await this.inventoryPostingService.postInTransaction(
-            tenantId,
-            {
-              idempotencyKey,
-              referenceType: 'GRN',
-              referenceId: id,
-              lines: lines.map((line) => {
-                const qty = new Decimal(line.qty.toString());
-                return {
-                  binId: line.binId?.toString() ?? null,
-                  skuId: line.skuId.toString(),
-                  warehouseId: transactionalDoc.warehouseId!.toString(),
-                  quantityDelta: qty.toNumber(),
-                };
-              }),
-            },
-            requestId,
-            new PrismaInventoryTenantTransaction(tx, tenantId, tenantDbId),
-          );
+          const inventoryResult =
+            await this.inventoryPostingService.postInTransaction(
+              tenantId,
+              {
+                idempotencyKey,
+                referenceType: 'GRN',
+                referenceId: normalizedDocumentId,
+                lines: lines.map((line) => {
+                  const qty = new Decimal(line.qty.toString());
+                  return {
+                    binId: line.binId?.toString() ?? null,
+                    skuId: line.skuId.toString(),
+                    warehouseId: doc.warehouseId!.toString(),
+                    quantityDelta: qty.toNumber(),
+                  };
+                }),
+              },
+              requestId,
+              new PrismaInventoryTenantTransaction(tx, tenantId, tenantDbId),
+            );
 
           const updateResult = await tx.grn.updateMany({
             where: {
@@ -449,6 +525,7 @@ export class PurchaseInboundWriteService {
             data: {
               status: targetStatus,
               updatedBy: actorId,
+              updatedAt: new Date(),
             },
           });
 
@@ -463,7 +540,7 @@ export class PurchaseInboundWriteService {
             data: {
               tenantId: tenantDbId,
               entityType: 'GRN',
-              entityId: id,
+              entityId: normalizedDocumentId,
               fromStatus: previousStatus,
               toStatus: targetStatus,
               actorId,
@@ -475,85 +552,118 @@ export class PurchaseInboundWriteService {
             tx,
             tenantDbId,
             docType,
-            id,
+            normalizedDocumentId,
             previousStatus,
             targetStatus,
             actorId,
             requestId,
             idempotencyKey,
-            result.ledgerEntries.map((entry) => entry.id),
+            inventoryResult.ledgerEntries.map((entry) => entry.id),
           );
 
-          return result;
-        },
-        { isolationLevel: 'Serializable' },
-      );
+          inventoryPosted = true;
+          ledgerEntryIds = inventoryResult.ledgerEntries.map(
+            (entry) => entry.id,
+          );
+        } else {
+          const updateResult = await tx.grn.updateMany({
+            where: {
+              tenantId: tenantDbId,
+              id: doc.id,
+              status: previousStatus,
+              deletedAt: null,
+            },
+            data: {
+              status: targetStatus,
+              updatedBy: actorId,
+              updatedAt: new Date(),
+            },
+          });
 
-      inventoryPosted = true;
-      ledgerEntryIds = inventoryResult.ledgerEntries.map((entry) => entry.id);
-    } else {
-      const updateResult = await this.prisma.grn.updateMany({
-        where: {
-          tenantId: tenantDbId,
-          id: doc.id,
-          status: previousStatus,
-          deletedAt: null,
-        },
-        data: {
-          status: targetStatus,
-          updatedBy: actorId,
-        },
+          if (updateResult.count === 0) {
+            throw new InvalidStatusTransitionError(
+              attempt,
+              getAllowedNextStatuses(docType, previousStatus),
+            );
+          }
+
+          await tx.stateTransitionLog.create({
+            data: {
+              tenantId: tenantDbId,
+              entityType: 'GRN',
+              entityId: normalizedDocumentId,
+              fromStatus: previousStatus,
+              toStatus: targetStatus,
+              actorId,
+              requestId,
+            },
+          });
+        }
+
+        const result: DocumentActionResult = {
+          success: true,
+          documentId: normalizedDocumentId,
+          docType,
+          previousStatus,
+          newStatus: targetStatus,
+          action,
+          inventoryPosted,
+          ledgerEntryIds,
+        };
+
+        return {
+          result,
+          auditMetadata: {
+            docType,
+            previousStatus,
+            newStatus: targetStatus,
+            inventoryPosted,
+            ledgerEntryIds,
+          },
+        };
       });
 
-      if (updateResult.count === 0) {
-        throw new InvalidStatusTransitionError(
-          attempt,
-          getAllowedNextStatuses(docType, previousStatus),
-        );
-      }
-    }
-
-    if (action !== 'post') {
-      await this.prisma.stateTransitionLog.create({
-        data: {
-          tenantId: tenantDbId,
-          entityType: 'GRN',
-          entityId: id,
-          fromStatus: previousStatus,
-          toStatus: targetStatus,
-          actorId,
+      try {
+        this.auditService.recordAuthorization({
           requestId,
-        },
-      });
+          tenantId,
+          actorId,
+          action: `document.${action}`,
+          entityType: 'document',
+          entityId: result.documentId,
+          result: 'success',
+          metadata: auditMetadata,
+        });
+      } catch {
+        // best-effort: audit 失败不应影响业务返回
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof InvalidStatusTransitionError) {
+        try {
+          this.auditService.recordAuthorization({
+            requestId,
+            tenantId,
+            actorId,
+            action: `document.${action}`,
+            entityType: 'document',
+            entityId: error.details.entity_id,
+            result: 'deny',
+            reason: 'INVALID_STATUS_TRANSITION',
+            metadata: {
+              docType: error.details.entity_type,
+              fromStatus: error.details.from_status,
+              toStatus: error.details.to_status,
+            },
+          });
+        } catch {
+          // best-effort: audit 失败不应覆盖业务异常
+        }
+      }
+
+      throw error;
     }
-
-    this.auditService.recordAuthorization({
-      requestId,
-      tenantId,
-      actorId,
-      action: `document.${action}`,
-      entityType: 'document',
-      entityId: id,
-      result: 'success',
-      metadata: {
-        docType,
-        previousStatus,
-        newStatus: targetStatus,
-        inventoryPosted,
-        ledgerEntryIds,
-      },
-    });
-
-    return {
-      success: true,
-      documentId: id,
-      docType,
-      previousStatus,
-      newStatus: targetStatus,
-      action,
-      inventoryPosted,
-      ledgerEntryIds,
-    };
   }
 
   private async validateGrnPrePost(
@@ -727,34 +837,6 @@ export class PurchaseInboundWriteService {
     }
   }
 
-  private async resolveTenantDbId(tenantId: string): Promise<bigint> {
-    if (!this.prisma) {
-      throw new Error('Prisma service is unavailable');
-    }
-
-    const normalized = tenantId.trim();
-    const tenant = await this.prisma.tenant.findFirst({
-      where: {
-        code: {
-          in: tenantCodeCandidates(normalized),
-        },
-      },
-      select: { id: true },
-    });
-
-    if (tenant) {
-      return tenant.id;
-    }
-
-    try {
-      return BigInt(normalized);
-    } catch {
-      throw new Error(
-        `tenantId is not bigint-compatible and no tenant code matched: ${tenantId}`,
-      );
-    }
-  }
-
   private normalizeDocDate(value?: string): Date {
     if (!value || value.trim().length === 0) {
       return new Date();
@@ -776,29 +858,24 @@ export class PurchaseInboundWriteService {
   }
 
   private async nextPersistedDocNo(
+    client: Pick<Prisma.TransactionClient, 'purchaseOrder' | 'grn'>,
     docType: Extract<CoreDocumentType, 'PO' | 'GRN'>,
     tenantDbId: bigint,
     docDate: Date,
   ): Promise<string> {
     const ymd = this.formatDateYmd(docDate);
     const prefix = `DOC-${docType}-${ymd}-`;
-    const cacheKey = `${docType}:${ymd}`;
+    const cacheKey = `${tenantDbId.toString()}:${docType}:${ymd}`;
     let maxSeq = this.docNoCounter.get(cacheKey) ?? 0;
-
-    if (!this.prisma) {
-      const seq = maxSeq + 1;
-      this.docNoCounter.set(cacheKey, seq);
-      return `${prefix}${seq.toString().padStart(3, '0')}`;
-    }
 
     const latest =
       docType === 'PO'
-        ? await this.prisma.purchaseOrder.findFirst({
+        ? await client.purchaseOrder.findFirst({
             where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
             orderBy: { docNo: 'desc' },
             select: { docNo: true },
           })
-        : await this.prisma.grn.findFirst({
+        : await client.grn.findFirst({
             where: { tenantId: tenantDbId, docNo: { startsWith: prefix } },
             orderBy: { docNo: 'desc' },
             select: { docNo: true },
@@ -815,16 +892,17 @@ export class PurchaseInboundWriteService {
   }
 
   private async resolveWarehouseId(
+    client: Pick<Prisma.TransactionClient, 'warehouse'>,
     tenantDbId: bigint,
     raw?: string,
   ): Promise<bigint | null> {
-    if (!this.prisma || !raw || raw.trim().length === 0) {
+    if (!raw || raw.trim().length === 0) {
       return null;
     }
 
     const value = raw.trim();
     const parsed = this.toBigintOrNull(value);
-    const row = await this.prisma.warehouse.findFirst({
+    const row = await client.warehouse.findFirst({
       where:
         parsed !== null
           ? { tenantId: tenantDbId, id: parsed, deletedAt: null }
@@ -847,17 +925,18 @@ export class PurchaseInboundWriteService {
   }
 
   private async resolveWarehouseBinId(
+    client: Pick<Prisma.TransactionClient, 'warehouseBin'>,
     tenantDbId: bigint,
     warehouseId: bigint | null,
     raw?: string,
   ): Promise<bigint | null> {
-    if (!this.prisma || !warehouseId || !raw || raw.trim().length === 0) {
+    if (!warehouseId || !raw || raw.trim().length === 0) {
       return null;
     }
 
     const value = raw.trim();
     const parsed = this.toBigintOrNull(value);
-    const row = await this.prisma.warehouseBin.findFirst({
+    const row = await client.warehouseBin.findFirst({
       where:
         parsed !== null
           ? { tenantId: tenantDbId, warehouseId, id: parsed, deletedAt: null }
@@ -885,10 +964,11 @@ export class PurchaseInboundWriteService {
   }
 
   private async resolveSupplierId(
+    client: Pick<Prisma.TransactionClient, 'supplier'>,
     tenantDbId: bigint,
     raw?: string,
   ): Promise<bigint | null> {
-    if (!this.prisma || !raw || raw.trim().length === 0) {
+    if (!raw || raw.trim().length === 0) {
       return null;
     }
 
@@ -898,7 +978,7 @@ export class PurchaseInboundWriteService {
       return parsed;
     }
 
-    const row = await this.prisma.supplier.findFirst({
+    const row = await client.supplier.findFirst({
       where: { tenantId: tenantDbId, code: value, deletedAt: null },
       select: { id: true },
     });
@@ -906,10 +986,11 @@ export class PurchaseInboundWriteService {
   }
 
   private async resolvePurchaseOrderId(
+    client: Pick<Prisma.TransactionClient, 'purchaseOrder'>,
     tenantDbId: bigint,
     raw?: string,
   ): Promise<bigint | null> {
-    if (!this.prisma || !raw || raw.trim().length === 0) {
+    if (!raw || raw.trim().length === 0) {
       return null;
     }
 
@@ -919,28 +1000,21 @@ export class PurchaseInboundWriteService {
       return parsed;
     }
 
-    const row = await this.prisma.purchaseOrder.findFirst({
+    const row = await client.purchaseOrder.findFirst({
       where: { tenantId: tenantDbId, docNo: value, deletedAt: null },
       select: { id: true },
     });
     return row?.id ?? null;
   }
 
-  private async resolveSkuId(tenantDbId: bigint, raw: string): Promise<bigint> {
-    if (!this.prisma) {
-      throw new HttpException(
-        {
-          code: 'VALIDATION_SKU_NOT_FOUND',
-          category: 'validation',
-          message: `SKU not found: ${raw}`,
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
+  private async resolveSkuId(
+    client: Pick<Prisma.TransactionClient, 'sku'>,
+    tenantDbId: bigint,
+    raw: string,
+  ): Promise<bigint> {
     const value = raw.trim();
     const parsed = this.toBigintOrNull(value);
-    const row = await this.prisma.sku.findFirst({
+    const row = await client.sku.findFirst({
       where:
         parsed !== null
           ? { tenantId: tenantDbId, id: parsed, deletedAt: null }
