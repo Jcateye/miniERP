@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { PlatformDbService } from '../../../database/platform-db.service';
+import { PlatformDbService } from '../../../database/platform-db.service';
 import { resolveTenantDbId } from '../infrastructure/prisma-tenant-id.resolver';
 
 export interface UomListQuery {

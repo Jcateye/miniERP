@@ -59,7 +59,7 @@ describe('AuthorizeGuard', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('allows when authorizer returns allow', async () => {
+  it('allows using inline auth context permissions in non-production when RBAC store is unavailable', async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthorizeGuard,
@@ -68,14 +68,14 @@ describe('AuthorizeGuard', () => {
           useValue: {
             getAllAndOverride: (key: string) =>
               key === 'authz_requirement'
-                ? { resource: 'erp:policy', action: 'read' }
+                ? { resource: 'erp:document', action: 'read' }
                 : undefined,
           },
         },
         {
           provide: TenantContextService,
           useValue: {
-            getRequiredContext: () => ({ tenantId: '1', requestId: 'req-1' }),
+            getRequiredContext: () => ({ tenantId: '1001', requestId: 'req-1' }),
           },
         },
         {
@@ -88,25 +88,36 @@ describe('AuthorizeGuard', () => {
         },
         {
           provide: PrismaGrantedPermissionsStore,
-          useValue: { listGrantedPermissions: async () => ['erp:*'] },
+          useValue: {
+            listGrantedPermissions: async () => {
+              throw new Error('ERROR: permission denied for table tenants');
+            },
+          },
         },
       ],
     }).compile();
 
-    const guard = moduleRef.get(AuthorizeGuard);
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
 
-    await expect(
-      guard.canActivate(
-        createExecutionContext({
-          authContext: {
-            tenantId: '1',
-            actorId: '1',
-            permissions: [],
-            role: 'tenant_admin',
-          },
-          headers: {},
-        }),
-      ),
-    ).resolves.toBe(true);
+    try {
+      const guard = moduleRef.get(AuthorizeGuard);
+
+      await expect(
+        guard.canActivate(
+          createExecutionContext({
+            authContext: {
+              tenantId: '1001',
+              actorId: '9001',
+              permissions: ['erp:document:read'],
+              role: 'tenant_admin',
+            },
+            headers: {},
+          }),
+        ),
+      ).resolves.toBe(true);
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
   });
 });

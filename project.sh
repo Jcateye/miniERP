@@ -546,9 +546,9 @@ dispatch_scope_command() {
       ;;
     web)
       case "$command" in
-        start) start_service "web" "bun run dev:web" ;;
+        start) start_service "web" "PORT=${WEB_PORT} NEXT_PUBLIC_API_BASE_URL='${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${SERVER_PORT}}' bun run dev:web" ;;
         stop) stop_service "web" ;;
-        restart) stop_service "web"; start_service "web" "bun run dev:web" ;;
+        restart) stop_service "web"; start_service "web" "PORT=${WEB_PORT} NEXT_PUBLIC_API_BASE_URL='${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${SERVER_PORT}}' bun run dev:web" ;;
         status) status_service "web" ;;
         logs) logs_service "web" ;;
         health) web_health ;;
@@ -560,9 +560,9 @@ dispatch_scope_command() {
       ;;
     server)
       case "$command" in
-        start) start_service "server" "bun run dev:server" ;;
+        start) start_service "server" "PORT=${SERVER_PORT} DATABASE_URL='${DATABASE_URL}' REDIS_URL='${REDIS_URL}' AUTH_CONTEXT_SECRET='${AUTH_CONTEXT_SECRET:-dev-only-auth-context-secret}' bun run dev:server" ;;
         stop) stop_service "server" ;;
-        restart) stop_service "server"; start_service "server" "bun run dev:server" ;;
+        restart) stop_service "server"; start_service "server" "PORT=${SERVER_PORT} DATABASE_URL='${DATABASE_URL}' REDIS_URL='${REDIS_URL}' AUTH_CONTEXT_SECRET='${AUTH_CONTEXT_SECRET:-dev-only-auth-context-secret}' bun run dev:server" ;;
         status) status_service "server" ;;
         logs) logs_service "server" ;;
         health) server_health ;;

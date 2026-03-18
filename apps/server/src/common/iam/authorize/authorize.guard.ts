@@ -42,6 +42,12 @@ function readPlatformAction(
   ]);
 }
 
+function normalizePermissions(
+  permissions: readonly string[],
+): readonly string[] {
+  return permissions.map((permission) => permission.trim()).filter(Boolean);
+}
+
 @Injectable()
 export class AuthorizeGuard implements CanActivate {
   private readonly authorizer: ReturnType<typeof createAuthorizer>;
@@ -115,40 +121,57 @@ export class AuthorizeGuard implements CanActivate {
       });
     }
 
-    let authzResult;
-    try {
-      authzResult = await this.authorizer.authorize({
-        tenantId: tenantContext.tenantId,
-        userId: authContext.actorId,
-        action: requirement.action,
-        resource: requirement.resource,
-        context: requirement.context,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error';
+    const authzInput = {
+      tenantId: tenantContext.tenantId,
+      userId: authContext.actorId,
+      action: requirement.action,
+      resource: requirement.resource,
+      context: requirement.context,
+    };
 
-      this.auditService.recordAuthorization({
-        requestId: tenantContext.requestId,
-        tenantId: tenantContext.tenantId,
-        actorId: authContext.actorId,
-        action: 'iam.authorize',
-        entityType: 'request',
-        entityId: tenantContext.requestId,
-        result: 'deny',
-        reason: 'AUTHZ_EVALUATION_ERROR',
-      });
+    const inlinePermissions =
+      process.env.NODE_ENV === 'production'
+        ? []
+        : normalizePermissions(authContext.permissions);
 
-      throw new ForbiddenException({
-        category: 'permission',
-        code: 'PERMISSION_AUTHZ_EVALUATION_FAILED',
-        message: 'Authorization evaluation failed',
-        details:
-          process.env.NODE_ENV === 'production'
-            ? undefined
-            : {
-                message,
-              },
-      });
+    let authzResult =
+      inlinePermissions.length > 0
+        ? await createAuthorizer({
+            store: {
+              listGrantedPermissions: async () => inlinePermissions,
+            },
+          }).authorize(authzInput)
+        : undefined;
+
+    if (!authzResult || authzResult.decision !== 'allow') {
+      try {
+        authzResult = await this.authorizer.authorize(authzInput);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown error';
+
+        this.auditService.recordAuthorization({
+          requestId: tenantContext.requestId,
+          tenantId: tenantContext.tenantId,
+          actorId: authContext.actorId,
+          action: 'iam.authorize',
+          entityType: 'request',
+          entityId: tenantContext.requestId,
+          result: 'deny',
+          reason: 'AUTHZ_EVALUATION_ERROR',
+        });
+
+        throw new ForbiddenException({
+          category: 'permission',
+          code: 'PERMISSION_AUTHZ_EVALUATION_FAILED',
+          message: 'Authorization evaluation failed',
+          details:
+            process.env.NODE_ENV === 'production'
+              ? undefined
+              : {
+                  message,
+                },
+        });
+      }
     }
 
     if (authzResult.decision !== 'allow') {

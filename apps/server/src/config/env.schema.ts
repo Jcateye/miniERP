@@ -67,7 +67,7 @@ function parseNodeEnv(value: string | undefined): NodeEnv {
 
 function parsePort(value: string | undefined): number {
   if (typeof value === 'undefined' || value.trim().length === 0) {
-    return 3000;
+    return 3001;
   }
 
   const port = Number(value);

@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
-import type { TenantContext } from './tenant-context';
-import { tenantContextStorage } from './tenant-context';
-import type { NodeEnv } from './tenant-resolver';
-import { resolveTenantId, TenantResolverError } from './tenant-resolver';
+import type { TenantContext } from './tenant-context.js';
+import { tenantContextStorage } from './tenant-context.js';
+import type { NodeEnv } from './tenant-resolver.js';
+import { resolveTenantId, TenantResolverError } from './tenant-resolver.js';
 
 export interface TenantAuthenticatedRequest {
   readonly authContext?: {

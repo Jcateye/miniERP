@@ -200,6 +200,7 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
       actorId: '9001',
       permissions: [
         'evidence:*',
+        'erp:document:read',
         'masterdata.customer.read',
         'masterdata.customer.write',
         'masterdata.sku.read',
@@ -209,6 +210,44 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
         'masterdata.warehouse.read',
         'masterdata.warehouse.write',
       ],
+      role: 'tenant_admin',
+    });
+  });
+
+  it('prefers signed auth context over dev-token fallback in development', async () => {
+    const middleware = createAuthContextMiddleware({
+      authMode: 'both',
+      secret,
+      nodeEnv: 'development',
+    });
+
+    const encoded = encodeContext({
+      tenantId: '1001',
+      actorId: '2001',
+      permissions: ['erp:document:read'],
+      role: 'tenant_admin',
+    });
+
+    const request = createRequest({
+      authorization: 'Bearer dev-token',
+      'x-auth-context': encoded,
+      'x-auth-context-signature': sign(encoded),
+    }) as Request & { authContext?: unknown };
+
+    const { response, status } = createResponse();
+
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
+
+    expect(nextCalled).toBe(true);
+    expect(status).not.toHaveBeenCalled();
+    expect(request.authContext).toEqual({
+      tenantId: '1001',
+      actorId: '2001',
+      permissions: ['erp:document:read'],
       role: 'tenant_admin',
     });
   });

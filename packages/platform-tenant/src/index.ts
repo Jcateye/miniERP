@@ -1,3 +1,3 @@
-export * from './tenant-context';
-export * from './tenant-resolver';
-export * from './tenant-context.middleware';
+export * from './tenant-context.js';
+export * from './tenant-resolver.js';
+export * from './tenant-context.middleware.js';

@@ -181,6 +181,7 @@ export function createServerHeaders() {
       'evidence:link:create',
       'evidence:link:read',
       'evidence:*',
+      'erp:document:read',
       'masterdata.warehouse.read',
       'masterdata.warehouse.write',
       'masterdata.supplier.read',

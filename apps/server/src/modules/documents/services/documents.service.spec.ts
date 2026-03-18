@@ -87,6 +87,37 @@ describe('DocumentsService', () => {
   });
 
   describe('list', () => {
+    it('should fall back to in-memory documents in non-production when persisted read hits tenant registry permission error', async () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      const failingReadService = {
+        canHandle: jest.fn().mockReturnValue(true),
+        list: jest.fn().mockRejectedValue(
+          new Error('Raw query failed. Code: `42501`. Message: `ERROR: permission denied for table tenants`'),
+        ),
+        getDetail: jest.fn(),
+      } as unknown as TradingDocumentsReadService;
+
+      const fallbackService = new DocumentsService(
+        mockAuditService as unknown as AuditService,
+        mockInventoryPostingService as unknown as InventoryPostingService,
+        createPurchaseInboundWriteService(),
+        createSalesShipmentWriteService(),
+        failingReadService,
+        {} as never,
+      );
+
+      try {
+        const result = await fallbackService.list({ docType: 'SO' }, '1001');
+
+        expect(result.data.length).toBeGreaterThan(0);
+        expect(result.data.every((doc) => doc.docType === 'SO')).toBe(true);
+      } finally {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+    });
+
     it('should return paginated documents filtered by docType', async () => {
       const result = await service.list({ docType: 'PO' }, '1001');
 

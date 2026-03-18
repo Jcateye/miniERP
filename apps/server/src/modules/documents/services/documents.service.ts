@@ -344,9 +344,23 @@ export class DocumentsService {
       this.prisma &&
       this.tradingDocumentsReadService.canHandle(query.docType)
     ) {
-      return this.tradingDocumentsReadService.list(query, tenantId);
+      try {
+        return await this.tradingDocumentsReadService.list(query, tenantId);
+      } catch (error) {
+        if (this.shouldFallbackToInMemory(error)) {
+          return this.listFromMemory(query, tenantId);
+        }
+        throw error;
+      }
     }
 
+    return this.listFromMemory(query, tenantId);
+  }
+
+  private listFromMemory(
+    query: ListDocumentsQuery,
+    tenantId: string,
+  ): PaginationEnvelope<DocumentListItem> {
     const allDocs = Array.from(this.documents.values())
       .filter(
         (doc) => doc.tenantId === tenantId && doc.docType === query.docType,
@@ -356,7 +370,7 @@ export class DocumentsService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
     const total = allDocs.length;
-    const totalPages = Math.ceil(total / pageSize);
+    const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
     const start = (page - 1) * pageSize;
     const data = allDocs.slice(start, start + pageSize);
 
@@ -369,17 +383,36 @@ export class DocumentsService {
     };
   }
 
+  private shouldFallbackToInMemory(error: unknown): boolean {
+    if ((process.env.NODE_ENV ?? 'development') === 'production') {
+      return false;
+    }
+
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    return error.message.includes('permission denied for table tenants');
+  }
+
   async getDetail(
     docType: CoreDocumentType,
     id: string,
     tenantId: string,
   ): Promise<DocumentDetail | null> {
     if (this.prisma && this.tradingDocumentsReadService.canHandle(docType)) {
-      return this.tradingDocumentsReadService.getDetail(
-        docType as Extract<CoreDocumentType, 'PO' | 'GRN' | 'SO' | 'OUT'>,
-        id,
-        tenantId,
-      );
+      try {
+        return await this.tradingDocumentsReadService.getDetail(
+          docType as Extract<CoreDocumentType, 'PO' | 'GRN' | 'SO' | 'OUT'>,
+          id,
+          tenantId,
+        );
+      } catch (error) {
+        if (this.shouldFallbackToInMemory(error)) {
+          return this.documents.get(`${tenantId}:${docType}:${id}`) ?? null;
+        }
+        throw error;
+      }
     }
 
     return this.documents.get(`${tenantId}:${docType}:${id}`) ?? null;

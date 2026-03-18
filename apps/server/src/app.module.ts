@@ -17,7 +17,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { PolicyModule } from './modules/policy/policy.module';
 import { EvidenceModule } from './modules/evidence/evidence.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
-import { TradingModule } from './modules/trading';
+import { TradingModule } from './modules/trading/trading.module';
 
 @Module({
   imports: [

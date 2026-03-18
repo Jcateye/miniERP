@@ -11,6 +11,7 @@ const DEV_AUTH_TENANT_ID = '1';
 const DEV_AUTH_ACTOR_ID = '9001';
 const DEV_AUTH_PERMISSIONS = [
   'evidence:*',
+  'erp:document:read',
   'masterdata.customer.read',
   'masterdata.customer.write',
   'masterdata.sku.read',
@@ -148,6 +149,7 @@ function tryAttachDevelopmentAuthContext(
   request: Request,
   nodeEnv: AuthContextMiddlewareOptions['nodeEnv'],
   authMode: AuthMode,
+  secret: string,
 ): boolean {
   if (nodeEnv !== 'development') {
     return false;
@@ -160,6 +162,25 @@ function tryAttachDevelopmentAuthContext(
   const authorization = readHeaderValue(request, 'authorization');
   if (authorization !== DEV_AUTHORIZATION_HEADER) {
     return false;
+  }
+
+  const encodedContext = readHeaderValue(request, 'x-auth-context');
+  const signature = readHeaderValue(request, 'x-auth-context-signature');
+
+  if (
+    encodedContext &&
+    signature &&
+    isSignatureValid(encodedContext, signature, secret)
+  ) {
+    const authContext = parseAuthContext(encodedContext);
+
+    if (authContext) {
+      const authenticatedRequest = request as Request & AuthenticatedRequest;
+      Object.assign(authenticatedRequest, {
+        authContext,
+      });
+      return true;
+    }
   }
 
   const authenticatedRequest = request as Request & AuthenticatedRequest;
@@ -195,6 +216,7 @@ export function createAuthContextMiddleware(
         request,
         options.nodeEnv,
         options.authMode,
+        options.secret,
       )
     ) {
       next();
