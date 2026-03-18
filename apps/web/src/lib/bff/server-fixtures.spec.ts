@@ -6,6 +6,7 @@ function decodeAuthContext(encoded: string) {
     readonly actorId: string;
     readonly permissions: readonly string[];
     readonly role: string;
+    readonly schemaName?: string;
   };
 }
 
@@ -61,6 +62,16 @@ describe('server-fixtures environment guards', () => {
     delete env.AUTH_CONTEXT_SECRET;
 
     expect(() => createServerHeaders()).toThrow('AUTH_CONTEXT_SECRET is required outside development/test');
+  });
+
+  it('includes schemaName in auth context', () => {
+    env.NODE_ENV = 'test';
+    env.MINIERP_TENANT_SCHEMA = 'tenant_1001';
+
+    const headers = createServerHeaders();
+    const authContext = decodeAuthContext(headers['x-auth-context']);
+
+    expect(authContext.schemaName).toBe('tenant_1001');
   });
 
   it('includes masterdata and document permissions in auth context', () => {

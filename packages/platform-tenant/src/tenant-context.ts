@@ -4,6 +4,7 @@ export interface TenantContext {
   readonly tenantId: string;
   readonly requestId: string;
   readonly actorId?: string;
+  readonly schemaName?: string;
 }
 
 export const tenantContextStorage = new AsyncLocalStorage<TenantContext>();

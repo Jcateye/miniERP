@@ -5,6 +5,7 @@ import { createPlatformDb } from '@minierp/platform-db';
 
 interface RequestTenantContext {
   readonly tenantId: string;
+  readonly schemaName?: string;
 }
 
 interface TenantFixture {
@@ -15,6 +16,10 @@ interface TenantFixture {
 interface TenantProbeRow {
   readonly tenant_label: string;
   readonly marker: string;
+}
+
+interface SearchPathRow {
+  readonly current_setting: string;
 }
 
 const requestTenantStorage = new AsyncLocalStorage<RequestTenantContext>();
@@ -32,8 +37,9 @@ const platformDbDatabaseDescribe = TEST_DATABASE_URL ? describe : describe.skip;
 function withTenantContext<T>(
   tenantId: string,
   work: () => Promise<T>,
+  schemaName?: string,
 ): Promise<T> {
-  return requestTenantStorage.run({ tenantId }, work);
+  return requestTenantStorage.run({ tenantId, schemaName }, work);
 }
 
 async function ensureRegistryTable(prisma: PrismaClient): Promise<void> {
@@ -120,6 +126,7 @@ platformDbDatabaseDescribe('platform-db tenant transaction integration', () => {
 
       return context.tenantId;
     },
+    getCurrentTenantSchema: () => requestTenantStorage.getStore()?.schemaName,
     nodeEnv: 'test',
   });
 
@@ -165,6 +172,64 @@ platformDbDatabaseDescribe('platform-db tenant transaction integration', () => {
     expect(() => platformDb.assertInTenantTx()).toThrow(
       'Tenant transaction context is required. Wrap the query in withTenantTx().',
     );
+  });
+
+  it('uses schemaName from request context without requiring tenant registry row', async () => {
+    const fixture = tenantFixtures[0];
+    const unregisteredTenantId = `tenant-${runId}-fast-path-only`;
+
+    await prisma.$executeRawUnsafe(
+      `CREATE SCHEMA IF NOT EXISTS "${fixture.schemaName}"`,
+    );
+    await prisma.$executeRawUnsafe(
+      'DELETE FROM public.tenants WHERE tenant_id = $1',
+      unregisteredTenantId,
+    );
+
+    await withTenantContext(
+      unregisteredTenantId,
+      async () => {
+        await platformDb.withTenantTx(async (tx) => {
+          const searchPathRows = await tx.$queryRawUnsafe<SearchPathRow[]>(
+            "SELECT current_setting('search_path') AS current_setting",
+          );
+          const primarySearchPath = searchPathRows[0]?.current_setting
+            .split(',')[0]
+            ?.trim()
+            .replace(/^"|"$/gu, '');
+          expect(primarySearchPath).toBe(fixture.schemaName);
+
+          await tx.$executeRawUnsafe(
+            'INSERT INTO tenant_probe (tenant_label, marker) VALUES ($1, $2)',
+            unregisteredTenantId,
+            'fast-path-only',
+          );
+        });
+      },
+      fixture.schemaName,
+    );
+
+    await expect(
+      platformDb.getTenantSchema(unregisteredTenantId),
+    ).rejects.toThrow(/Tenant schema is not registered/);
+
+    const rows = await withTenantContext(
+      fixture.tenantId,
+      () =>
+        platformDb.withTenantTx((tx) =>
+          tx.$queryRawUnsafe<TenantProbeRow[]>(
+            'SELECT tenant_label, marker FROM tenant_probe ORDER BY id',
+          ),
+        ),
+      fixture.schemaName,
+    );
+
+    expect(rows).toEqual([
+      {
+        tenant_label: unregisteredTenantId,
+        marker: 'fast-path-only',
+      },
+    ]);
   });
 
   it('keeps same-named rows invisible across three tenant schemas', async () => {
@@ -230,7 +295,11 @@ platformDbDatabaseDescribe('platform-db tenant transaction integration', () => {
               'SELECT tenant_label, marker FROM tenant_probe ORDER BY id',
             );
 
-            if (rows.some((row) => row.tenant_label !== fixture.tenantId)) {
+            if (
+              rows.some(
+                (row: TenantProbeRow) => row.tenant_label !== fixture.tenantId,
+              )
+            ) {
               throw new Error(
                 `cross-tenant leak detected in ${fixture.schemaName}`,
               );

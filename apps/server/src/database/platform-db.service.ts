@@ -21,6 +21,8 @@ export class PlatformDbService implements PlatformDbApi {
       prisma: this.prisma,
       getCurrentTenantId: (): TenantId =>
         this.tenantContext.getRequiredContext().tenantId,
+      getCurrentTenantSchema: (): TenantSchema | undefined =>
+        this.tenantContext.getRequiredContext().schemaName,
       nodeEnv: process.env.NODE_ENV,
     });
   }

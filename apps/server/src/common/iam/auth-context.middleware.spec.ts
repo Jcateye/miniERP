@@ -211,6 +211,7 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
         'masterdata.warehouse.write',
       ],
       role: 'tenant_admin',
+      schemaName: 'tenant_1',
     });
   });
 
@@ -226,6 +227,7 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
       actorId: '2001',
       permissions: ['erp:document:read'],
       role: 'tenant_admin',
+      schemaName: 'tenant_1001',
     });
 
     const request = createRequest({
@@ -249,6 +251,7 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
       actorId: '2001',
       permissions: ['erp:document:read'],
       role: 'tenant_admin',
+      schemaName: 'tenant_1001',
     });
   });
 
@@ -342,6 +345,44 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
     });
   });
 
+  it('rejects request when schemaName is invalid in signed auth context', async () => {
+    const middleware = createAuthContextMiddleware({
+      authMode: 'both',
+      secret,
+      nodeEnv: 'test',
+    });
+
+    const encoded = encodeContext({
+      tenantId: '1001',
+      actorId: '2001',
+      permissions: ['erp:document:read'],
+      role: 'tenant_admin',
+      schemaName: 'tenant-1001',
+    });
+
+    const request = createRequest({
+      'x-auth-context': encoded,
+      'x-auth-context-signature': sign(encoded),
+    });
+
+    const { response, status, json } = createResponse();
+
+    const { nextCalled } = await runMiddleware({
+      middleware,
+      request,
+      response,
+    });
+
+    expect(nextCalled).toBe(false);
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'AUTH_INVALID_CONTEXT',
+        message: 'Authenticated context payload is invalid',
+      },
+    });
+  });
+
   it('attaches parsed auth context when payload and signature are valid', async () => {
     const middleware = createAuthContextMiddleware({
       authMode: 'both',
@@ -354,6 +395,7 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
       actorId: '2001',
       permissions: [' evidence:link:create '],
       role: 'tenant_admin',
+      schemaName: 'tenant_1001',
     });
 
     const request = createRequest({
@@ -375,6 +417,7 @@ describe('authContextMiddleware (hmac + dev bypass)', () => {
       actorId: '2001',
       permissions: ['evidence:link:create'],
       role: 'tenant_admin',
+      schemaName: 'tenant_1001',
     });
   });
 });

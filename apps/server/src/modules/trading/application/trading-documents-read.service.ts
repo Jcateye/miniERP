@@ -4,7 +4,6 @@ import {
   type CoreDocumentType,
 } from '../../core-document/domain/status-transition';
 import { PlatformDbService } from '../../../database/platform-db.service';
-import { resolveTenantDbId } from '../../masterdata/infrastructure/prisma-tenant-id.resolver';
 import type {
   DocumentDetail,
   DocumentLine,
@@ -38,16 +37,15 @@ export class TradingDocumentsReadService {
     return this.platformDb.withTenantTx(async (tx) => {
       const page = query.page ?? 1;
       const pageSize = query.pageSize ?? 20;
-      const tenantDbId = await resolveTenantDbId(tx, tenantId);
       const skip = (page - 1) * pageSize;
 
       if (query.docType === 'PO') {
         const [total, rows] = await Promise.all([
           tx.purchaseOrder.count({
-            where: { tenantId: tenantDbId, deletedAt: null },
+            where: { deletedAt: null },
           }),
           tx.purchaseOrder.findMany({
-            where: { tenantId: tenantDbId, deletedAt: null },
+            where: { deletedAt: null },
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             skip,
             take: pageSize,
@@ -60,7 +58,7 @@ export class TradingDocumentsReadService {
             ? []
             : await tx.purchaseOrderLine.groupBy({
                 by: ['poId'],
-                where: { tenantId: tenantDbId, poId: { in: ids } },
+                where: { poId: { in: ids } },
                 _count: { _all: true },
               });
 
@@ -87,10 +85,10 @@ export class TradingDocumentsReadService {
       if (query.docType === 'GRN') {
         const [total, rows] = await Promise.all([
           tx.grn.count({
-            where: { tenantId: tenantDbId, deletedAt: null },
+            where: { deletedAt: null },
           }),
           tx.grn.findMany({
-            where: { tenantId: tenantDbId, deletedAt: null },
+            where: { deletedAt: null },
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             skip,
             take: pageSize,
@@ -103,7 +101,7 @@ export class TradingDocumentsReadService {
             ? []
             : await tx.grnLine.groupBy({
                 by: ['grnId'],
-                where: { tenantId: tenantDbId, grnId: { in: ids } },
+                where: { grnId: { in: ids } },
                 _count: { _all: true },
               });
 
@@ -130,13 +128,13 @@ export class TradingDocumentsReadService {
       if (query.docType === 'SO') {
         const [rows, total] = await Promise.all([
           tx.salesOrder.findMany({
-            where: { tenantId: tenantDbId, deletedAt: null },
+            where: { deletedAt: null },
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             skip,
             take: pageSize,
           }),
           tx.salesOrder.count({
-            where: { tenantId: tenantDbId, deletedAt: null },
+            where: { deletedAt: null },
           }),
         ]);
 
@@ -146,7 +144,7 @@ export class TradingDocumentsReadService {
             ? []
             : await tx.salesOrderLine.groupBy({
                 by: ['soId'],
-                where: { tenantId: tenantDbId, soId: { in: soIds } },
+                where: { soId: { in: soIds } },
                 _count: { _all: true },
               });
         const lineCountById = new Map<string, number>(
@@ -171,13 +169,13 @@ export class TradingDocumentsReadService {
 
       const [rows, total] = await Promise.all([
         tx.outbound.findMany({
-          where: { tenantId: tenantDbId, deletedAt: null },
+          where: { deletedAt: null },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           skip,
           take: pageSize,
         }),
         tx.outbound.count({
-          where: { tenantId: tenantDbId, deletedAt: null },
+          where: { deletedAt: null },
         }),
       ]);
 
@@ -187,7 +185,7 @@ export class TradingDocumentsReadService {
           ? []
           : await tx.outboundLine.groupBy({
               by: ['outboundId'],
-              where: { tenantId: tenantDbId, outboundId: { in: outboundIds } },
+              where: { outboundId: { in: outboundIds } },
               _count: { _all: true },
             });
       const lineCountById = new Map<string, number>(
@@ -220,7 +218,6 @@ export class TradingDocumentsReadService {
     tenantId: string,
   ): Promise<DocumentDetail | null> {
     return this.platformDb.withTenantTx(async (tx) => {
-      const tenantDbId = await resolveTenantDbId(tx, tenantId);
       const documentId = parseDocumentId(id);
       if (documentId === null) {
         return null;
@@ -228,7 +225,7 @@ export class TradingDocumentsReadService {
 
       if (docType === 'PO') {
         const header = await tx.purchaseOrder.findFirst({
-          where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
+          where: { id: documentId, deletedAt: null },
         });
 
         if (!header) {
@@ -236,7 +233,7 @@ export class TradingDocumentsReadService {
         }
 
         const lines = await tx.purchaseOrderLine.findMany({
-          where: { tenantId: tenantDbId, poId: header.id },
+          where: { poId: header.id },
           orderBy: { lineNo: 'asc' },
         });
 
@@ -253,7 +250,7 @@ export class TradingDocumentsReadService {
 
       if (docType === 'GRN') {
         const header = await tx.grn.findFirst({
-          where: { tenantId: tenantDbId, id: documentId, deletedAt: null },
+          where: { id: documentId, deletedAt: null },
         });
 
         if (!header) {
@@ -261,7 +258,7 @@ export class TradingDocumentsReadService {
         }
 
         const lines = await tx.grnLine.findMany({
-          where: { tenantId: tenantDbId, grnId: header.id },
+          where: { grnId: header.id },
           orderBy: { lineNo: 'asc' },
         });
 
@@ -278,7 +275,7 @@ export class TradingDocumentsReadService {
 
       if (docType === 'SO') {
         const header = await tx.salesOrder.findFirst({
-          where: { id: documentId, tenantId: tenantDbId, deletedAt: null },
+          where: { id: documentId, deletedAt: null },
         });
 
         if (!header) {
@@ -286,7 +283,7 @@ export class TradingDocumentsReadService {
         }
 
         const lines = await tx.salesOrderLine.findMany({
-          where: { tenantId: tenantDbId, soId: header.id },
+          where: { soId: header.id },
           orderBy: { lineNo: 'asc' },
         });
 
@@ -302,7 +299,7 @@ export class TradingDocumentsReadService {
       }
 
       const header = await tx.outbound.findFirst({
-        where: { id: documentId, tenantId: tenantDbId, deletedAt: null },
+        where: { id: documentId, deletedAt: null },
       });
 
       if (!header) {
@@ -310,7 +307,7 @@ export class TradingDocumentsReadService {
       }
 
       const lines = await tx.outboundLine.findMany({
-        where: { tenantId: tenantDbId, outboundId: header.id },
+        where: { outboundId: header.id },
         orderBy: { lineNo: 'asc' },
       });
 

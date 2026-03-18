@@ -43,6 +43,7 @@ export interface PlatformDbApi {
 export interface PlatformDbDeps {
   readonly prisma: PrismaClient;
   readonly getCurrentTenantId: () => TenantId;
+  readonly getCurrentTenantSchema?: () => TenantSchema | undefined;
   readonly nodeEnv?: string;
   readonly tenantRegistryTable?: string;
 }
@@ -111,6 +112,7 @@ export function createPlatformDb(deps: PlatformDbDeps): PlatformDbApi {
     ): Promise<T> {
       const tenantId = deps.getCurrentTenantId();
       const activeContext = tenantTxStorage.getStore();
+      const currentTenantSchema = deps.getCurrentTenantSchema?.();
 
       const [options, fn] =
         args.length === 1
@@ -137,7 +139,9 @@ export function createPlatformDb(deps: PlatformDbDeps): PlatformDbApi {
         return fn(activeContext.tx);
       }
 
-      const tenantSchema = await this.getTenantSchema(tenantId);
+      const tenantSchema = currentTenantSchema
+        ? assertValidTenantSchema(currentTenantSchema)
+        : await this.getTenantSchema(tenantId);
       return deps.prisma.$transaction(
         async (tx: TenantTxClient) => {
           await applyTenantSearchPath(tx, tenantSchema);

@@ -3,6 +3,7 @@ import * as jwt from 'jsonwebtoken';
 export interface JwtClaims {
   readonly sub: string;
   readonly tenantId: string;
+  readonly schemaName?: string;
 }
 
 function parseRequiredStringClaim(
@@ -17,6 +18,25 @@ function parseRequiredStringClaim(
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     throw new Error(`JWT claim ${key} is required`);
+  }
+
+  return trimmed;
+}
+
+function parseOptionalSchemaNameClaim(payload: jwt.JwtPayload): string | undefined {
+  const raw: unknown = (payload as Record<string, unknown>).schemaName;
+
+  if (typeof raw === 'undefined') {
+    return undefined;
+  }
+
+  if (typeof raw !== 'string') {
+    throw new Error('JWT claim schemaName must be a string');
+  }
+
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    throw new Error('JWT claim schemaName is required when provided');
   }
 
   return trimmed;
@@ -40,6 +60,7 @@ export function verifyHs256Jwt(options: {
     return Promise.resolve<JwtClaims>({
       sub: parseRequiredStringClaim(payload, 'sub'),
       tenantId: parseRequiredStringClaim(payload, 'tenantId'),
+      schemaName: parseOptionalSchemaNameClaim(payload),
     });
   } catch (error) {
     const reason = error instanceof Error ? error : new Error(String(error));

@@ -3,6 +3,7 @@ export interface AuthContext {
   readonly actorId: string;
   readonly permissions: readonly string[];
   readonly role: 'platform_admin' | 'tenant_admin' | 'operator';
+  readonly schemaName?: string;
 }
 
 export interface AuthenticatedRequest {

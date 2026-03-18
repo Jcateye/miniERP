@@ -143,7 +143,7 @@ describe('PurchaseInboundWriteService.executeAction', () => {
       expect.any(Function),
     );
 
-    // 侧面证明 tenantDbId 解析发生在 tx 内（与 confirm 一致）
+    // 侧面证明 tenantDbId 解析发生在 tx 内
     expect(mockTx.tenant.findFirst).toHaveBeenCalledTimes(1);
 
     expect(mockInventoryPostingService.postInTransaction).toHaveBeenCalledTimes(

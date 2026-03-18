@@ -10,6 +10,7 @@ const TEST_AUTH_CONTEXT_SECRET = 'test-only-auth-context-secret';
 const DEV_AUTHORIZATION_HEADER = 'Bearer dev-token';
 const DEV_AUTH_TENANT_ID = '1';
 const DEV_AUTH_ACTOR_ID = 'dev-user';
+const DEV_AUTH_SCHEMA_NAME = 'tenant_1';
 const BFF_FALLBACK_ENV = 'MINIERP_ENABLE_BFF_FIXTURE_FALLBACK';
 const BFF_FALLBACK_HIT_HEADER = 'x-bff-fallback-hit';
 const BFF_FALLBACK_REASON_HEADER = 'x-bff-fallback-reason';
@@ -174,9 +175,14 @@ export function createServerHeaders() {
     nodeEnv === 'development'
       ? DEV_AUTH_ACTOR_ID
       : process.env.MINIERP_ACTOR_ID ?? '9001';
+  const schemaName =
+    nodeEnv === 'development'
+      ? DEV_AUTH_SCHEMA_NAME
+      : process.env.MINIERP_TENANT_SCHEMA ?? 'tenant_1001';
   const authContext = {
     tenantId,
     actorId,
+    schemaName,
     permissions: [
       'evidence:link:create',
       'evidence:link:read',

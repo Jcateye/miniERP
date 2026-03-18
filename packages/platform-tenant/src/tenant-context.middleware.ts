@@ -9,6 +9,7 @@ export interface TenantAuthenticatedRequest {
     readonly tenantId?: string;
     readonly actorId?: string;
     readonly role?: string;
+    readonly schemaName?: string;
   };
 }
 
@@ -94,11 +95,13 @@ export function createTenantContextMiddleware(
 
     const requestId = readHeaderValue(request, 'x-request-id') ?? crypto.randomUUID();
     const actorId = authenticatedRequest.authContext?.actorId;
+    const schemaName = authenticatedRequest.authContext?.schemaName;
 
     const context: TenantContext = {
       tenantId: resolved.tenantId,
       requestId,
       actorId,
+      schemaName,
     };
 
     tenantContextStorage.run(context, () => {

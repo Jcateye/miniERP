@@ -1,18 +1,19 @@
 import type { NextFunction, Request, Response } from 'express';
 import { createTenantContextMiddleware } from './tenant-context.middleware';
 import { tenantContextStorage } from './tenant-context';
+import type { AuthContext } from '../iam/auth-context';
 
 describe('tenantContextMiddleware', () => {
   function createRequest(
     headers: Record<string, string | undefined>,
     path = '/api/evidence',
-  ): Request & { authContext?: unknown } {
+  ): Request & { authContext?: AuthContext } {
     return {
       headers,
       path,
       originalUrl: path,
       header: (name: string) => headers[name.toLowerCase()],
-    } as unknown as Request & { authContext?: unknown };
+    } as unknown as Request & { authContext?: AuthContext };
   }
 
   function createResponse() {
@@ -54,6 +55,7 @@ describe('tenantContextMiddleware', () => {
       actorId: '2002',
       permissions: ['evidence:link:create'],
       role: 'tenant_admin',
+      schemaName: 'tenant_1001',
     };
     const { response } = createResponse();
 
@@ -61,6 +63,7 @@ describe('tenantContextMiddleware', () => {
       const context = tenantContextStorage.getStore();
       expect(context).toEqual({
         tenantId: '1001',
+        schemaName: 'tenant_1001',
         actorId: '2002',
         requestId: 'req-fixed',
       });

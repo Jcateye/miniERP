@@ -5,6 +5,7 @@ import { createPlatformDb } from '@minierp/platform-db';
 
 interface RequestTenantContext {
   readonly tenantId: string;
+  readonly schemaName?: string;
 }
 
 describe('platform-db withTenantTx (Phase1 no retry contract)', () => {
@@ -28,6 +29,7 @@ describe('platform-db withTenantTx (Phase1 no retry contract)', () => {
       }
       return ctx.tenantId;
     },
+    getCurrentTenantSchema: () => requestTenantStorage.getStore()?.schemaName,
     nodeEnv: 'test',
   });
 
@@ -50,6 +52,37 @@ describe('platform-db withTenantTx (Phase1 no retry contract)', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('uses schemaName from request context without querying tenant registry', async () => {
+    const callback = jest.fn(async () => 'ok');
+
+    const result = await requestTenantStorage.run(
+      { tenantId, schemaName: 'tenant_fast_path' },
+      () => platformDb.withTenantTx(callback),
+    );
+
+    expect(result).toBe('ok');
+    expect(prismaMock.$queryRawUnsafe).not.toHaveBeenCalled();
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    expect(txStub.$executeRawUnsafe).toHaveBeenCalledWith(
+      'SET LOCAL search_path = "tenant_fast_path", public',
+    );
+  });
+
+  it('falls back to tenant registry lookup when request context schemaName is missing', async () => {
+    const callback = jest.fn(async () => 'ok');
+
+    const result = await requestTenantStorage.run({ tenantId }, () =>
+      platformDb.withTenantTx(callback),
+    );
+
+    expect(result).toBe('ok');
+    expect(prismaMock.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    expect(txStub.$executeRawUnsafe).toHaveBeenCalledWith(
+      'SET LOCAL search_path = "tenant_no_retry", public',
+    );
   });
 
   it('executes callback exactly once when callback throws', async () => {

@@ -9,6 +9,7 @@ const SWAGGER_PATH_PATTERN = /\/docs(?:\/.*)?$|\/docs-(json|yaml)$/u;
 const DEV_AUTHORIZATION_HEADER = 'Bearer dev-token';
 const DEV_AUTH_TENANT_ID = '1';
 const DEV_AUTH_ACTOR_ID = '9001';
+const DEV_AUTH_SCHEMA_NAME = 'tenant_1';
 const DEV_AUTH_PERMISSIONS = [
   'evidence:*',
   'erp:document:read',
@@ -38,6 +39,23 @@ function shouldBypassAuth(
   }
 
   return nodeEnv === 'development' && SWAGGER_PATH_PATTERN.test(requestPath);
+}
+
+function parseSchemaName(value: unknown): string | undefined {
+  if (typeof value === 'undefined') {
+    return undefined;
+  }
+
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  return /^[A-Za-z_][A-Za-z0-9_]*$/u.test(trimmed) ? trimmed : undefined;
 }
 
 function parseAuthContext(value: string): AuthContext | undefined {
@@ -81,11 +99,17 @@ function parseAuthContext(value: string): AuthContext | undefined {
       .map((permission) => permission.trim())
       .filter((permission) => permission.length > 0);
 
+    const schemaName = parseSchemaName(parsed.schemaName);
+    if (typeof parsed.schemaName !== 'undefined' && !schemaName) {
+      return undefined;
+    }
+
     return {
       tenantId: parsed.tenantId.trim(),
       actorId: parsed.actorId.trim(),
       permissions,
       role: parsed.role,
+      schemaName,
     };
   } catch {
     return undefined;
@@ -191,6 +215,7 @@ function tryAttachDevelopmentAuthContext(
       actorId: DEV_AUTH_ACTOR_ID,
       permissions: [...DEV_AUTH_PERMISSIONS],
       role: 'tenant_admin' as const,
+      schemaName: DEV_AUTH_SCHEMA_NAME,
     },
   });
 
@@ -254,6 +279,7 @@ export function createAuthContextMiddleware(
                 actorId: claims.sub,
                 permissions: [],
                 role: 'operator' as const,
+                schemaName: claims.schemaName,
               },
             });
 

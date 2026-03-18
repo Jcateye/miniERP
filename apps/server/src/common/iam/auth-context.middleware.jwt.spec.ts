@@ -26,10 +26,12 @@ describe('authContextMiddleware (jwt)', () => {
     tenantId: string;
     sub: string;
     secret: string;
+    schemaName?: string;
   }): string {
     return jwt.sign(
       {
         tenantId: payload.tenantId,
+        ...(payload.schemaName ? { schemaName: payload.schemaName } : {}),
       },
       payload.secret,
       {
@@ -46,6 +48,7 @@ describe('authContextMiddleware (jwt)', () => {
       tenantId: 'TENANT-1001',
       sub: '9001',
       secret: jwtSecret,
+      schemaName: 'tenant_1001',
     });
 
     const middleware = createAuthContextMiddleware({
@@ -74,6 +77,7 @@ describe('authContextMiddleware (jwt)', () => {
       actorId: '9001',
       permissions: [],
       role: 'operator',
+      schemaName: 'tenant_1001',
     });
   });
 
@@ -83,6 +87,7 @@ describe('authContextMiddleware (jwt)', () => {
       tenantId: 'TENANT-1001',
       sub: '9001',
       secret: jwtSecret,
+      schemaName: 'tenant_1001',
     });
 
     const secret = 'hmac-secret';
@@ -127,6 +132,7 @@ describe('authContextMiddleware (jwt)', () => {
       actorId: '9001',
       permissions: [],
       role: 'operator',
+      schemaName: 'tenant_1001',
     });
   });
 
